@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CodeVyuh World Map</title>
+  <link rel="stylesheet" href="css/world.css?v=6">
+  <link rel="stylesheet" href="css/hud.css?v=6">
+  <link rel="stylesheet" href="css/regions.css?v=6">
+</head>
+<body>
+  <div id="world-container">
+    <!-- SVG will be injected here by SVGRenderer -->
+  </div>
+
+  <div id="ui-layer">
+    <!-- Tooltip -->
+    <div id="tooltip" class="hidden">
+      <h3 id="tooltip-title">Region Name</h3>
+      <div id="tooltip-progress">Progress: 0%</div>
+      <div class="tooltip-hint">Click to enter</div>
+    </div>
+
+    <!-- Locked Region Warning Toast -->
+    <div id="locked-toast" class="toast">
+      <p id="locked-toast-msg">Complete this stage to unlock the next region</p>
+    </div>
+
+    <!-- Region Overlay (Task View) -->
+    <div id="region-view" class="hidden">
+      <div class="region-view-content">
+        <h1 id="region-view-title">Region Name</h1>
+        <div id="region-view-progress">Progress: 0%</div>
+        <div class="region-task-placeholder">
+          <h3>Available Tasks</h3>
+          <ul>
+            <li>Task 1 (Placeholder)</li>
+            <li>Task 2 (Placeholder)</li>
+            <li>Task 3 (Placeholder)</li>
+          </ul>
+        </div>
+        <div class="region-actions">
+          <button id="btn-enter-region" class="primary-btn">Enter Region</button>
+          <!-- Test unlock button for simulation -->
+          <button id="btn-complete-stage" class="primary-btn" onclick="window.completeCurrentStage()" style="background-color: #ff8f00;">Complete Stage (Test)</button>
+          <button id="btn-back-world" class="secondary-btn">Back to World</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/config/regions.config.js?v=6"></script>
+  <script src="js/world/utils.js?v=6"></script>
+  <script src="js/world/TerrainGenerator.js?v=6"></script>
+  <script src="js/world/LandmarkManager.js?v=6"></script>
+  <script src="js/world/SVGRenderer.js?v=6"></script>
+  <script src="js/world/FogManager.js?v=6"></script>
+  <script src="js/world/RegionManager.js?v=6"></script>
+  <script src="js/world/CameraController.js?v=6"></script>
+  <script src="js/world/WorldEngine.js?v=6"></script>
+  <script src="js/ui/Tooltip.js?v=6"></script>
+  <script src="js/ui/RegionView.js?v=6"></script>
+  <script src="js/app.js?v=6"></script>
+</body>
+</html>

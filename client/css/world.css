@@ -1,0 +1,91 @@
+:root {
+  --ocean-color-deep: #1a4b6b;
+  --ocean-color-shallow: #3b8eb5;
+  --land-base-color: #7b9e59;
+  --text-primary: #ffffff;
+  --text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+  --ui-bg: rgba(20, 25, 35, 0.9);
+  --ui-border: rgba(255, 255, 255, 0.1);
+  --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+}
+
+body, html {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background-color: var(--ocean-color-deep); 
+  font-family: var(--font-family);
+  color: var(--text-primary);
+}
+
+#world-container {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  cursor: grab;
+  /* Deep ocean background only */
+  background-color: var(--ocean-color-deep);
+}
+
+#world-container:active {
+  cursor: grabbing;
+}
+
+/* SVG Base Styling */
+#world-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Base interactive SVG group */
+#world-group {
+  transform-origin: 0 0;
+  /* Removed default transition to fix panning matrix glitches */
+}
+
+#world-group.zooming {
+  transition: transform 0.15s cubic-bezier(0.2, 0, 0.2, 1);
+}
+
+#world-group.animating {
+  transition: transform 1s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* SVG Element Utilities */
+.shadow-drop {
+  filter: drop-shadow(0px 10px 10px rgba(0,0,0,0.5));
+}
+
+.mountain-shadow {
+  filter: drop-shadow(-5px 10px 8px rgba(0,0,0,0.6));
+}
+
+.landmark-shadow {
+  filter: drop-shadow(-8px 15px 12px rgba(0,0,0,0.7));
+}
+
+/* Hover States for Interactivity */
+.region-group {
+  transition: transform 250ms ease, filter 250ms ease, opacity 250ms ease;
+}
+
+.region-plate {
+  transition: filter 0.3s ease, stroke-width 0.3s ease;
+}
+
+/* Old hover style removed since JS handles it dynamically now */
+
+.landmark-element {
+  transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
