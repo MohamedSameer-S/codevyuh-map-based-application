@@ -4,16 +4,12 @@ class WorldEngine {
     if (!this.container) throw new Error(`Container #${containerId} not found`);
 
     // 1. Dynamic Bounding Box Engine
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    let minX = 1500, maxX = 4100, minY = 1200, maxY = 3400; // Frozen original bounds
     const regionsConfig = window.CodeVyuhRegions || [];
     
     if (regionsConfig.length > 0) {
-      regionsConfig.forEach(r => {
-        if (r.x < minX) minX = r.x;
-        if (r.x > maxX) maxX = r.x;
-        if (r.y < minY) minY = r.y;
-        if (r.y > maxY) maxY = r.y;
-      });
+      // Intentionally bypassed dynamic bound generation to lock the map size perfectly.
+      // Regions can now be freely repositioned outward without enlarging the world.
     } else {
       // Fallback if no regions exist
       minX = 2000; maxX = 3000; minY = 2000; maxY = 3000;
@@ -139,7 +135,7 @@ class WorldEngine {
 }
 
 // Global functions as requested for external or internal use
-window.animateCameraTo = (targetX, targetY, targetScale, duration = 900) => {
+window.animateCameraTo = (targetX, targetY, targetScale, duration = window.CAMERA_ANIMATION?.zoomDuration || 250) => {
   const engine = window.worldEngineInstance;
   if (!engine) return Promise.resolve();
 
@@ -179,7 +175,7 @@ window.closeRegionModal = () => {
 window.resetWorldView = () => {
   const engine = window.worldEngineInstance;
   if (engine) {
-    engine.camera.animateCameraTo(window.engineCenterX || 2500, window.engineCenterY || 2000, 0.4, 900);
+    engine.camera.animateCameraTo(window.engineCenterX || 2500, window.engineCenterY || 2000, 0.4, window.CAMERA_ANIMATION?.zoomDuration || 250);
   }
 };
 
@@ -190,7 +186,7 @@ window.focusRegion = (regionId) => {
     const maxDim = Math.max(region.width, region.height);
     const targetScale = maxDim > 900 ? 1.35 : 1.55;
     
-    window.animateCameraTo(region.x, region.y, targetScale, 1000).then(() => {
+    window.animateCameraTo(region.x, region.y, targetScale, window.CAMERA_ANIMATION?.zoomDuration || 250).then(() => {
       window.openRegionModal(regionId);
     });
   }

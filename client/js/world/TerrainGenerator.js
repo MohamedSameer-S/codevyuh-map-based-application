@@ -10,83 +10,67 @@ class TerrainGenerator {
   }
 
   generateBaseLandmass(renderQueue) {
-    // We are delegating the Ocean background to pure CSS to avoid Chromium 
-    // rendering limits on massive SVG gradients (>32768px). 
-    // The #world-container will handle the deep ocean styling.
+    // Calculate dynamic island radius (slightly reduced to 1.15 to reveal surrounding ocean)
+    const rx = (this.bounds.maxX - this.bounds.minX) / 2 * 1.15;
+    const ry = (this.bounds.maxY - this.bounds.minY) / 2 * 1.15;
 
-    // Calculate dynamic island radius
-    // We want the island to encompass all regions, plus a generous padding 
-    // so the green grass extends out further.
-    const rx = (this.bounds.maxX - this.bounds.minX) / 2 * 1.3;
-    const ry = (this.bounds.maxY - this.bounds.minY) / 2 * 1.3;
+    // Define playable bounds that encompass the entire plains area (1.8 scale)
+    this.playableBounds = {
+      minX: this.centerX - (rx * 1.8),
+      maxX: this.centerX + (rx * 1.8),
+      minY: this.centerY - (ry * 1.8),
+      maxY: this.centerY + (ry * 1.8)
+    };
 
-    // 0. Biome Halos (Ground Blending)
-    const haloGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    haloGroup.setAttribute("id", "biome-halos");
-    haloGroup.style.mixBlendMode = "overlay"; // Blend into grass
-    
-    this.regionsConfig.forEach(r => {
-      // Ensure the theme exists and matches our halo gradients
-      const theme = r.theme || 'plains';
-      const halo = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-      halo.setAttribute("cx", r.x);
-      halo.setAttribute("cy", r.y);
-      halo.setAttribute("r", Math.max(r.width, r.height) * 2.5); // Massive soft bleed
-      halo.setAttribute("fill", `url(#halo-${theme})`);
-      haloGroup.appendChild(halo);
-    });
+    // 0. Ocean depth layers
+    this.drawOceanDepth(rx, ry);
 
-    // 1. Generate Procedural Coastline (Base Layer)
-    // Multiplied rx and ry by 2.2 to push the coastline out of the 5000x4000 bounds
+    // 1. Coastline / Shoreline
     const baseLayerPath = this.generateIslandPath(this.centerX, this.centerY, rx * 2.2, ry * 2.2, 0.4);
-    const landBase = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    landBase.setAttribute("d", baseLayerPath);
-    landBase.setAttribute("fill", "#668c4a"); 
-    landBase.setAttribute("stroke", "#cca25c"); // beach outline
-    landBase.setAttribute("stroke-width", "30");
-    landBase.setAttribute("filter", "url(#drop-shadow)");
-
-    // Add inner beach
-    const innerBeach = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    innerBeach.setAttribute("d", baseLayerPath);
-    innerBeach.setAttribute("fill", "transparent");
-    innerBeach.setAttribute("stroke", "#e5c58a");
-    innerBeach.setAttribute("stroke-width", "12");
+    this.drawShoreline(baseLayerPath);
 
     // 2. Mid Elevation (Plains)
-    // Multiplied by 1.8 to ensure plains also extend to the bounds
     const plainsPath = this.generateIslandPath(this.centerX, this.centerY, rx * 1.8, ry * 1.8, 0.3);
     const landPlains = document.createElementNS("http://www.w3.org/2000/svg", "path");
     landPlains.setAttribute("d", plainsPath);
     landPlains.setAttribute("fill", "#7b9e59");
     landPlains.setAttribute("filter", "drop-shadow(0px 10px 5px rgba(0,0,0,0.3))");
+    this.renderer.getLayer('landmass').appendChild(landPlains);
 
-    // 3. High Elevation (Highlands)
+    // 3. Terrain Patches for variation
+    this.drawTerrainPatches(rx, ry);
+
+    // 4. High Elevation (Highlands)
+    // Removed because it creates a muddy dark boundary outline in the center
+    /*
     const highlandsPath = this.generateIslandPath(this.centerX, this.centerY, rx * 0.5, ry * 0.5, 0.5);
     const landHighlands = document.createElementNS("http://www.w3.org/2000/svg", "path");
     landHighlands.setAttribute("d", highlandsPath);
     landHighlands.setAttribute("fill", "#8dae6b");
     landHighlands.setAttribute("filter", "drop-shadow(0px 15px 10px rgba(0,0,0,0.4))");
-
-    // 4. Strategy Grid
-    const gridOverlay = this.generateStrategyGrid(baseLayerPath);
-
-    this.renderer.getLayer('landmass').appendChild(landBase);
-    this.renderer.getLayer('landmass').appendChild(haloGroup); // Halos bleed onto base
-    this.renderer.getLayer('landmass').appendChild(innerBeach);
-    this.renderer.getLayer('landmass').appendChild(landPlains);
     this.renderer.getLayer('landmass').appendChild(landHighlands);
-    this.renderer.getLayer('landmass').appendChild(gridOverlay);
+    */
 
-    // 5. Inland Lakes (Randomly scattered within plains radius)
-    this.generateLakes(rx * 0.7, ry * 0.7);
+    // 5. Strategy Grid
+    // Removed to eliminate the technical pathfinding/quadrant guide lines
+    /*
+    const gridOverlay = this.generateStrategyGrid(baseLayerPath);
+    this.renderer.getLayer('landmass').appendChild(gridOverlay);
+    */
+
+    // 6. Biome Halos (Ground Blending)
+    this.drawBiomeHalos();
+
+    // 7. Water Network & Regional Separation
+    this.generateWaterNetwork();
     
-    this.generateRivers();
-    this.generateRoads(); // MST Roads
+    // 8. Roads
+    // Removed to eliminate the straight brown divider paths
+    // this.generateRoads(); // MST Roads
     
-    // We now use a unified ecology generation with Z-Sorting
+    // 9. Ecology (Unified generation with Z-Sorting)
     this.renderQueue = renderQueue || [];
-    this.generateEcology(rx, ry);
+    this.generateEcology(rx * 1.8, ry * 1.8);
     
     // If we own the queue, render it immediately. Otherwise defer to WorldEngine.
     if (!renderQueue) {
@@ -95,6 +79,71 @@ class TerrainGenerator {
         this.renderer.getLayer('terrain').appendChild(item.element);
       });
     }
+  }
+
+  drawOceanDepth(rx, ry) {
+    const shelfPath = this.generateIslandPath(this.centerX, this.centerY, rx * 2.8, ry * 2.8, 0.3);
+    const shelf = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    shelf.setAttribute("d", shelfPath);
+    shelf.setAttribute("fill", "#235a7a");
+    
+    const coastalPath = this.generateIslandPath(this.centerX, this.centerY, rx * 2.4, ry * 2.4, 0.35);
+    const coastal = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    coastal.setAttribute("d", coastalPath);
+    coastal.setAttribute("fill", "#2c7299");
+    
+    this.renderer.getLayer('ocean').appendChild(shelf);
+    this.renderer.getLayer('ocean').appendChild(coastal);
+  }
+
+  drawShoreline(baseLayerPath) {
+    const beach = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    beach.setAttribute("d", baseLayerPath);
+    beach.setAttribute("fill", "#eecfa1"); // Sand
+    beach.setAttribute("stroke", "#4bb5c1"); // Shallow turquoise border
+    beach.setAttribute("stroke-width", "30");
+    beach.setAttribute("filter", "drop-shadow(0px 8px 12px rgba(0,0,0,0.3))");
+    
+    this.renderer.getLayer('landmass').appendChild(beach);
+  }
+
+  drawTerrainPatches(rx, ry) {
+    const numPatches = 80;
+    const colors = ["#85b060", "#6d914d", "#76a156", "#8bba62"];
+    for (let i = 0; i < numPatches; i++) {
+      const angle = window.rng.next() * Math.PI * 2;
+      const dist = window.rng.next() * rx * 1.8;
+      const cx = this.centerX + Math.cos(angle) * dist;
+      const cy = this.centerY + Math.sin(angle) * dist * 0.8;
+      
+      const prx = 150 + window.rng.next() * 350;
+      const pry = 100 + window.rng.next() * 250;
+      
+      const patchPath = this.generateIslandPath(cx, cy, prx, pry, 0.4);
+      const patch = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      patch.setAttribute("d", patchPath);
+      patch.setAttribute("fill", colors[Math.floor(window.rng.next() * colors.length)]);
+      patch.setAttribute("opacity", "0.7");
+      
+      this.renderer.getLayer('landmass').appendChild(patch);
+    }
+  }
+
+  drawBiomeHalos() {
+    const haloGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    haloGroup.setAttribute("id", "biome-halos");
+    haloGroup.style.mixBlendMode = "overlay"; 
+    
+    this.regionsConfig.forEach(r => {
+      const theme = r.theme || 'plains';
+      const halo = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      halo.setAttribute("cx", r.x);
+      halo.setAttribute("cy", r.y);
+      halo.setAttribute("r", Math.max(r.width, r.height) * 2.5);
+      halo.setAttribute("fill", `url(#halo-${theme})`);
+      haloGroup.appendChild(halo);
+    });
+    this.renderer.getLayer('landmass').appendChild(haloGroup);
   }
 
   generateIslandPath(cx, cy, rx, ry, roughness) {
@@ -123,25 +172,208 @@ class TerrainGenerator {
     return path;
   }
 
-  generateLakes() {
-    // Specifically placed lakes to act as hubs for rivers
-    const lakes = [
-      { cx: 1200, cy: 900, rx: 300, ry: 150 },   // Top Left Lake
-      { cx: 2500, cy: 1900, rx: 400, ry: 200 },  // Center Lake
-      { cx: 3800, cy: 3000, rx: 350, ry: 180 },  // Bottom Right Lake
-      { cx: 600, cy: 2550, rx: 280, ry: 140 }    // Left Lake (Systems Republic)
-    ];
+  drawBridgeHint(cx, cy, type, angle = 0) {
+    const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    group.setAttribute("transform", `translate(${cx}, ${cy}) rotate(${angle})`);
 
-    lakes.forEach(lake => {
-      const lakePath = this.generateIslandPath(lake.cx, lake.cy, lake.rx, lake.ry, 0.4);
+    // Road goes left to right crossing the river
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", "M -120,0 L 120,0");
+    path.setAttribute("stroke", "#8d6e63");
+    path.setAttribute("stroke-width", "12");
+    path.setAttribute("stroke-dasharray", "20 15");
+    group.appendChild(path);
+
+    if (type === 'stone') {
+      const bridge = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      bridge.setAttribute("x", "-40"); bridge.setAttribute("y", "-30");
+      bridge.setAttribute("width", "80"); bridge.setAttribute("height", "60");
+      bridge.setAttribute("fill", "#90a4ae");
+      bridge.setAttribute("rx", "10");
+      group.appendChild(bridge);
+      const p1 = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      p1.setAttribute("x", "-40"); p1.setAttribute("y", "-30"); p1.setAttribute("width", "80"); p1.setAttribute("height", "8"); p1.setAttribute("fill", "#607d8b");
+      const p2 = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      p2.setAttribute("x", "-40"); p2.setAttribute("y", "22"); p2.setAttribute("width", "80"); p2.setAttribute("height", "8"); p2.setAttribute("fill", "#607d8b");
+      group.appendChild(p1); group.appendChild(p2);
+    } else if (type === 'broken') {
+      const b1 = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      b1.setAttribute("d", "M -40,-20 L -10,-10 L -20,20 L -40,20 Z");
+      b1.setAttribute("fill", "#455a64");
+      const b2 = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      b2.setAttribute("d", "M 40,-20 L 20,5 L 40,10 Z");
+      b2.setAttribute("fill", "#455a64");
+      const d1 = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      d1.setAttribute("cx", "0"); d1.setAttribute("cy", "0"); d1.setAttribute("r", "6"); d1.setAttribute("fill", "#37474f");
+      group.appendChild(b1); group.appendChild(b2); group.appendChild(d1);
+    } else if (type === 'mechanical') {
+      const bridge = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      bridge.setAttribute("x", "-50"); bridge.setAttribute("y", "-25");
+      bridge.setAttribute("width", "100"); bridge.setAttribute("height", "50");
+      bridge.setAttribute("fill", "#37474f");
+      const pipe = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      pipe.setAttribute("x1", "-50"); pipe.setAttribute("y1", "0"); pipe.setAttribute("x2", "50"); pipe.setAttribute("y2", "0");
+      pipe.setAttribute("stroke", "#ffb300"); pipe.setAttribute("stroke-width", "6");
+      group.appendChild(bridge); group.appendChild(pipe);
+    } else if (type === 'vine') {
+      const v1 = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      v1.setAttribute("d", "M -50,-15 Q 0,-25 50,-15");
+      v1.setAttribute("stroke", "#558b2f"); v1.setAttribute("stroke-width", "6"); v1.setAttribute("fill", "none");
+      const v2 = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      v2.setAttribute("d", "M -50,15 Q 0,25 50,15");
+      v2.setAttribute("stroke", "#33691e"); v2.setAttribute("stroke-width", "6"); v2.setAttribute("fill", "none");
+      for(let i=-40; i<=40; i+=15) {
+        const plank = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        plank.setAttribute("x1", i); plank.setAttribute("y1", "-12"); plank.setAttribute("x2", i); plank.setAttribute("y2", "12");
+        plank.setAttribute("stroke", "#795548"); plank.setAttribute("stroke-width", "6");
+        group.appendChild(plank);
+      }
+      group.appendChild(v1); group.appendChild(v2);
+    }
+    
+    group.setAttribute("filter", "url(#drop-shadow)");
+    this.renderer.getLayer('roads').appendChild(group);
+  }
+
+  generateWaterNetwork() {
+    const drawRiver = (pathString, baseColor, coreColor, baseWidth, coreWidth, isJagged = false, highlightColor = null) => {
+      const riverBase = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      riverBase.setAttribute("d", pathString);
+      riverBase.setAttribute("fill", "none");
+      riverBase.setAttribute("stroke", baseColor);
+      riverBase.setAttribute("stroke-width", baseWidth);
+      riverBase.setAttribute("stroke-linecap", isJagged ? "square" : "round");
+      riverBase.setAttribute("stroke-linejoin", isJagged ? "miter" : "round");
+
+      const riverCore = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      riverCore.setAttribute("d", pathString);
+      riverCore.setAttribute("fill", "none");
+      riverCore.setAttribute("stroke", coreColor);
+      riverCore.setAttribute("stroke-width", coreWidth);
+      riverCore.setAttribute("stroke-linecap", isJagged ? "square" : "round");
+      riverCore.setAttribute("stroke-linejoin", isJagged ? "miter" : "round");
+
+      this.renderer.getLayer('rivers').appendChild(riverBase);
+      this.renderer.getLayer('rivers').appendChild(riverCore);
+    };
+
+    const drawLake = (cx, cy, rx, ry, baseColor, coreColor) => {
+      const lakePath = this.generateIslandPath(cx, cy, rx, ry, 0.4);
       const lakeSvg = document.createElementNS("http://www.w3.org/2000/svg", "path");
       lakeSvg.setAttribute("d", lakePath);
-      lakeSvg.setAttribute("fill", "#3b8eb5");
-      lakeSvg.setAttribute("stroke", "#e5c58a");
-      lakeSvg.setAttribute("stroke-width", "5");
-      lakeSvg.setAttribute("filter", "drop-shadow(inset 0px 5px 10px rgba(0,0,0,0.5))");
+      lakeSvg.setAttribute("fill", baseColor);
+      
+      const corePath = this.generateIslandPath(cx, cy, rx * 0.6, ry * 0.6, 0.3);
+      const coreSvg = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      coreSvg.setAttribute("d", corePath);
+      coreSvg.setAttribute("fill", coreColor);
+      coreSvg.setAttribute("filter", "drop-shadow(inset 0px 5px 10px rgba(0,0,0,0.3))");
+      
       this.renderer.getLayer('rivers').appendChild(lakeSvg);
+      this.renderer.getLayer('rivers').appendChild(coreSvg);
+    };
+
+    const drawJunctionBay = (cx, cy, radius, baseColor, coreColor) => {
+      // Creates a smooth widening effect where rivers meet lakes
+      const bayBase = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      bayBase.setAttribute("cx", cx);
+      bayBase.setAttribute("cy", cy);
+      bayBase.setAttribute("r", radius);
+      bayBase.setAttribute("fill", baseColor);
+      
+      const bayCore = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      bayCore.setAttribute("cx", cx);
+      bayCore.setAttribute("cy", cy);
+      bayCore.setAttribute("r", radius * 0.65);
+      bayCore.setAttribute("fill", coreColor);
+      bayCore.setAttribute("filter", "drop-shadow(inset 0px 5px 10px rgba(0,0,0,0.3))");
+
+      this.renderer.getLayer('rivers').appendChild(bayBase);
+      this.renderer.getLayer('rivers').appendChild(bayCore);
+    };
+
+    const catmullRom2bezier = (points) => {
+      let d = `M ${points[0].x},${points[0].y} `;
+      for (let i = 0; i < points.length - 1; i++) {
+        const p0 = i === 0 ? points[0] : points[i - 1];
+        const p1 = points[i];
+        const p2 = points[i + 1];
+        const p3 = i + 2 < points.length ? points[i + 2] : p2;
+
+        const cp1x = p1.x + (p2.x - p0.x) / 6;
+        const cp1y = p1.y + (p2.y - p0.y) / 6;
+
+        const cp2x = p2.x - (p3.x - p1.x) / 6;
+        const cp2y = p2.y - (p3.y - p1.y) / 6;
+
+        d += `C ${cp1x},${cp1y} ${cp2x},${cp2y} ${p2.x},${p2.y} `;
+      }
+      return d;
+    };
+
+    // --- RENDER CLEAN CURATED RIVERS ---
+    
+    // 1. Curated Lakes
+    // Logic Pond (NW)
+    drawLake(600, 400, 350, 200, "#80deea", "#00bcd4");
+    drawJunctionBay(600, 400, 110, "#80deea", "#00bcd4");
+    
+    // Python Lake (SE)
+    drawLake(5000, 4400, 320, 200, "#4db6ac", "#00695c");
+    drawJunctionBay(5000, 4400, 110, "#4bb5c1", "#2c7299");
+
+    // 2. Curated Rivers Configuration
+    const curatedRivers = [
+      {
+        id: "main-river",
+        type: "main",
+        // Clean sweeping S-curve from top center down to lower-left (Systems Frontier)
+        path: "M 2500,-200 C 2500,1000 3500,2000 2500,3000 C 1500,4000 1000,4500 -500,4500",
+        baseColor: "#4bb5c1",
+        coreColor: "#2c7299",
+        baseWidth: 240,
+        coreWidth: 100,
+        highlightColor: null,
+        isJagged: false
+      },
+      {
+        id: "logic-branch",
+        type: "tributary",
+        // Smooth curve branching from main river to Logic Pond
+        path: "M 2920,1500 C 2000,1500 1000,1000 600,400",
+        baseColor: "#80deea",
+        coreColor: "#00bcd4",
+        baseWidth: 120,
+        coreWidth: 50,
+        highlightColor: null,
+        isJagged: false
+      },
+      {
+        id: "python-branch",
+        type: "tributary",
+        // Smooth curve branching to Python Lake
+        path: "M 2500,3000 C 3500,3500 4500,3500 5000,4400",
+        baseColor: "#4bb5c1",
+        coreColor: "#2c7299",
+        baseWidth: 120,
+        coreWidth: 50,
+        highlightColor: null,
+        isJagged: false
+      }
+    ];
+
+    // Draw junction points to smooth the river forks
+    drawJunctionBay(2920, 1500, 110, "#4bb5c1", "#2c7299"); // Logic branch fork
+    drawJunctionBay(2500, 3000, 110, "#4bb5c1", "#2c7299"); // Python branch fork
+
+    // Render the rivers
+    curatedRivers.forEach(river => {
+      drawRiver(river.path, river.baseColor, river.coreColor, river.baseWidth, river.coreWidth, river.isJagged, river.highlightColor);
     });
+
+    // Bridges
+    this.drawBridgeHint(2800, 2500, 'stone', -30);
+    this.drawBridgeHint(1200, 4500, 'mechanical', 0);
   }
 
   generateStrategyGrid(clipPathD) {
@@ -164,24 +396,24 @@ class TerrainGenerator {
     // Draw grid lines
     const step = 100;
     // Draw vertical lines spanning the bounds
-    for (let x = this.bounds.minX; x <= this.bounds.maxX; x += step) {
+    for (let x = this.playableBounds.minX; x <= this.playableBounds.maxX; x += step) {
       const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
       line.setAttribute("x1", x);
-      line.setAttribute("y1", this.bounds.minY);
+      line.setAttribute("y1", this.playableBounds.minY);
       line.setAttribute("x2", x);
-      line.setAttribute("y2", this.bounds.maxY);
-      line.setAttribute("stroke", "rgba(0,0,0,0.05)");
+      line.setAttribute("y2", this.playableBounds.maxY);
+      line.setAttribute("stroke", "rgba(255, 255, 255, 0.08)");
       line.setAttribute("stroke-width", "2");
       gridGroup.appendChild(line);
     }
-    // Draw horizontal lines
-    for (let y = this.bounds.minY; y <= this.bounds.maxY; y += step) {
+    // Draw horizontal lines spanning the bounds
+    for (let y = this.playableBounds.minY; y <= this.playableBounds.maxY; y += step) {
       const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      line.setAttribute("x1", this.bounds.minX);
+      line.setAttribute("x1", this.playableBounds.minX);
       line.setAttribute("y1", y);
-      line.setAttribute("x2", this.bounds.maxX);
+      line.setAttribute("x2", this.playableBounds.maxX);
       line.setAttribute("y2", y);
-      line.setAttribute("stroke", "rgba(0,0,0,0.05)");
+      line.setAttribute("stroke", "rgba(255, 255, 255, 0.08)");
       line.setAttribute("stroke-width", "2");
       gridGroup.appendChild(line);
     }
@@ -190,33 +422,7 @@ class TerrainGenerator {
     return g;
   }
 
-  generateRivers() {
-    // Curated rivers that connect lakes and regions WITHOUT going under regions and breaking
-    const riverPaths = [
-      // River 1: Top Left Lake to Logic Dominion to Center Lake
-      "M 1300,1000 C 1600,1100 1700,1300 1800,1400 C 1900,1500 2200,1700 2400,1850",
-      
-      // River 2: Debug Wasteland to Center Lake
-      "M 3000,1400 C 2900,1500 2800,1700 2600,1850",
-      
-      // River 3: Center Lake down between Systems & Python to Bottom Right Lake
-      "M 2400,1950 C 2200,2100 1800,2200 1800,2300 C 1800,2500 2500,2500 2800,2600 C 3100,2700 3500,2900 3700,3000",
-      
-      // River 4: Systems Republic to left boundary
-      "M 1300,2400 C 1000,2500 800,2550 600,2550"
-    ];
-
-    riverPaths.forEach(d => {
-      const river = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      river.setAttribute("d", d);
-      river.setAttribute("fill", "transparent");
-      river.setAttribute("stroke", "#3b8eb5");
-      river.setAttribute("stroke-width", "30");
-      river.setAttribute("stroke-linecap", "round");
-      river.setAttribute("stroke-linejoin", "round");
-      this.renderer.getLayer('rivers').appendChild(river);
-    });
-  }
+  // Old generateRivers was removed in favor of generateWaterNetwork
 
   generateRoads() {
     if (this.regionsConfig.length < 2) return;
@@ -292,10 +498,10 @@ class TerrainGenerator {
     return false;
   }
 
-  generateEcology(rx, ry) {
+  generateEcology(islandRx, islandRy) {
     const step = 150; // Grid spacing for Poisson-like distribution
-    for (let x = this.bounds.minX; x < this.bounds.maxX; x += step) {
-      for (let y = this.bounds.minY; y < this.bounds.maxY; y += step) {
+    for (let x = this.playableBounds.minX; x < this.playableBounds.maxX; x += step) {
+      for (let y = this.playableBounds.minY; y < this.playableBounds.maxY; y += step) {
         // Randomly skip to create organic clusters
         if (window.rng.next() > 0.45) continue;
 
@@ -305,7 +511,7 @@ class TerrainGenerator {
         // Normalized distance to check if we are on the elliptical island grass
         const dx = jitterX - this.centerX;
         const dy = jitterY - this.centerY;
-        const normalizedDist = (dx*dx)/(rx*rx) + (dy*dy)/(ry*ry);
+        const normalizedDist = (dx*dx)/(islandRx*islandRx) + (dy*dy)/(islandRy*islandRy);
         if (normalizedDist > 0.8) continue; // Keep away from the beach edge
 
         if (!this.isCollision(jitterX, jitterY, 150)) {
