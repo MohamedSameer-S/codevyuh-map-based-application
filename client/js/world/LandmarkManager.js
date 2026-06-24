@@ -18,11 +18,11 @@ class LandmarkManager {
     const dirt = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
     dirt.setAttribute("cx", x);
     dirt.setAttribute("cy", y);
-    dirt.setAttribute("rx", 640); // Proportional massive dirt path
-    dirt.setAttribute("ry", 360);
-    dirt.setAttribute("fill", "#5d4037");
-    dirt.setAttribute("opacity", "0.4");
-    dirt.setAttribute("filter", "blur(10px)");
+    dirt.setAttribute("rx", 220); // Subtle base shadow for grounding only
+    dirt.setAttribute("ry", 110);
+    dirt.setAttribute("fill", "#2d1f18");
+    dirt.setAttribute("opacity", "0.25");
+    dirt.setAttribute("filter", "blur(15px)");
     dirt.style.pointerEvents = "none";
     this.renderer.getLayer('landmass').appendChild(dirt);
 

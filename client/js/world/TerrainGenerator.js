@@ -7,6 +7,56 @@ class TerrainGenerator {
     this.centerX = centerX || 2500;
     this.centerY = centerY || 2000;
     this.regionsConfig = window.CodeVyuhRegions || [];
+
+    // Phase 4C: Organic Territory Boundary Polygons
+    // Mapped exactly to the winding river networks and natural coastline.
+    this.territoryPolygons = {
+      logic: [
+        [-3000, -3100], [2500, -3100], [2500, -200], [2700, 600], [2920, 1500],
+        [2000, 1500], [1000, 1000], [600, 400], [0, 0], [-3000, 0]
+      ],
+      debug: [
+        [2500, -3100], [8600, -3100], [8600, 3500], 
+        [5000, 4400], [4500, 3500], [3500, 3500], [2500, 3000],
+        [3500, 2000], [2700, 600], [2500, -200]
+      ],
+      systems: [
+        [-3000, 0], [0, 0], [600, 400], [1000, 1000], [2000, 1500], [2920, 1500],
+        [2500, 3000], [1500, 4000], [1000, 4500], [-500, 4500], [-1000, 5000],
+        [-1000, 7700], [-3000, 7700]
+      ],
+      python: [
+        [2500, 3000], [3500, 3500], [4500, 3500], [5000, 4400], [8600, 4400],
+        [8600, 7700], [-1000, 7700], [-1000, 5000], [-500, 4500], [1000, 4500], [1500, 4000]
+      ]
+    };
+
+    // Phase 4E Recovery: Zone Templates with fractional offsets from territory centroid
+    this.ecosystemZoneTemplates = [
+      // Logic Dominion - 4 zones
+      { id: "logic-campus-village", theme: "logic", offX: 0.05, offY: -0.2, radius: 220, sceneType: "academyVillage" },
+      { id: "logic-garden", theme: "logic", offX: -0.2, offY: -0.15, radius: 180, sceneType: "gardenCampus" },
+      { id: "logic-riverside", theme: "logic", offX: 0.15, offY: 0.05, radius: 160, sceneType: "riversideStudy" },
+      { id: "logic-forest-edge", theme: "logic", offX: -0.15, offY: -0.05, radius: 180, sceneType: "forestEdge" },
+      // Debug Wasteland - 4 zones
+      { id: "debug-crystal-field", theme: "debug", offX: 0, offY: -0.2, radius: 250, sceneType: "crystalField" },
+      { id: "debug-scar-zone", theme: "debug", offX: 0.2, offY: 0.1, radius: 200, sceneType: "scarZone" },
+      { id: "debug-ruined-stone", theme: "debug", offX: -0.1, offY: 0.15, radius: 180, sceneType: "ruinedStone" },
+      { id: "debug-rocky-border", theme: "debug", offX: -0.2, offY: -0.05, radius: 180, sceneType: "rockyBorder" },
+      // Systems Republic - 4 zones
+      { id: "systems-pipe-yard", theme: "systems", offX: -0.1, offY: -0.1, radius: 250, sceneType: "pipeYard" },
+      { id: "systems-gear-cluster", theme: "systems", offX: 0.15, offY: 0.1, radius: 200, sceneType: "gearCluster" },
+      { id: "systems-rail-zone", theme: "systems", offX: 0.1, offY: -0.15, radius: 180, sceneType: "railZone" },
+      { id: "systems-industrial-outpost", theme: "systems", offX: -0.1, offY: 0.15, radius: 220, sceneType: "industrialOutpost" },
+      // Python Wildlands - 5 zones
+      { id: "python-dense-jungle", theme: "python", offX: 0.15, offY: 0.2, radius: 300, sceneType: "denseJungle" },
+      { id: "python-overgrown-ruins", theme: "python", offX: -0.05, offY: 0.05, radius: 250, sceneType: "overgrownRuins" },
+      { id: "python-vine-cluster", theme: "python", offX: 0.1, offY: -0.05, radius: 200, sceneType: "vineCluster" },
+      { id: "python-tropical-edge", theme: "python", offX: -0.15, offY: -0.05, radius: 220, sceneType: "tropicalEdge" },
+      { id: "python-temple-support", theme: "python", offX: 0.05, offY: 0.25, radius: 250, sceneType: "templeSupport" }
+    ];
+
+    this.DEBUG_ECOSYSTEM_ZONES = false;
   }
 
   generateBaseLandmass(renderQueue) {
@@ -606,99 +656,229 @@ class TerrainGenerator {
   }
 
   generateEcology(islandRx, islandRy) {
-    // New Cluster-Based Ecology (Phase 1B.2)
-    // We achieve organic boundaries by determining the theme based on the nearest region.
+    // Phase 4E Recovery: Computed ecosystem zones with robust fallback
     
     // 1. Natural Mountain Ridges
     this.generateMountainRidges(islandRx, islandRy);
 
-    // 2. Thematic Forest & Prop Clusters with exact controlled density
-    const clusterTargets = {
-      plains: 7,   // Logic Dominion
-      debug: 10,   // Debug Realm
-      systems: 10, // Systems Frontier
-      python: 15   // Python Wildlands
-    };
+    // 2. Compute territory bounds for all territories
+    const territoryBounds = {};
+    for (const [theme, polygon] of Object.entries(this.territoryPolygons)) {
+      territoryBounds[theme] = this.computeTerritoryBounds(polygon);
+    }
 
-    const clusterCounts = { plains: 0, debug: 0, systems: 0, python: 0 };
+    // 3. Resolve and render authored ecosystem zones
+    const zoneReport = [];
+    let validZones = 0;
+    let skippedZones = 0;
+    const angles = [0, Math.PI/4, Math.PI/2, 3*Math.PI/4, Math.PI, 5*Math.PI/4, 3*Math.PI/2, 7*Math.PI/4];
+
+    this.ecosystemZoneTemplates.forEach(template => {
+      const polygon = this.territoryPolygons[template.theme];
+      const bounds = territoryBounds[template.theme];
+      const report = { id: template.id, theme: template.theme, rendered: false, propCount: 0, fallback: 'none', usedRadius10: false, reason: null, cx: 0, cy: 0 };
+
+      // Compute candidate position: centroid + fractional offset of territory dimensions
+      const candidateX = bounds.cx + bounds.width * template.offX;
+      const candidateY = bounds.cy + bounds.height * template.offY;
+
+      let finalX = null, finalY = null;
+
+      // Attempt 1: Direct candidate (collision radius reduced to 20)
+      if (this.validateEcosystemPoint(candidateX, candidateY, polygon, 20)) {
+        finalX = candidateX;
+        finalY = candidateY;
+      } else {
+        // Attempt 2: Ring search around candidate (80, 160, 240, 320px)
+        const rings = [80, 160, 240, 320];
+        let found = false;
+        for (const r of rings) {
+          for (const a of angles) {
+            const tx = candidateX + Math.cos(a) * r;
+            const ty = candidateY + Math.sin(a) * r;
+            if (this.validateEcosystemPoint(tx, ty, polygon, 20)) {
+              finalX = tx;
+              finalY = ty;
+              report.fallback = `ring(r=${r})`;
+              found = true;
+              break;
+            }
+          }
+          if (found) break;
+        }
+
+        // Attempt 3: Centroid fallback
+        if (!found) {
+          if (this.validateEcosystemPoint(bounds.cx, bounds.cy, polygon, 20)) {
+            finalX = bounds.cx;
+            finalY = bounds.cy;
+            report.fallback = 'centroid';
+            found = true;
+          }
+        }
+
+        // Attempt 4: Ring search around centroid
+        if (!found) {
+          for (const r of [100, 200, 300, 400]) {
+            for (const a of angles) {
+              const tx = bounds.cx + Math.cos(a) * r;
+              const ty = bounds.cy + Math.sin(a) * r;
+              if (this.validateEcosystemPoint(tx, ty, polygon, 20)) {
+                finalX = tx;
+                finalY = ty;
+                report.fallback = `centroid-ring(r=${r})`;
+                found = true;
+                break;
+              }
+            }
+            if (found) break;
+          }
+        }
+      }
+
+      if (finalX !== null && finalY !== null) {
+        report.rendered = true;
+        report.cx = Math.round(finalX);
+        report.cy = Math.round(finalY);
+        const result = this.renderEcosystemZone(finalX, finalY, template.theme, polygon, template.radius, template.sceneType);
+        report.propCount = result.propCount;
+        report.usedRadius10 = result.usedRadius10;
+        validZones++;
+      } else {
+        report.rendered = false;
+        report.cx = Math.round(candidateX);
+        report.cy = Math.round(candidateY);
+        report.reason = 'All validation failed (candidate, ring, centroid)';
+        skippedZones++;
+      }
+
+      // Debug visualization (only when flag is true)
+      if (this.DEBUG_ECOSYSTEM_ZONES) {
+        const cx = report.cx;
+        const cy = report.cy;
+        const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        g.style.pointerEvents = "none";
+        
+        let color = "white";
+        if (template.theme === 'logic') color = "cyan";
+        else if (template.theme === 'debug') color = "magenta"; // standard purple is hard to see, use magenta
+        else if (template.theme === 'systems') color = "orange";
+        else if (template.theme === 'python') color = "lime"; // standard green is hard to see, use lime
+
+        // Circle
+        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        circle.setAttribute("cx", cx);
+        circle.setAttribute("cy", cy);
+        circle.setAttribute("r", template.radius);
+        circle.setAttribute("fill", report.rendered ? color : "red");
+        circle.setAttribute("fill-opacity", "0.08");
+        circle.setAttribute("stroke", report.rendered ? color : "red");
+        circle.setAttribute("stroke-width", "3");
+        if (!report.rendered) {
+           circle.setAttribute("stroke-dasharray", "10,10");
+        }
+        g.appendChild(circle);
+
+        // Center crosshair
+        const hLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        hLine.setAttribute("x1", cx - 15); hLine.setAttribute("y1", cy);
+        hLine.setAttribute("x2", cx + 15); hLine.setAttribute("y2", cy);
+        hLine.setAttribute("stroke", report.rendered ? color : "red");
+        hLine.setAttribute("stroke-width", "3");
+        g.appendChild(hLine);
+        const vLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        vLine.setAttribute("x1", cx); vLine.setAttribute("y1", cy - 15);
+        vLine.setAttribute("x2", cx); vLine.setAttribute("y2", cy + 15);
+        vLine.setAttribute("stroke", report.rendered ? color : "red");
+        vLine.setAttribute("stroke-width", "3");
+        g.appendChild(vLine);
+
+        // Text background and text
+        const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        text.setAttribute("x", cx);
+        text.setAttribute("y", cy - 25);
+        text.setAttribute("text-anchor", "middle");
+        text.setAttribute("font-family", "monospace");
+        text.setAttribute("font-size", "24px");
+        text.setAttribute("font-weight", "bold");
+        text.setAttribute("fill", report.rendered ? "white" : "red");
+        text.style.textShadow = "2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000";
+        
+        const statusStr = report.rendered ? "✓ VALID" : "✗ INVALID";
+        const extraInfo = report.rendered ? `[Props: ${report.propCount}]` : `[Reason: ${report.reason}]`;
+        text.textContent = `${template.id} (${template.theme}) | ${statusStr} ${extraInfo}`;
+        
+        g.appendChild(text);
+
+        // Add the group to the very front so it's not hidden by mountains
+        // Using a high y-value for the Z-sorter
+        this.renderQueue.push({ y: 999999, element: g });
+      }
+
+      zoneReport.push(report);
+    });
+
+    // 4. Light territory filler (only if territory looks sparse)
+    const clusterTargets = { logic: 4, debug: 4, systems: 4, python: 5 };
+    const clusterCounts = { logic: 0, debug: 0, systems: 0, python: 0 };
     let totalAttempts = 0;
     const maxAttempts = 3000;
     let targetsMet = false;
 
-    // Phase 1B.2 Debug Counters
-    let rejectedBounds = 0;
-    let rejectedCollision = 0;
-    let totalGroups = 0;
-
     while (!targetsMet && totalAttempts < maxAttempts) {
       totalAttempts++;
-      
       const cx = this.playableBounds.minX + window.rng.next() * (this.playableBounds.maxX - this.playableBounds.minX);
       const cy = this.playableBounds.minY + window.rng.next() * (this.playableBounds.maxY - this.playableBounds.minY);
       
-      const dx = cx - this.centerX;
-      const dy = cy - this.centerY;
-      const normalizedDist = (dx*dx)/(islandRx*islandRx) + (dy*dy)/(islandRy*islandRy);
-      
-      if (normalizedDist > 0.85) {
-        rejectedBounds++;
-      } else if (this.isCollision(cx, cy, 40)) {
-        rejectedCollision++;
-      } else {
-        // Find nearest region to organically assign this cluster's theme
-        let nearestRegion = null;
-        let minDist = Infinity;
-        for (let r of this.regionsConfig) {
-          const dist = Math.sqrt(Math.pow(r.x - cx, 2) + Math.pow(r.y - cy, 2));
-          if (dist < minDist) {
-            minDist = dist;
-            nearestRegion = r;
-          }
-        }
-        
-        const theme = nearestRegion && minDist < 2000 ? (nearestRegion.theme || 'plains') : 'plains';
-        
-        // Only spawn if we need more clusters for this territory
-        if (clusterCounts[theme] < clusterTargets[theme]) {
-          clusterCounts[theme]++;
-          
-          let itemsInCluster = 3 + Math.floor(window.rng.next() * 4);
-          // Adjust density strictly per rules
-          if (theme === 'python') itemsInCluster += 2; // Densest
-          else if (theme === 'plains') itemsInCluster -= 1; // Cleanest
-          
-          for(let j = 0; j < itemsInCluster; j++) {
-             const jx = cx + (window.rng.next() * 160 - 80);
-             const jy = cy + (window.rng.next() * 160 - 80);
-             
-             if (!this.isCollision(jx, jy, 40)) {
-               this.spawnDecoration(jx, jy, theme);
-               totalGroups++;
-             }
+      if (this.isCollision(cx, cy, 20)) continue;
+
+      let theme = null;
+      let activePolygon = null;
+      if (this.isPointInPolygon(cx, cy, this.territoryPolygons.logic)) { theme = 'logic'; activePolygon = this.territoryPolygons.logic; }
+      else if (this.isPointInPolygon(cx, cy, this.territoryPolygons.debug)) { theme = 'debug'; activePolygon = this.territoryPolygons.debug; }
+      else if (this.isPointInPolygon(cx, cy, this.territoryPolygons.systems)) { theme = 'systems'; activePolygon = this.territoryPolygons.systems; }
+      else if (this.isPointInPolygon(cx, cy, this.territoryPolygons.python)) { theme = 'python'; activePolygon = this.territoryPolygons.python; }
+      if (!theme || this.isNearPolygonEdge(cx, cy, activePolygon, 80)) continue;
+
+      if (clusterCounts[theme] < clusterTargets[theme]) {
+        clusterCounts[theme]++;
+        for (let j = 0; j < 3; j++) {
+          const jx = cx + (window.rng.next() * 160 - 80);
+          const jy = cy + (window.rng.next() * 160 - 80);
+          if (!this.isCollision(jx, jy, 20) && this.isPointInPolygon(jx, jy, activePolygon) && !this.isNearPolygonEdge(jx, jy, activePolygon, 40)) {
+            if (theme === 'logic') this.drawTreeGroup(jx, jy, theme);
+            else if (theme === 'python') this.drawTreeGroup(jx, jy, theme);
+            else this.drawMountain(jx, jy, theme);
           }
         }
       }
-      
       targetsMet = Object.keys(clusterTargets).every(k => clusterCounts[k] >= clusterTargets[k]);
     }
 
-    // Temporary debug summary for Phase 1B.2 density fix
-    console.log(`=== ECOLOGY GENERATION SUMMARY ===`);
-    console.log(`Attempts: ${totalAttempts}`);
-    console.log(`Accepted Clusters: Logic=${clusterCounts.plains}, Debug=${clusterCounts.debug}, Systems=${clusterCounts.systems}, Python=${clusterCounts.python}`);
-    console.log(`Rejected by Bounds: ${rejectedBounds}`);
-    console.log(`Rejected by Collision: ${rejectedCollision}`);
-    console.log(`Total Decoration Items Rendered: ${totalGroups}`);
-    console.log(`==================================`);
+    // 5. Console report
+    console.log(`=== ECOSYSTEM REPORT (PHASE 4G) ===`);
+    console.log(`Total Zones Configured: ${this.ecosystemZoneTemplates.length}`);
+    console.log(`Valid Zones Rendered: ${validZones}`);
+    console.log(`Debug Overlay: ${this.DEBUG_ECOSYSTEM_ZONES ? 'ON' : 'OFF'}`);
+    zoneReport.forEach(r => {
+      if (r.rendered) {
+        console.log(`  [${r.id}] -> Anchor: ${r.anchorType || 'none'} (Scale: ${r.anchorScale || 0}), Props: ${r.propCount}`);
+      }
+    });
+    console.log(`===================================`);
+
+    if (this.DEBUG_ECOSYSTEM_ZONES) {
+      console.log(`=== ECOSYSTEM DEBUG VERBOSE ===`);
+      zoneReport.forEach(r => {
+        if (!r.rendered) console.log(`  [${r.id}] SKIPPED: ${r.reason}`);
+      });
+      console.log(`===============================`);
+    }
   }
   
   generateMountainRidges(islandRx, islandRy) {
-    // Add 2-3 more ridge groups, especially top-center and top-right per rule 10
     const ridges = [
-      { startX: 1200, startY: 1000, endX: 1900, endY: 700, count: 9, theme: 'plains' },
-      { startX: 2100, startY: 600, endX: 2800, endY: 850, count: 11, theme: 'plains' },
-      { startX: 3200, startY: 600, endX: 4200, endY: 1400, count: 14, theme: 'debug' },
-      { startX: 3600, startY: 1500, endX: 4500, endY: 1900, count: 12, theme: 'debug' }
+      // Central mountain ridges removed as requested
     ];
     
     ridges.forEach(ridge => {
@@ -715,36 +895,150 @@ class TerrainGenerator {
     });
   }
 
-  spawnDecoration(x, y, theme) {
-    if (theme === 'debug') {
-      const roll = window.rng.next();
-      if (roll < 0.25) this.drawCrystal(x, y);
-      else if (roll < 0.5) this.drawDeadTree(x, y);
-      else if (roll < 0.75) this.drawMountain(x, y, theme);
-      else this.drawGroundCrack(x, y);
-    } else if (theme === 'systems') {
-      const roll = window.rng.next();
-      if (roll < 0.6) this.drawIndustrialProp(x, y);
-      else if (roll < 0.8) this.drawMountain(x, y, theme);
-      else this.drawSmallGear(x, y);
-    } else if (theme === 'python') {
-      const roll = window.rng.next();
-      if (roll < 0.35) this.drawPalmTree(x, y);
-      else if (roll < 0.7) this.drawBush(x, y, theme);
-      else this.drawTreeGroup(x, y, theme);
-    } else {
-      // Logic Dominion (Plains) - Keep it clean, low density
-      const roll = window.rng.next();
-      if (roll < 0.6) this.drawTreeGroup(x, y, theme);
-      else if (roll < 0.8) this.drawBush(x, y, theme);
-      else this.drawGrassPatch(x, y);
+  renderEcosystemZone(cx, cy, theme, polygon, radius, sceneType) {
+    let propsRendered = 0;
+    let usedRadius10 = false;
+    let mainAnchorType = 'none';
+    let mainAnchorScale = 0;
+
+    // Draw the subtle organic base patch (drawn beneath all props via renderQueue)
+    this.drawOrganicPatch(cx, cy, radius, theme);
+
+    // Per-prop collision fallback: try radius 20 first, then radius 10 if rejected
+    const trySpawn = (spawnFn, argsArr, offsetX, offsetY) => {
+      const jx = cx + offsetX;
+      const jy = cy + offsetY;
+      // Polygon and edge checks remain strict
+      if (!this.isPointInPolygon(jx, jy, polygon) || this.isNearPolygonEdge(jx, jy, polygon, 40)) return;
+      // Try collision radius 20 first
+      if (!this.isCollision(jx, jy, 20)) {
+        spawnFn.apply(this, [jx, jy, ...argsArr]);
+        propsRendered++;
+        return;
+      }
+      // Fallback to collision radius 10 if radius 20 rejected
+      if (!this.isCollision(jx, jy, 10)) {
+        spawnFn.apply(this, [jx, jy, ...argsArr]);
+        propsRendered++;
+        usedRadius10 = true;
+      }
+    };
+
+    const randomOffset = (rad) => (window.rng.next() * rad * 2 - rad);
+    const setAnchor = (type, scale) => { mainAnchorType = type; mainAnchorScale = scale; };
+
+    // Scales: Anchor (7.5), Medium (6.0), Small (4.5)
+
+    // LOGIC SCENES
+    if (sceneType === 'academyVillage') {
+      trySpawn(this.drawAcademyHouse, [7.5], 0, 0); setAnchor('AcademyHouse', 7.5);
+      trySpawn(this.drawAcademyHouse, [6.0], randomOffset(radius*0.5), randomOffset(radius*0.5));
+      for(let i=0; i<3; i++) trySpawn(this.drawStoneTile, [4.5], randomOffset(radius), randomOffset(radius));
+      for(let i=0; i<2; i++) trySpawn(this.drawAcademyTree, [6.0], randomOffset(radius), randomOffset(radius));
+    } else if (sceneType === 'gardenCampus') {
+      trySpawn(this.drawAcademyTree, [7.0], 0, 0); setAnchor('AcademyTree', 7.0);
+      for(let i=0; i<4; i++) trySpawn(this.drawAcademyTree, [5.5], randomOffset(radius), randomOffset(radius));
+      for(let i=0; i<3; i++) trySpawn(this.drawGrassPatch, [4.5], randomOffset(radius), randomOffset(radius));
+    } else if (sceneType === 'riversideStudy') {
+      trySpawn(this.drawAcademyHouse, [7.0], 0, 0); setAnchor('AcademyHouse', 7.0);
+      for(let i=0; i<3; i++) trySpawn(this.drawStoneTile, [4.5], randomOffset(radius), randomOffset(radius));
+    } else if (sceneType === 'forestEdge') {
+      trySpawn(this.drawTreeGroup, [theme], 0, 0); setAnchor('TreeGroup', 6.0); // base scale inside function
+      for(let i=0; i<4; i++) trySpawn(this.drawTreeGroup, [theme], randomOffset(radius), randomOffset(radius));
     }
+    
+    // DEBUG SCENES
+    else if (sceneType === 'crystalField') {
+      trySpawn(this.drawCrystal, [], 0, 0); setAnchor('Crystal', 8.0); // massive base scale inside
+      for(let i=0; i<3; i++) trySpawn(this.drawCorruptCrystal, [6.0], randomOffset(radius), randomOffset(radius));
+    } else if (sceneType === 'scarZone') {
+      trySpawn(this.drawDeadTree, [7.0], 0, 0); setAnchor('DeadTree', 7.0);
+      for(let i=0; i<2; i++) trySpawn(this.drawGroundCrack, [6.0], randomOffset(radius), randomOffset(radius));
+      trySpawn(this.drawDeadTree, [5.5], randomOffset(radius), randomOffset(radius));
+    } else if (sceneType === 'ruinedStone') {
+      trySpawn(this.drawMountain, [theme], 0, 0); setAnchor('Stone/Mountain', 7.0);
+      for(let i=0; i<3; i++) trySpawn(this.drawMountain, [theme], randomOffset(radius), randomOffset(radius));
+      trySpawn(this.drawDeadTree, [5.5], randomOffset(radius), randomOffset(radius));
+    } else if (sceneType === 'rockyBorder') {
+      trySpawn(this.drawMountain, [theme], 0, 0); setAnchor('Stone/Mountain', 7.0);
+      for(let i=0; i<3; i++) trySpawn(this.drawMountain, [theme], randomOffset(radius), randomOffset(radius));
+    }
+
+    // SYSTEMS SCENES
+    else if (sceneType === 'pipeYard') {
+      trySpawn(this.drawTank, [7.5], 0, 0); setAnchor('Tank', 7.5);
+      trySpawn(this.drawTank, [6.0], randomOffset(radius*0.5), randomOffset(radius*0.5));
+      trySpawn(this.drawPipe, [cx + randomOffset(radius), cy + randomOffset(radius)], 0, 0);
+      trySpawn(this.drawPipe, [cx + randomOffset(radius), cy + randomOffset(radius)], randomOffset(radius*0.5), randomOffset(radius*0.5));
+    } else if (sceneType === 'gearCluster') {
+      trySpawn(this.drawSmallGear, [7.0], 0, 0); setAnchor('LargeGear', 7.0);
+      for(let i=0; i<3; i++) trySpawn(this.drawSmallGear, [5.0], randomOffset(radius), randomOffset(radius));
+    } else if (sceneType === 'railZone') {
+      trySpawn(this.drawIndustrialProp, [7.0], 0, 0); setAnchor('IndustrialProp', 7.0);
+      trySpawn(this.drawIndustrialProp, [5.5], randomOffset(radius), randomOffset(radius));
+      for(let i=0; i<2; i++) trySpawn(this.drawSmallGear, [4.5], randomOffset(radius), randomOffset(radius));
+    } else if (sceneType === 'industrialOutpost') {
+      trySpawn(this.drawTank, [7.0], 0, 0); setAnchor('Tank', 7.0);
+      trySpawn(this.drawIndustrialProp, [5.5], randomOffset(radius), randomOffset(radius));
+      trySpawn(this.drawSmallGear, [4.5], randomOffset(radius), randomOffset(radius));
+    }
+
+    // PYTHON SCENES
+    else if (sceneType === 'denseJungle') {
+      trySpawn(this.drawJungleBush, [7.5], 0, 0); setAnchor('JungleBush', 7.5);
+      for(let i=0; i<3; i++) trySpawn(this.drawJungleBush, [6.0], randomOffset(radius), randomOffset(radius));
+      for(let i=0; i<2; i++) trySpawn(this.drawVine, [5.5], randomOffset(radius), randomOffset(radius));
+    } else if (sceneType === 'overgrownRuins') {
+      trySpawn(this.drawAncientRuin, [7.5], 0, 0); setAnchor('AncientRuin', 7.5);
+      for(let i=0; i<2; i++) trySpawn(this.drawVine, [5.5], randomOffset(radius), randomOffset(radius));
+      trySpawn(this.drawJungleBush, [5.5], randomOffset(radius), randomOffset(radius));
+    } else if (sceneType === 'vineCluster') {
+      trySpawn(this.drawVine, [7.0], 0, 0); setAnchor('Vine', 7.0);
+      for(let i=0; i<3; i++) trySpawn(this.drawVine, [5.5], randomOffset(radius), randomOffset(radius));
+      trySpawn(this.drawAncientRuin, [6.0], randomOffset(radius), randomOffset(radius));
+    } else if (sceneType === 'tropicalEdge') {
+      trySpawn(this.drawPalmTree, [], 0, 0); setAnchor('PalmTree', 7.0); // base scale inside
+      for(let i=0; i<4; i++) trySpawn(this.drawTreeGroup, [theme], randomOffset(radius), randomOffset(radius));
+    } else if (sceneType === 'templeSupport') {
+      trySpawn(this.drawAncientRuin, [7.0], 0, 0); setAnchor('AncientRuin', 7.0);
+      trySpawn(this.drawJungleBush, [6.0], randomOffset(radius), randomOffset(radius));
+      trySpawn(this.drawVine, [5.0], randomOffset(radius), randomOffset(radius));
+    }
+
+    return { propCount: propsRendered, usedRadius10, anchorType: mainAnchorType, anchorScale: mainAnchorScale };
+  }
+
+  drawOrganicPatch(cx, cy, radius, theme) {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    
+    // Generate organic blob shape
+    let d = "";
+    const points = 10;
+    for (let i = 0; i <= points; i++) {
+      const angle = (i / points) * Math.PI * 2;
+      const r = radius * (0.8 + window.rng.next() * 0.2); // slight noise, not perfect circle
+      const x = cx + Math.cos(angle) * r;
+      const y = cy + Math.sin(angle) * r;
+      if (i === 0) d += `M ${x},${y} `;
+      else d += `L ${x},${y} `;
+    }
+    g.setAttribute("d", d + "Z");
+    
+    // SVG-safe hex fills with opacity attribute
+    if (theme === 'logic') { g.setAttribute("fill", "#00bfa5"); g.setAttribute("opacity", "0.15"); }
+    else if (theme === 'debug') { g.setAttribute("fill", "#6a1b9a"); g.setAttribute("opacity", "0.15"); }
+    else if (theme === 'systems') { g.setAttribute("fill", "#4e342e"); g.setAttribute("opacity", "0.2"); }
+    else if (theme === 'python') { g.setAttribute("fill", "#1b5e20"); g.setAttribute("opacity", "0.2"); }
+    
+    g.style.pointerEvents = "none";
+    // Draw far beneath props, but above base terrain
+    this.renderQueue.push({ y: cy - radius, element: g });
   }
 
   drawCrystal(x, y) {
-    const size = window.rng.next() * 40 + 60;
+    const size = window.rng.next() * 40 + 80; // Scaled up
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    g.setAttribute("transform", `translate(${x}, ${y}) scale(1, 1.666)`);
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(1.5, 2.5)`); // Made larger and taller
     g.setAttribute("class", "landmark-shadow");
     g.style.pointerEvents = "none"; // Safety rule 11
 
@@ -771,19 +1065,19 @@ class TerrainGenerator {
 
   drawPalmTree(x, y) {
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    g.setAttribute("transform", `translate(${x}, ${y}) scale(1.5)`);
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(2.5)`); // Scaled up
     g.setAttribute("filter", "url(#drop-shadow)");
     g.style.pointerEvents = "none";
 
     const trunk = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    trunk.setAttribute("d", "M -2,0 Q -5,-15 0,-30 Q 5,-15 2,0 Z");
+    trunk.setAttribute("d", "M -3,0 Q -8,-25 0,-50 Q 8,-25 3,0 Z"); // Thicker trunk
     trunk.setAttribute("fill", "#6d4c41");
 
     // Leaves
     const leaves = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    leaves.setAttribute("d", "M 0,-30 Q -20,-40 -25,-20 Q -10,-25 0,-30 M 0,-30 Q 20,-40 25,-20 Q 10,-25 0,-30 M 0,-30 Q 0,-55 -15,-45 Q 0,-40 0,-30 M 0,-30 Q 0,-55 15,-45 Q 0,-40 0,-30");
+    leaves.setAttribute("d", "M 0,-50 Q -30,-60 -40,-30 Q -15,-40 0,-50 M 0,-50 Q 30,-60 40,-30 Q 15,-40 0,-50 M 0,-50 Q 0,-85 -25,-70 Q 0,-60 0,-50 M 0,-50 Q 0,-85 25,-70 Q 0,-60 0,-50");
     leaves.setAttribute("stroke", "#2e7d32");
-    leaves.setAttribute("stroke-width", "4");
+    leaves.setAttribute("stroke-width", "6");
     leaves.setAttribute("fill", "none");
     leaves.setAttribute("stroke-linecap", "round");
 
@@ -794,7 +1088,7 @@ class TerrainGenerator {
 
   drawMountain(x, y, theme = 'plains') {
     // Add slight natural variation to scale for ridges
-    const baseScale = 0.8 + window.rng.next() * 0.4;
+    const baseScale = 1.2 + window.rng.next() * 0.4; // Scaled up
     const size = window.rng.next() * 50 + 90; // 90 to 140
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
     g.setAttribute("transform", `translate(${x}, ${y}) scale(${baseScale}, ${baseScale * 1.666})`);
@@ -828,7 +1122,7 @@ class TerrainGenerator {
 
   drawTreeGroup(x, y, theme = 'plains') {
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    g.setAttribute("transform", `translate(${x}, ${y}) scale(1, 1.666)`);
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(2.0, 3.3)`); // Scaled up significantly
     g.setAttribute("filter", "url(#drop-shadow)");
     g.style.pointerEvents = "none";
 
@@ -879,9 +1173,9 @@ class TerrainGenerator {
     this.renderQueue.push({ y: y, element: g });
   }
 
-  drawDeadTree(x, y) {
+  drawDeadTree(x, y, scale = 5.0) {
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    g.setAttribute("transform", `translate(${x}, ${y}) scale(1.5)`);
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
     g.setAttribute("filter", "url(#drop-shadow)");
     g.style.pointerEvents = "none";
 
@@ -889,7 +1183,7 @@ class TerrainGenerator {
     // Twisted, sharp barren branches (simple stroke)
     trunk.setAttribute("d", "M -2,0 Q -5,-15 0,-25 L -10,-35 M 0,-25 L 8,-30 L 15,-25 M 5,-15 L 12,-10");
     trunk.setAttribute("stroke", "#453c5c");
-    trunk.setAttribute("stroke-width", "4");
+    trunk.setAttribute("stroke-width", "6"); // Thicker
     trunk.setAttribute("stroke-linecap", "round");
     trunk.setAttribute("fill", "none");
 
@@ -897,9 +1191,9 @@ class TerrainGenerator {
     this.renderQueue.push({ y: y, element: g });
   }
 
-  drawIndustrialProp(x, y) {
+  drawIndustrialProp(x, y, scale = 5.0) {
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    g.setAttribute("transform", `translate(${x}, ${y}) scale(1.5)`);
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
     g.setAttribute("filter", "url(#drop-shadow)");
     g.style.pointerEvents = "none";
 
@@ -907,21 +1201,21 @@ class TerrainGenerator {
     if (type > 0.5) {
       // Small yellow/orange bent pipe
       const pipe = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      pipe.setAttribute("d", "M -12,0 L -12,-15 L 12,-15 L 12,0");
+      pipe.setAttribute("d", "M -16,0 L -16,-20 L 16,-20 L 16,0");
       pipe.setAttribute("stroke", "#ff8f00");
-      pipe.setAttribute("stroke-width", "5");
+      pipe.setAttribute("stroke-width", "8"); // Thicker pipe
       pipe.setAttribute("fill", "none");
       g.appendChild(pipe);
     } else {
       // Grey metal block
       const block = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-      block.setAttribute("x", "-10");
-      block.setAttribute("y", "-14");
-      block.setAttribute("width", "20");
-      block.setAttribute("height", "14");
+      block.setAttribute("x", "-15");
+      block.setAttribute("y", "-20");
+      block.setAttribute("width", "30");
+      block.setAttribute("height", "20");
       block.setAttribute("fill", "#546e7a");
       block.setAttribute("stroke", "#37474f");
-      block.setAttribute("stroke-width", "2");
+      block.setAttribute("stroke-width", "4"); // Thicker stroke
       g.appendChild(block);
     }
 
@@ -930,7 +1224,7 @@ class TerrainGenerator {
 
   drawBush(x, y, theme = 'python') {
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    const scale = 1 + window.rng.next() * 0.5;
+    const scale = 3.5 + window.rng.next() * 1.5;
     g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
     g.setAttribute("filter", "url(#drop-shadow)");
     g.style.pointerEvents = "none";
@@ -945,15 +1239,15 @@ class TerrainGenerator {
     this.renderQueue.push({ y: y, element: g });
   }
 
-  drawGroundCrack(x, y) {
+  drawGroundCrack(x, y, scale = 5.0) {
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    g.setAttribute("transform", `translate(${x}, ${y}) scale(1.5)`);
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
     g.style.pointerEvents = "none";
 
     const crack = document.createElementNS("http://www.w3.org/2000/svg", "path");
     crack.setAttribute("d", "M -10,10 L -5,5 L 0,15 L 10,0 L 5,-5");
     crack.setAttribute("stroke", "#352f44"); // Dark purple/grey
-    crack.setAttribute("stroke-width", "2");
+    crack.setAttribute("stroke-width", "4"); // Thicker crack
     crack.setAttribute("fill", "none");
     crack.setAttribute("stroke-linecap", "round");
     crack.setAttribute("stroke-linejoin", "round");
@@ -962,9 +1256,9 @@ class TerrainGenerator {
     this.renderQueue.push({ y: y, element: g });
   }
 
-  drawSmallGear(x, y) {
+  drawSmallGear(x, y, scale = 4.5) {
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    g.setAttribute("transform", `translate(${x}, ${y}) scale(1.5)`);
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
     g.setAttribute("filter", "url(#drop-shadow)");
     g.style.pointerEvents = "none";
 
@@ -973,26 +1267,203 @@ class TerrainGenerator {
     gear.setAttribute("d", "M -5,-5 L -2,-8 L 2,-8 L 5,-5 L 8,-2 L 8,2 L 5,5 L 2,8 L -2,8 L -5,5 L -8,2 L -8,-2 Z M 0,-3 A 3 3 0 1 0 0,3 A 3 3 0 1 0 0,-3");
     gear.setAttribute("fill", "#78909c"); // Light metallic
     gear.setAttribute("stroke", "#455a64");
-    gear.setAttribute("stroke-width", "1.5");
+    gear.setAttribute("stroke-width", "2.5"); // Thicker stroke
 
     g.appendChild(gear);
     this.renderQueue.push({ y: y, element: g });
   }
 
-  drawGrassPatch(x, y) {
+  drawGrassPatch(x, y, scale = 4.5) {
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    g.setAttribute("transform", `translate(${x}, ${y}) scale(1.5)`);
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
     g.style.pointerEvents = "none";
 
     const grass = document.createElementNS("http://www.w3.org/2000/svg", "path");
     grass.setAttribute("d", "M -5,5 Q -3,0 0,5 M 0,5 Q 3,-2 5,5 M 5,5 Q 7,1 10,5");
     grass.setAttribute("stroke", "#8bc34a");
-    grass.setAttribute("stroke-width", "2");
+    grass.setAttribute("stroke-width", "3"); // Thicker stroke
     grass.setAttribute("fill", "none");
     grass.setAttribute("stroke-linecap", "round");
 
     g.appendChild(grass);
     this.renderQueue.push({ y: y, element: g });
+  }
+
+  // --- NEW PHASE 4 REWORK TERRITORY-WIDE ECOSYSTEM HELPERS ---
+
+  drawAcademyHouse(x, y, scale = 4.0) {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
+    g.style.pointerEvents = "none";
+    g.appendChild(this.createPoly("0,0 -20,-10 -20,-30 0,-20", "#b2ebf2"));
+    g.appendChild(this.createPoly("0,0 20,-10 20,-30 0,-20", "#ffffff"));
+    g.appendChild(this.createPoly("-25,-25 0,-40 25,-25 0,-15", "#00bcd4")); // Roof
+    this.renderQueue.push({ y: y, element: g });
+  }
+
+  drawAcademyTree(x, y, scale = 3.0) {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
+    g.style.pointerEvents = "none";
+    g.appendChild(this.createPoly("-2,0 -2,-15 2,-15 2,0", "#795548")); // Trunk
+    const canopy = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    canopy.setAttribute("cx", "0"); canopy.setAttribute("cy", "-20"); canopy.setAttribute("r", "15");
+    canopy.setAttribute("fill", "#00bcd4");
+    canopy.setAttribute("opacity", "0.8");
+    g.appendChild(canopy);
+    this.renderQueue.push({ y: y, element: g });
+  }
+
+  drawStoneTile(x, y, scale = 2.5) {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
+    g.style.pointerEvents = "none";
+    const tile = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+    tile.setAttribute("points", "0,10 -15,0 0,-10 15,0");
+    tile.setAttribute("fill", "#e0f7fa");
+    tile.setAttribute("opacity", "0.6");
+    g.appendChild(tile);
+    this.renderQueue.push({ y: y, element: g });
+  }
+
+  drawCorruptCrystal(x, y, scale = 4.0) {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
+    g.style.pointerEvents = "none";
+    g.appendChild(this.createPoly("0,0 -10,-30 0,-50 10,-25", "#aa00ff"));
+    g.appendChild(this.createPoly("0,0 10,-25 5,-40", "#ea80fc"));
+    g.appendChild(this.createPoly("0,0 -12,-20 -5,-35", "#6a1b9a"));
+    this.renderQueue.push({ y: y, element: g });
+  }
+
+  drawPipe(x, y, x2, y2) {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.style.pointerEvents = "none";
+    const pipe = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    pipe.setAttribute("x1", x); pipe.setAttribute("y1", y);
+    pipe.setAttribute("x2", x2); pipe.setAttribute("y2", y2);
+    pipe.setAttribute("stroke", "#78909c");
+    pipe.setAttribute("stroke-width", "28"); // Very thick for readability
+    g.appendChild(pipe);
+    
+    const joint = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    joint.setAttribute("cx", x2); joint.setAttribute("cy", y2);
+    joint.setAttribute("r", "20"); // Thicker joint
+    joint.setAttribute("fill", "#ff8f00");
+    g.appendChild(joint);
+    this.renderQueue.push({ y: Math.max(y, y2), element: g });
+  }
+
+  drawTank(x, y, scale = 4.0) {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
+    g.style.pointerEvents = "none";
+    g.appendChild(this.createPoly("-15,0 15,0 15,-40 -15,-40", "#546e7a"));
+    g.appendChild(this.createPoly("-15,-40 15,-40 0,-50", "#ffb300")); // Orange cap
+    this.renderQueue.push({ y: y, element: g });
+  }
+
+  drawJungleBush(x, y, scale = 3.0) {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
+    g.style.pointerEvents = "none";
+    const c1 = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    c1.setAttribute("cx", "0"); c1.setAttribute("cy", "0"); c1.setAttribute("r", "20"); c1.setAttribute("fill", "#1b5e20");
+    const c2 = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    c2.setAttribute("cx", "-10"); c2.setAttribute("cy", "10"); c2.setAttribute("r", "15"); c2.setAttribute("fill", "#33691e");
+    const c3 = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    c3.setAttribute("cx", "12"); c3.setAttribute("cy", "8"); c3.setAttribute("r", "18"); c3.setAttribute("fill", "#558b2f");
+    g.appendChild(c1); g.appendChild(c2); g.appendChild(c3);
+    this.renderQueue.push({ y: y, element: g });
+  }
+
+  drawAncientRuin(x, y, scale = 5.0) {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
+    g.style.pointerEvents = "none";
+    g.appendChild(this.createPoly("-20,0 20,0 20,-15 -20,-15", "#33691e")); // Mossy base
+    g.appendChild(this.createPoly("-15,-15 5,-15 5,-40 -15,-40", "#558b2f")); // Broken pillar
+    this.renderQueue.push({ y: y, element: g });
+  }
+
+  drawVine(x, y, scale = 4.0) {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
+    g.style.pointerEvents = "none";
+    const vine = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    vine.setAttribute("d", "M -30,0 Q -15,15 0,0 T 30,0");
+    vine.setAttribute("stroke", "#1b5e20");
+    vine.setAttribute("stroke-width", "4");
+    vine.setAttribute("fill", "none");
+    g.appendChild(vine);
+    this.renderQueue.push({ y: y, element: g });
+  }
+
+  // --- PHASE 4E RECOVERY HELPERS ---
+
+  computeTerritoryBounds(polygon) {
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    let sumX = 0, sumY = 0;
+    polygon.forEach(([x, y]) => {
+      minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+      minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+      sumX += x; sumY += y;
+    });
+    return {
+      minX, maxX, minY, maxY,
+      cx: sumX / polygon.length,
+      cy: sumY / polygon.length,
+      width: maxX - minX,
+      height: maxY - minY
+    };
+  }
+
+  validateEcosystemPoint(x, y, polygon, collisionRadius) {
+    if (!this.isPointInPolygon(x, y, polygon)) return false;
+    if (this.isNearPolygonEdge(x, y, polygon, 80)) return false;
+    if (this.isCollision(x, y, collisionRadius)) return false;
+    return true;
+  }
+
+  // --- PHASE 4C MATH CONTAINMENT HELPERS ---
+
+  isPointInPolygon(x, y, polygon) {
+    let isInside = false;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+      const xi = polygon[i][0], yi = polygon[i][1];
+      const xj = polygon[j][0], yj = polygon[j][1];
+      
+      const intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+      if (intersect) isInside = !isInside;
+    }
+    return isInside;
+  }
+
+  isNearPolygonEdge(x, y, polygon, padding) {
+    const sqr = (v) => v * v;
+    const dist2 = (v, w) => sqr(v[0] - w[0]) + sqr(v[1] - w[1]);
+    const distToSegmentSquared = (p, v, w) => {
+      const l2 = dist2(v, w);
+      if (l2 === 0) return dist2(p, v);
+      let t = ((p[0] - v[0]) * (w[0] - v[0]) + (p[1] - v[1]) * (w[1] - v[1])) / l2;
+      t = Math.max(0, Math.min(1, t));
+      return dist2(p, [v[0] + t * (w[0] - v[0]), v[1] + t * (w[1] - v[1])]);
+    };
+
+    const paddingSq = padding * padding;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+      if (distToSegmentSquared([x, y], polygon[i], polygon[j]) < paddingSq) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  createPoly(points, color) {
+    const p = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+    p.setAttribute("points", points);
+    p.setAttribute("fill", color);
+    return p;
   }
 }
 
