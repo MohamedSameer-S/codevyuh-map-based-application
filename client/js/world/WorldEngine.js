@@ -125,10 +125,11 @@ class WorldEngine {
     }
 
     // Add 600px padding so the user can comfortably see around the unlocked regions
-    minX = Math.max(0, minX - 600);
-    maxX = Math.min(5000, maxX + 600);
-    minY = Math.max(0, minY - 600);
-    maxY = Math.min(4000, maxY + 600);
+    // Remove the hardcoded 0 to 5000 limits because regions exist at negative coordinates
+    minX = minX - 600;
+    maxX = maxX + 600;
+    minY = minY - 600;
+    maxY = maxY + 600;
 
     this.camera.setBounds(minX, maxX, minY, maxY);
   }
@@ -175,16 +176,22 @@ window.closeRegionModal = () => {
 window.resetWorldView = () => {
   const engine = window.worldEngineInstance;
   if (engine) {
-    engine.camera.animateCameraTo(window.engineCenterX || 2500, window.engineCenterY || 2000, 0.4, window.CAMERA_ANIMATION?.zoomDuration || 250);
+    // Animate to the dynamic minScale so the entire island perfectly fits on the screen again
+    engine.camera.animateCameraTo(
+      window.engineCenterX || 2500, 
+      window.engineCenterY || 2000, 
+      engine.camera.minScale, 
+      window.CAMERA_ANIMATION?.zoomDuration || 250
+    );
   }
 };
 
 window.focusRegion = (regionId) => {
   const region = window.getRegionBounds(regionId);
   if (region) {
-    // Dynamic scale based on region size
+    // Reduced scale to match the comfortable zoom level requested by user
     const maxDim = Math.max(region.width, region.height);
-    const targetScale = maxDim > 900 ? 1.35 : 1.55;
+    const targetScale = maxDim > 900 ? 0.8 : 0.95;
     
     window.animateCameraTo(region.x, region.y, targetScale, window.CAMERA_ANIMATION?.zoomDuration || 250).then(() => {
       window.openRegionModal(regionId);
