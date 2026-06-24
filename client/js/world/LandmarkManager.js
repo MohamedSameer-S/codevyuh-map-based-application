@@ -18,17 +18,17 @@ class LandmarkManager {
     const dirt = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
     dirt.setAttribute("cx", x);
     dirt.setAttribute("cy", y);
-    dirt.setAttribute("rx", 260); // Scaled up dirt path for massive landmark
-    dirt.setAttribute("ry", 150);
+    dirt.setAttribute("rx", 640); // Proportional massive dirt path
+    dirt.setAttribute("ry", 360);
     dirt.setAttribute("fill", "#5d4037");
     dirt.setAttribute("opacity", "0.4");
-    dirt.setAttribute("filter", "blur(5px)");
+    dirt.setAttribute("filter", "blur(10px)");
     dirt.style.pointerEvents = "none";
     this.renderer.getLayer('landmass').appendChild(dirt);
 
-    // Create a dedicated group for isometric shapes so text is NOT distorted!
+    // Create a dedicated group for isometric shapes
     const buildingGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    buildingGroup.setAttribute("transform", `scale(5.5, 9.16)`);
+    buildingGroup.setAttribute("transform", `scale(15.5, 43)`); // Tall imposing ratio matching the reference
     g.appendChild(buildingGroup);
 
     // Let's create SVG shapes for the specific landmarks based on type
@@ -49,26 +49,117 @@ class LandmarkManager {
         this.buildGenericCastle(buildingGroup);
     }
 
-    // Attach text label right below the landmark (Decoupled from the isometric stretch!)
+    // Create a dedicated group for the label banner
+    const labelGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    labelGroup.setAttribute("class", "region-label-group");
+    labelGroup.style.pointerEvents = "none"; // Safety rule 8: Keep labels non-interactive
+    
+    // Per-region Y-offsets scaled up perfectly to match the new 43x height
+    let labelY = 1000; // Default offset
+    if (region.landmarkType === 'academy') labelY = 900;
+    else if (region.landmarkType === 'fortress') labelY = 1100;
+    else if (region.landmarkType === 'industrial') labelY = 1050;
+    else if (region.landmarkType === 'temple') labelY = 1150;
+    
+    labelGroup.setAttribute("transform", `translate(0, ${labelY})`);
+
+    // Banner styling colors based on region theme
+    let bannerFill = "#1e3a8a"; // Default dark blue
+    let bannerStroke = "#38bdf8";
+    
+    if (region.landmarkType === 'academy') {
+       bannerFill = "#0c4a6e"; bannerStroke = "#00bcd4"; // Cyan / Blue academic
+    } else if (region.landmarkType === 'fortress') {
+       bannerFill = "#311b92"; bannerStroke = "#ea80fc"; // Dark purple corrupted
+    } else if (region.landmarkType === 'industrial') {
+       bannerFill = "#263238"; bannerStroke = "#ffb300"; // Dark grey / Orange industrial
+    } else if (region.landmarkType === 'temple') {
+       bannerFill = "#1b5e20"; bannerStroke = "#cddc39"; // Deep green jungle
+    }
+
+    // Define the master font size for the labels (scaled up massively to match the building)
+    const fontSize = 240; 
+    
+    // Dynamic width AND height calculation strictly based on font size and text length
+    const charWidth = fontSize * 0.58; // Average width of a character
+    const textWidth = region.name.length * charWidth; 
+    
+    const paddingX = fontSize * 0.7; // Horizontal padding
+    const paddingY = fontSize * 0.9; // Vertical height of the banner
+    
+    const flatW = (textWidth / 2) + paddingX; 
+    const pointW = flatW + paddingX; // Pointy edge extension
+
+    // Draw the banner background plate (Hexagon Ribbon) - Dynamically sized based on font!
+    const bannerPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    bannerPath.setAttribute("d", `M -${flatW},-${paddingY} L ${flatW},-${paddingY} L ${pointW},0 L ${flatW},${paddingY} L -${flatW},${paddingY} L -${pointW},0 Z`);
+    bannerPath.setAttribute("fill", bannerFill);
+    bannerPath.setAttribute("stroke", bannerStroke);
+    bannerPath.setAttribute("stroke-width", `${fontSize * 0.12}`);
+    bannerPath.setAttribute("filter", "drop-shadow(0px 10px 8px rgba(0,0,0,0.6))");
+    labelGroup.appendChild(bannerPath);
+
+    // Main Region Name Text (Always show true name!)
     const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
     text.setAttribute("x", 0);
-    text.setAttribute("y", 190); // Absolute pixels below the center
+    // If locked, push name slightly up to fit the lock badge
+    text.setAttribute("y", region.locked ? -(fontSize * 0.15) : (fontSize * 0.3)); 
     text.setAttribute("text-anchor", "middle");
     text.setAttribute("fill", "#ffffff");
-    text.setAttribute("font-size", "40px"); // Crisp, readable, unsquished font
+    text.setAttribute("font-size", `${fontSize}px`); 
     text.setAttribute("font-weight", "bold");
-    text.setAttribute("filter", "drop-shadow(0px 3px 3px rgba(0,0,0,0.8))");
-    text.style.pointerEvents = "none";
+    text.setAttribute("filter", "drop-shadow(0px 6px 6px rgba(0,0,0,0.8))");
+    text.textContent = region.name;
+    labelGroup.appendChild(text);
     
-    // Obfuscate text if locked so it looks mysterious under the clouds
+    // Draw Lock Badge if Locked
     if (region.locked) {
-      text.textContent = "??? (Locked)";
-      text.setAttribute("opacity", "0.6");
-    } else {
-      text.textContent = region.name;
+      const lockIndicator = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      lockIndicator.setAttribute("id", `lock-indicator-${region.id}`); // For future unlock logic
+      lockIndicator.setAttribute("transform", `translate(0, ${fontSize * 0.48})`);
+
+      // Small lock badge text
+      const lockText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      lockText.setAttribute("x", fontSize * 0.28);
+      lockText.setAttribute("y", 0);
+      lockText.setAttribute("text-anchor", "middle");
+      lockText.setAttribute("fill", "#ff8a80"); // Soft red
+      lockText.setAttribute("font-size", `${fontSize * 0.36}px`);
+      lockText.setAttribute("font-weight", "bold");
+      lockText.setAttribute("letter-spacing", "4px");
+      lockText.textContent = "LOCKED";
+      lockIndicator.appendChild(lockText);
+
+      // SVG Padlock Icon
+      const lockIcon = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      lockIcon.setAttribute("transform", `translate(-${fontSize}, -${fontSize * 0.28}) scale(${fontSize * 0.015})`);
+      
+      const lockHoop = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      lockHoop.setAttribute("d", "M 6,10 L 6,5 C 6,-1 14,-1 14,5 L 14,10");
+      lockHoop.setAttribute("fill", "none");
+      lockHoop.setAttribute("stroke", "#ff8a80");
+      lockHoop.setAttribute("stroke-width", "3");
+      
+      const lockBody = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      lockBody.setAttribute("x", "0");
+      lockBody.setAttribute("y", "10");
+      lockBody.setAttribute("width", "20");
+      lockBody.setAttribute("height", "15");
+      lockBody.setAttribute("rx", "3");
+      lockBody.setAttribute("fill", "#ff8a80");
+      
+      lockIcon.appendChild(lockHoop);
+      lockIcon.appendChild(lockBody);
+      lockIndicator.appendChild(lockIcon);
+
+      labelGroup.appendChild(lockIndicator);
+      
+      // Slightly dim the banner to reflect locked state
+      bannerPath.setAttribute("opacity", "0.85");
+      bannerPath.setAttribute("stroke", "#9e9e9e"); // Grey out the border
     }
-    
-    g.appendChild(text);
+
+    g.appendChild(labelGroup);
 
     // Push into the Global Z-Sorting RenderQueue
     if (renderQueue) {
