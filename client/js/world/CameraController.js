@@ -1,3 +1,14 @@
+window.prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+window.CAMERA_ANIMATION = {
+  introDuration: window.prefersReducedMotion ? 0 : 400,
+  zoomDuration: window.prefersReducedMotion ? 0 : 250,
+  panDamping: 0.18, // Smoother velocity curve
+  clampDuration: window.prefersReducedMotion ? 0 : 220,
+  enableIntroAnimation: !window.prefersReducedMotion,
+  introDelay: window.prefersReducedMotion ? 0 : 100
+};
+
 function lerp(start, end, amount) {
   return start + (end - start) * amount;
 }
@@ -27,7 +38,7 @@ class CameraController {
     this.initialTargetTy = 0;
 
     this.activeAnimation = null;
-    this.smoothing = 0.12;
+    this.smoothing = window.CAMERA_ANIMATION.panDamping;
 
     this.setupListeners();
     this.startLoop();
@@ -82,11 +93,14 @@ class CameraController {
     const viewportWidth = this.container.clientWidth;
     const viewportHeight = this.container.clientHeight;
 
-    const fullWorldWidth = 5000;
-    const fullWorldHeight = 4000;
+    // The procedural island generation uses rx * 2.2 which makes the actual visual map massive.
+    // Setting these to 16000 and 14000 ensures minScale accounts for the entire shoreline.
+    const fullWorldWidth = 16000; 
+    const fullWorldHeight = 14000;
     const fitScaleX = viewportWidth / fullWorldWidth;
     const fitScaleY = viewportHeight / (fullWorldHeight * 0.6); 
-    this.minScale = Math.max(fitScaleX, fitScaleY) * 1.05;
+    // Use Math.min to allow zooming out until the longest dimension fits on screen, with some padding
+    this.minScale = Math.min(fitScaleX, fitScaleY) * 0.8;
 
     this.targetScale = Math.max(this.minScale, Math.min(this.targetScale, 2.5));
 
@@ -209,14 +223,11 @@ class CameraController {
 
   updateTransform() {
     this.worldGroup.style.willChange = 'transform';
-    // Math.round limits sub-pixel thrashing which causes massive lag in SVG recalculation
-    // Using translate instead of translate3d prevents hardware-compositing bugs on massive SVG groups
-    const tx = Math.round(this.translateX * 10) / 10;
-    const ty = Math.round(this.translateY * 10) / 10;
-    this.worldGroup.style.transform = `scaleY(0.6) translate(${tx}px, ${ty}px) scale(${this.scale})`;
+    // Use raw values with translate3d to force GPU hardware acceleration for buttery smooth 60fps
+    this.worldGroup.style.transform = `scaleY(0.6) translate3d(${this.translateX.toFixed(2)}px, ${this.translateY.toFixed(2)}px, 0px) scale(${this.scale})`;
   }
 
-  animateCameraTo(x, y, targetScale = 1, duration = 900, callback = null) {
+  animateCameraTo(x, y, targetScale = 1, duration = window.CAMERA_ANIMATION?.zoomDuration || 250, callback = null) {
     const viewportWidth = this.container.clientWidth;
     const viewportHeight = this.container.clientHeight;
 
@@ -225,6 +236,14 @@ class CameraController {
     this.targetTy = (viewportHeight / 2 / 0.6) - (y * targetScale);
     
     this.clampTargets(false);
+
+    if (duration <= 0) {
+      this.scale = this.targetScale;
+      this.translateX = this.targetTx;
+      this.translateY = this.targetTy;
+      if (callback) callback();
+      return;
+    }
 
     this.activeAnimation = {
       startTime: performance.now(),
@@ -240,18 +259,29 @@ class CameraController {
   }
 
   startIntroAnimation() {
-    this.scale = this.targetScale = 0.2;
+    if (!window.CAMERA_ANIMATION.enableIntroAnimation) {
+      this.clampTargets(false);
+      this.animateCameraTo(window.engineCenterX || 2500, window.engineCenterY || 2000, this.minScale, 0);
+      return;
+    }
+
+    this.scale = this.targetScale = 0.1;
     this.translateX = this.targetTx = 0;
     this.translateY = this.targetTy = 0;
     this.updateTransform();
 
     setTimeout(() => {
-      this.animateCameraTo(window.engineCenterX || 2500, window.engineCenterY || 2000, 0.4, 1500);
-    }, 500);
+      // Ensure we have minScale calculated
+      this.clampTargets(false);
+      // Settle the intro animation on the fully zoomed-out map view
+      this.animateCameraTo(window.engineCenterX || 2500, window.engineCenterY || 2000, this.minScale, window.CAMERA_ANIMATION.introDuration);
+    }, window.CAMERA_ANIMATION.introDelay);
   }
 
   reset() {
-    this.animateCameraTo(window.engineCenterX || 2500, window.engineCenterY || 2000, 0.4, 900);
+    this.clampTargets(false);
+    // Reset to the same 0.4 default zoom
+    this.animateCameraTo(window.engineCenterX || 2500, window.engineCenterY || 2000, 0.4, window.CAMERA_ANIMATION?.zoomDuration || 250);
   }
 }
 

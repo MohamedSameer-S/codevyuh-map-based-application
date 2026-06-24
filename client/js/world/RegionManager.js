@@ -66,8 +66,8 @@ class RegionManager {
         
         const landmarkG = document.getElementById(`landmark-${region.id}`);
         if (landmarkG) {
-          // scale up by 1.05x -> 2.8 * 1.05 = 2.94, 4.666 * 1.05 = 4.899
-          landmarkG.style.transform = `translate(${region.x}px, ${region.y}px) scale(2.94, 4.899)`;
+          // Clean uniform scale on hover, no longer multiplying against the old isometric values!
+          landmarkG.style.transform = `translate(${region.x}px, ${region.y}px) scale(1.05)`;
         }
       } else {
         document.body.style.cursor = 'not-allowed';
@@ -82,7 +82,7 @@ class RegionManager {
       
       const landmarkG = document.getElementById(`landmark-${region.id}`);
       if (landmarkG) {
-        landmarkG.style.transform = `translate(${region.x}px, ${region.y}px) scale(2.8, 4.666)`;
+        landmarkG.style.transform = `translate(${region.x}px, ${region.y}px) scale(1)`;
       }
       
       this.trigger('regionOut', region, e);

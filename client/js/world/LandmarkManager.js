@@ -7,62 +7,159 @@ class LandmarkManager {
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
     g.setAttribute("class", "landmark-element landmark-shadow");
     g.setAttribute("id", `landmark-${region.id}`);
+    g.style.pointerEvents = "none"; // Safety rule 8: Never block pan/zoom/click
     
     // Position landmark perfectly centered
     const x = region.x;
     const y = region.y;
+    g.setAttribute("transform", `translate(${x}, ${y})`);
 
     // Draw dirt path below the landmark
     const dirt = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
     dirt.setAttribute("cx", x);
     dirt.setAttribute("cy", y);
-    dirt.setAttribute("rx", 140); // Scaled up dirt path
-    dirt.setAttribute("ry", 80);
-    dirt.setAttribute("fill", "#5d4037");
-    dirt.setAttribute("opacity", "0.4");
-    dirt.setAttribute("filter", "blur(5px)");
+    dirt.setAttribute("rx", 220); // Subtle base shadow for grounding only
+    dirt.setAttribute("ry", 110);
+    dirt.setAttribute("fill", "#2d1f18");
+    dirt.setAttribute("opacity", "0.25");
+    dirt.setAttribute("filter", "blur(15px)");
+    dirt.style.pointerEvents = "none";
     this.renderer.getLayer('landmass').appendChild(dirt);
 
-    // Scale up 2x from previous 1.4 -> 2.8, 2.333 -> 4.666
-    g.setAttribute("transform", `translate(${x}, ${y}) scale(2.8, 4.666)`);
+    // Create a dedicated group for isometric shapes
+    const buildingGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    buildingGroup.setAttribute("transform", `scale(15.5, 43)`); // Tall imposing ratio matching the reference
+    g.appendChild(buildingGroup);
 
     // Let's create SVG shapes for the specific landmarks based on type
     switch (region.landmarkType) {
       case 'academy':
-        this.buildAcademy(g);
+        this.buildAcademy(buildingGroup);
         break;
       case 'fortress':
-        this.buildFortress(g);
+        this.buildFortress(buildingGroup);
         break;
       case 'industrial':
-        this.buildIndustrialCity(g);
+        this.buildIndustrialCity(buildingGroup);
         break;
       case 'temple':
-        this.buildJungleTemple(g);
+        this.buildJungleTemple(buildingGroup);
         break;
       default:
-        this.buildGenericCastle(g);
+        this.buildGenericCastle(buildingGroup);
     }
 
-    // Attach text label right below the landmark
+    // Create a dedicated group for the label banner
+    const labelGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    labelGroup.setAttribute("class", "region-label-group");
+    labelGroup.style.pointerEvents = "none"; // Safety rule 8: Keep labels non-interactive
+    
+    // Per-region Y-offsets scaled up perfectly to match the new 43x height
+    let labelY = 1000; // Default offset
+    if (region.landmarkType === 'academy') labelY = 900;
+    else if (region.landmarkType === 'fortress') labelY = 1100;
+    else if (region.landmarkType === 'industrial') labelY = 1050;
+    else if (region.landmarkType === 'temple') labelY = 1150;
+    
+    labelGroup.setAttribute("transform", `translate(0, ${labelY})`);
+
+    // Banner styling colors based on region theme
+    let bannerFill = "#1e3a8a"; // Default dark blue
+    let bannerStroke = "#38bdf8";
+    
+    if (region.landmarkType === 'academy') {
+       bannerFill = "#0c4a6e"; bannerStroke = "#00bcd4"; // Cyan / Blue academic
+    } else if (region.landmarkType === 'fortress') {
+       bannerFill = "#311b92"; bannerStroke = "#ea80fc"; // Dark purple corrupted
+    } else if (region.landmarkType === 'industrial') {
+       bannerFill = "#263238"; bannerStroke = "#ffb300"; // Dark grey / Orange industrial
+    } else if (region.landmarkType === 'temple') {
+       bannerFill = "#1b5e20"; bannerStroke = "#cddc39"; // Deep green jungle
+    }
+
+    // Define the master font size for the labels (scaled up massively to match the building)
+    const fontSize = 240; 
+    
+    // Dynamic width AND height calculation strictly based on font size and text length
+    const charWidth = fontSize * 0.58; // Average width of a character
+    const textWidth = region.name.length * charWidth; 
+    
+    const paddingX = fontSize * 0.7; // Horizontal padding
+    const paddingY = fontSize * 0.9; // Vertical height of the banner
+    
+    const flatW = (textWidth / 2) + paddingX; 
+    const pointW = flatW + paddingX; // Pointy edge extension
+
+    // Draw the banner background plate (Hexagon Ribbon) - Dynamically sized based on font!
+    const bannerPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    bannerPath.setAttribute("d", `M -${flatW},-${paddingY} L ${flatW},-${paddingY} L ${pointW},0 L ${flatW},${paddingY} L -${flatW},${paddingY} L -${pointW},0 Z`);
+    bannerPath.setAttribute("fill", bannerFill);
+    bannerPath.setAttribute("stroke", bannerStroke);
+    bannerPath.setAttribute("stroke-width", `${fontSize * 0.12}`);
+    bannerPath.setAttribute("filter", "drop-shadow(0px 10px 8px rgba(0,0,0,0.6))");
+    labelGroup.appendChild(bannerPath);
+
+    // Main Region Name Text (Always show true name!)
     const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
     text.setAttribute("x", 0);
-    text.setAttribute("y", 60); // Adjusted for new scale
+    // If locked, push name slightly up to fit the lock badge
+    text.setAttribute("y", region.locked ? -(fontSize * 0.15) : (fontSize * 0.3)); 
     text.setAttribute("text-anchor", "middle");
     text.setAttribute("fill", "#ffffff");
-    text.setAttribute("font-size", "20px"); // adjusted for scale
+    text.setAttribute("font-size", `${fontSize}px`); 
     text.setAttribute("font-weight", "bold");
-    text.setAttribute("filter", "drop-shadow(0px 2px 2px rgba(0,0,0,0.8))");
+    text.setAttribute("filter", "drop-shadow(0px 6px 6px rgba(0,0,0,0.8))");
+    text.textContent = region.name;
+    labelGroup.appendChild(text);
     
-    // Obfuscate text if locked so it looks mysterious under the clouds
+    // Draw Lock Badge if Locked
     if (region.locked) {
-      text.textContent = "??? (Locked)";
-      text.setAttribute("opacity", "0.6");
-    } else {
-      text.textContent = region.name;
+      const lockIndicator = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      lockIndicator.setAttribute("id", `lock-indicator-${region.id}`); // For future unlock logic
+      lockIndicator.setAttribute("transform", `translate(0, ${fontSize * 0.48})`);
+
+      // Small lock badge text
+      const lockText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      lockText.setAttribute("x", fontSize * 0.28);
+      lockText.setAttribute("y", 0);
+      lockText.setAttribute("text-anchor", "middle");
+      lockText.setAttribute("fill", "#ff8a80"); // Soft red
+      lockText.setAttribute("font-size", `${fontSize * 0.36}px`);
+      lockText.setAttribute("font-weight", "bold");
+      lockText.setAttribute("letter-spacing", "4px");
+      lockText.textContent = "LOCKED";
+      lockIndicator.appendChild(lockText);
+
+      // SVG Padlock Icon
+      const lockIcon = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      lockIcon.setAttribute("transform", `translate(-${fontSize}, -${fontSize * 0.28}) scale(${fontSize * 0.015})`);
+      
+      const lockHoop = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      lockHoop.setAttribute("d", "M 6,10 L 6,5 C 6,-1 14,-1 14,5 L 14,10");
+      lockHoop.setAttribute("fill", "none");
+      lockHoop.setAttribute("stroke", "#ff8a80");
+      lockHoop.setAttribute("stroke-width", "3");
+      
+      const lockBody = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      lockBody.setAttribute("x", "0");
+      lockBody.setAttribute("y", "10");
+      lockBody.setAttribute("width", "20");
+      lockBody.setAttribute("height", "15");
+      lockBody.setAttribute("rx", "3");
+      lockBody.setAttribute("fill", "#ff8a80");
+      
+      lockIcon.appendChild(lockHoop);
+      lockIcon.appendChild(lockBody);
+      lockIndicator.appendChild(lockIcon);
+
+      labelGroup.appendChild(lockIndicator);
+      
+      // Slightly dim the banner to reflect locked state
+      bannerPath.setAttribute("opacity", "0.85");
+      bannerPath.setAttribute("stroke", "#9e9e9e"); // Grey out the border
     }
-    
-    g.appendChild(text);
+
+    g.appendChild(labelGroup);
 
     // Push into the Global Z-Sorting RenderQueue
     if (renderQueue) {
@@ -73,144 +170,151 @@ class LandmarkManager {
   }
 
   buildAcademy(g) {
-    // 3D Isometric Academy (Logic)
-    // Central main block
-    const baseFront = this.createPoly("-30,0 30,0 30,-40 -30,-40", "#e0f7fa");
-    const baseLeft = this.createPoly("-30,0 -50,-15 -50,-55 -30,-40", "#b2ebf2");
-    const baseTop = this.createPoly("-30,-40 -50,-55 10,-55 30,-40", "#ffffff");
-    
-    // Dome
-    const dome = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    dome.setAttribute("d", "M -10,-45 A 20 20 0 0 1 30,-45 Z");
-    dome.setAttribute("fill", "#00bcd4");
-    
-    // Spire
-    const spireLeft = this.createPoly("10,-65 5,-100 10,-110", "#ffb300");
-    const spireRight = this.createPoly("10,-65 15,-100 10,-110", "#ff8f00");
+    // Logic Dominion: Peaceful, Bright, Knowledge Citadel
+    // Base platform
+    g.appendChild(this.createPoly("-45,15 -60,0 45,0 60,15", "#e0f7fa"));
 
-    g.appendChild(baseLeft);
-    g.appendChild(baseFront);
-    g.appendChild(baseTop);
+    // Left Wing
+    g.appendChild(this.createPoly("-35,5 -45,-3 -45,-15 -35,-7", "#b2ebf2")); 
+    g.appendChild(this.createPoly("-35,5 -15,5 -15,-7 -35,-7", "#e0f7fa"));   
+    g.appendChild(this.createPoly("-35,-7 -45,-15 -25,-15 -15,-7", "#ffffff"));
+    
+    // Right Wing
+    g.appendChild(this.createPoly("15,5 5,-3 5,-15 15,-7", "#b2ebf2"));
+    g.appendChild(this.createPoly("15,5 35,5 35,-7 15,-7", "#e0f7fa"));
+    g.appendChild(this.createPoly("15,-7 5,-15 25,-15 35,-7", "#ffffff"));
+
+    // Main Citadel Block
+    g.appendChild(this.createPoly("-20,10 -35,0 -35,-30 -20,-20", "#b2ebf2"));
+    g.appendChild(this.createPoly("-20,10 20,10 20,-20 -20,-20", "#ffffff"));
+    g.appendChild(this.createPoly("-20,-20 -35,-30 5,-30 20,-20", "#e0f7fa"));
+
+    // Entrance Columns
+    for(let i=0; i<4; i++) {
+        g.appendChild(this.createPoly(`${-12 + i*8},10 ${-10 + i*8},10 ${-10 + i*8},-20 ${-12 + i*8},-20`, "#b2ebf2"));
+    }
+
+    // Cyan Dome
+    const dome = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    dome.setAttribute("d", "M -15,-20 A 15 12 0 0 1 15,-20 Z");
+    dome.setAttribute("fill", "#00bcd4");
     g.appendChild(dome);
-    g.appendChild(spireLeft);
-    g.appendChild(spireRight);
+
+    // Golden Spire
+    g.appendChild(this.createPoly("-2,-32 0,-45 2,-32", "#ffca28"));
   }
 
   buildFortress(g) {
-    // 3D Ruined Fortress (Debug)
-    // Left Tower
-    const tlFront = this.createPoly("-40,0 -20,10 -20,-30 -40,-40", "#37474f");
-    const tlLeft = this.createPoly("-40,0 -60,-10 -60,-50 -40,-40", "#263238");
-    const tlTop = this.createPoly("-40,-40 -60,-50 -40,-60 -20,-50", "#455a64");
+    // Debug Realm: Corrupted Tower
+    // Cracked Dark Base
+    g.appendChild(this.createPoly("-40,15 -55,0 40,0 55,15", "#263238"));
+    const crack = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    crack.setAttribute("d", "M -20,10 L -10,5 L -5,8 L 10,2 L 15,5");
+    crack.setAttribute("stroke", "#aa00ff"); 
+    crack.setAttribute("fill", "none"); 
+    crack.setAttribute("stroke-width", "1");
+    g.appendChild(crack);
 
-    // Right Tower
-    const trFront = this.createPoly("20,10 40,0 40,-40 20,-30", "#37474f");
-    const trRight = this.createPoly("40,0 60,-10 60,-50 40,-40", "#1a232e");
-    const trTop = this.createPoly("20,-30 40,-40 60,-50 40,-40", "#455a64"); // Ruined
-
-    // Connecting Wall
-    const wallFront = this.createPoly("-20,10 20,10 20,-10 -20,-10", "#263238");
-
-    // Crystals with pulsing glow animation
-    const c1Left = this.createPoly("0,-5 -15,-20 -5,-35", "#d500f9");
-    const c1Right = this.createPoly("0,-5 10,-25 -5,-35", "#aa00ff");
-
-    const glow = document.createElementNS("http://www.w3.org/2000/svg", "animate");
-    glow.setAttribute("attributeName", "opacity");
-    glow.setAttribute("values", "0.5;1;0.5");
-    glow.setAttribute("dur", "2.5s");
-    glow.setAttribute("repeatCount", "indefinite");
+    // Main Tower Base
+    g.appendChild(this.createPoly("-20,10 -35,0 -35,-20 -20,-10", "#1a232e")); 
+    g.appendChild(this.createPoly("-20,10 20,10 20,-10 -20,-10", "#37474f")); 
+    g.appendChild(this.createPoly("-20,-10 -35,-20 5,-20 20,-10", "#455a64")); 
     
-    c1Left.appendChild(glow.cloneNode());
-    c1Right.appendChild(glow);
+    // Crooked Upper Tower
+    g.appendChild(this.createPoly("-15,-10 -25,-16 -25,-40 -15,-34", "#1a232e"));
+    g.appendChild(this.createPoly("-15,-10 10,-10 10,-30 -15,-34", "#37474f")); 
+    
+    // Dark Spikes
+    g.appendChild(this.createPoly("-15,-34 -25,-40 -10,-45", "#263238"));
+    g.appendChild(this.createPoly("-15,-34 10,-30 -2,-42", "#455a64"));
 
-    g.appendChild(tlLeft);
-    g.appendChild(tlFront);
-    g.appendChild(tlTop);
-    g.appendChild(trRight);
-    g.appendChild(trFront);
-    g.appendChild(wallFront);
-    g.appendChild(c1Left);
-    g.appendChild(c1Right);
+    // Purple Crystals (No animation)
+    g.appendChild(this.createPoly("-30,5 -40,-2 -35,-15", "#aa00ff"));
+    g.appendChild(this.createPoly("-30,5 -20,-2 -35,-15", "#d500f9"));
+    g.appendChild(this.createPoly("25,8 15,2 20,-12", "#6a1b9a"));
+    g.appendChild(this.createPoly("25,8 35,2 20,-12", "#aa00ff"));
+
+    // Glowing Core
+    const core = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    core.setAttribute("cx", "-2"); 
+    core.setAttribute("cy", "-25"); 
+    core.setAttribute("r", "3.5");
+    core.setAttribute("fill", "#ea80fc");
+    g.appendChild(core);
   }
 
   buildIndustrialCity(g) {
-    // 3D Factories (Systems)
-    // Main Building
-    const b1Front = this.createPoly("-20,20 20,20 20,-20 -20,-20", "#546e7a");
-    const b1Left = this.createPoly("-20,20 -40,10 -40,-30 -20,-20", "#37474f");
-    const b1Top = this.createPoly("-20,-20 -40,-30 0,-30 20,-20", "#78909c");
-
-    // Stacks
-    const s1Front = this.createPoly("0,-25 10,-25 10,-60 0,-60", "#263238");
-    const s1Left = this.createPoly("0,-25 -5,-27 -5,-62 0,-60", "#1a232e");
+    // Systems Frontier: Engineering Factory
+    // Metal Base
+    g.appendChild(this.createPoly("-50,15 -60,5 40,5 50,15", "#455a64"));
     
-    const s2Front = this.createPoly("-15,-25 -5,-25 -5,-50 -15,-50", "#263238");
-    const s2Left = this.createPoly("-15,-25 -20,-27 -20,-52 -15,-50", "#1a232e");
+    // Main Factory Block
+    g.appendChild(this.createPoly("-30,10 -45,0 -45,-20 -30,-10", "#37474f"));
+    g.appendChild(this.createPoly("-30,10 30,10 30,-10 -30,-10", "#546e7a"));
+    g.appendChild(this.createPoly("-30,-10 -45,-20 15,-20 30,-10", "#78909c"));
 
-    // Animated Smoke
-    const smokeGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    const smokeBubbles = [
-      { x: 5, y: -60, dur: "2s", delay: "0s" },
-      { x: -10, y: -50, dur: "2.5s", delay: "0.5s" }
-    ];
+    // Chimneys
+    g.appendChild(this.createPoly("-15,-15 -20,-18 -20,-45 -15,-42", "#263238"));
+    g.appendChild(this.createPoly("-15,-15 -10,-15 -10,-42 -15,-42", "#455a64"));
+    g.appendChild(this.createPoly("-15,-42 -20,-45 -15,-45 -10,-42", "#1a232e"));
 
-    smokeBubbles.forEach(b => {
-      const smoke = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-      smoke.setAttribute("cx", b.x);
-      smoke.setAttribute("cy", b.y);
-      smoke.setAttribute("r", "8");
-      smoke.setAttribute("fill", "#b0bec5");
-      smoke.setAttribute("opacity", "0.6");
-      smoke.style.mixBlendMode = "screen";
+    g.appendChild(this.createPoly("5,-12 0,-15 0,-35 5,-32", "#263238"));
+    g.appendChild(this.createPoly("5,-12 10,-12 10,-32 5,-32", "#455a64"));
 
-      const animY = document.createElementNS("http://www.w3.org/2000/svg", "animateTransform");
-      animY.setAttribute("attributeName", "transform");
-      animY.setAttribute("type", "translate");
-      animY.setAttribute("from", "0,0");
-      animY.setAttribute("to", "0,-40");
-      animY.setAttribute("dur", b.dur);
-      animY.setAttribute("begin", b.delay);
-      animY.setAttribute("repeatCount", "indefinite");
+    // Static Smoke puffs (No animation)
+    const puff1 = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    puff1.setAttribute("cx", "-15"); puff1.setAttribute("cy", "-52"); puff1.setAttribute("r", "5"); puff1.setAttribute("fill", "#90a4ae");
+    const puff2 = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    puff2.setAttribute("cx", "-10"); puff2.setAttribute("cy", "-57"); puff2.setAttribute("r", "7"); puff2.setAttribute("fill", "#b0bec5");
+    g.appendChild(puff1); g.appendChild(puff2);
 
-      const animOpacity = document.createElementNS("http://www.w3.org/2000/svg", "animate");
-      animOpacity.setAttribute("attributeName", "opacity");
-      animOpacity.setAttribute("values", "0.6;0");
-      animOpacity.setAttribute("dur", b.dur);
-      animOpacity.setAttribute("begin", b.delay);
-      animOpacity.setAttribute("repeatCount", "indefinite");
-
-      smoke.appendChild(animY);
-      smoke.appendChild(animOpacity);
-      smokeGroup.appendChild(smoke);
-    });
-
-    g.appendChild(b1Left);
-    g.appendChild(b1Front);
-    g.appendChild(b1Top);
-    g.appendChild(s1Left);
-    g.appendChild(s1Front);
-    g.appendChild(s2Front);
-    g.appendChild(s2Left);
-    g.appendChild(smokeGroup);
+    // Factory Details (Pipes & Gears)
+    g.appendChild(this.createPoly("-20,5 -20,15 -15,15 -15,5", "#ff8f00")); 
+    g.appendChild(this.createPoly("10,2 10,12 15,12 15,2", "#ffb300")); 
+    
+    // Simplified Gear
+    const gear = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    gear.setAttribute("d", "M 0,5 A 4 4 0 1 1 0,4.9 Z M 0,3 A 2 2 0 1 0 0,3.1 Z");
+    gear.setAttribute("fill", "#cfd8dc");
+    g.appendChild(gear);
   }
 
   buildJungleTemple(g) {
-    // 3D Step Pyramid (Python)
+    // Python Wildlands: Overgrown Jungle Temple
+    // Mossy Ground Base
+    g.appendChild(this.createPoly("-45,15 -55,5 45,5 55,15", "#33691e"));
+
+    // Stepped Tiers
     const tiers = [
-      { y: 10, w: 80, h: 15, d: 40 },
-      { y: -5, w: 60, h: 15, d: 30 },
-      { y: -20, w: 40, h: 15, d: 20 }
+      { y: 10, w: 70, h: 10, d: 40, c1: "#558b2f", c2: "#33691e", c3: "#7cb342" },
+      { y: 0, w: 50, h: 12, d: 30, c1: "#558b2f", c2: "#33691e", c3: "#7cb342" },
+      { y: -12, w: 30, h: 15, d: 20, c1: "#558b2f", c2: "#33691e", c3: "#7cb342" }
     ];
 
     tiers.forEach(t => {
-      const front = this.createPoly(`${-t.w/2},${t.y} ${t.w/2},${t.y} ${t.w/2},${t.y-t.h} ${-t.w/2},${t.y-t.h}`, "#558b2f");
-      const left = this.createPoly(`${-t.w/2},${t.y} ${-t.w/2 - t.d/2},${t.y - t.d/2} ${-t.w/2 - t.d/2},${t.y - t.h - t.d/2} ${-t.w/2},${t.y-t.h}`, "#33691e");
-      const top = this.createPoly(`${-t.w/2},${t.y-t.h} ${-t.w/2 - t.d/2},${t.y - t.h - t.d/2} ${t.w/2 - t.d/2},${t.y - t.h - t.d/2} ${t.w/2},${t.y-t.h}`, "#7cb342");
-      g.appendChild(left);
-      g.appendChild(front);
+      const front = this.createPoly(`${-t.w/2},${t.y} ${t.w/2},${t.y} ${t.w/2},${t.y-t.h} ${-t.w/2},${t.y-t.h}`, t.c1);
+      const left = this.createPoly(`${-t.w/2},${t.y} ${-t.w/2 - t.d/2},${t.y - t.d/2} ${-t.w/2 - t.d/2},${t.y - t.h - t.d/2} ${-t.w/2},${t.y-t.h}`, t.c2);
+      const top = this.createPoly(`${-t.w/2},${t.y-t.h} ${-t.w/2 - t.d/2},${t.y - t.h - t.d/2} ${t.w/2 - t.d/2},${t.y - t.h - t.d/2} ${t.w/2},${t.y-t.h}`, t.c3);
+      g.appendChild(left); 
+      g.appendChild(front); 
       g.appendChild(top);
     });
+
+    // Golden Shrine Top
+    g.appendChild(this.createPoly("-5,-27 -10,-32 -10,-37 -5,-32", "#f57f17"));
+    g.appendChild(this.createPoly("-5,-27 5,-27 5,-32 -5,-32", "#fbc02d"));
+    g.appendChild(this.createPoly("-5,-32 -10,-37 0,-37 5,-32", "#fff59d"));
+
+    // Overgrown Vines
+    const vine = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    vine.setAttribute("d", "M -15,-12 Q -10,-5 -15,0 T -10,10 M 15,-12 Q 12,-5 18,0");
+    vine.setAttribute("stroke", "#1b5e20"); 
+    vine.setAttribute("stroke-width", "2"); 
+    vine.setAttribute("fill", "none");
+    g.appendChild(vine);
+
+    // Front Doorway
+    g.appendChild(this.createPoly("-8,10 8,10 8,0 -8,0", "#1b5e20"));
   }
 
   createPoly(points, color) {

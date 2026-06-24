@@ -100,21 +100,28 @@ class SVGRenderer {
         <stop offset="50%" stop-color="#90a4ae" />
         <stop offset="100%" stop-color="#546e7a" />
       </linearGradient>
-      <!-- Biome Halo Gradients -->
-      <radialGradient id="halo-plains" cx="50%" cy="50%" r="50%">
-        <stop offset="0%" stop-color="#8bc34a" stop-opacity="0.6" />
+      <!-- Civilization Zone Gradients -->
+      <radialGradient id="logic-zone-grad" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#aed581" stop-opacity="0.8" />
+        <stop offset="70%" stop-color="#8bc34a" stop-opacity="0.5" />
         <stop offset="100%" stop-color="#8bc34a" stop-opacity="0" />
       </radialGradient>
-      <radialGradient id="halo-wasteland" cx="50%" cy="50%" r="50%">
-        <stop offset="0%" stop-color="#455a64" stop-opacity="0.9" />
-        <stop offset="100%" stop-color="#455a64" stop-opacity="0" />
+      
+      <radialGradient id="debug-zone-grad" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#5c5470" stop-opacity="0.6" />
+        <stop offset="70%" stop-color="#453c5c" stop-opacity="0.4" />
+        <stop offset="100%" stop-color="#352f44" stop-opacity="0" />
       </radialGradient>
-      <radialGradient id="halo-coastal" cx="50%" cy="50%" r="50%">
-        <stop offset="0%" stop-color="#aed581" stop-opacity="0.6" />
-        <stop offset="100%" stop-color="#aed581" stop-opacity="0" />
+
+      <radialGradient id="systems-zone-grad" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#8d6e63" stop-opacity="0.7" />
+        <stop offset="70%" stop-color="#6d4c41" stop-opacity="0.5" />
+        <stop offset="100%" stop-color="#5d4037" stop-opacity="0" />
       </radialGradient>
-      <radialGradient id="halo-jungle" cx="50%" cy="50%" r="50%">
-        <stop offset="0%" stop-color="#1b5e20" stop-opacity="0.9" />
+
+      <radialGradient id="python-zone-grad" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#33691e" stop-opacity="0.8" />
+        <stop offset="70%" stop-color="#1b5e20" stop-opacity="0.6" />
         <stop offset="100%" stop-color="#1b5e20" stop-opacity="0" />
       </radialGradient>
       
