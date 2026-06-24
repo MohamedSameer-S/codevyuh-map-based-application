@@ -38,7 +38,8 @@ class TerrainGenerator {
     this.renderer.getLayer('landmass').appendChild(landPlains);
 
     // 3. Terrain Patches for variation
-    this.drawTerrainPatches(rx, ry);
+    // Removed old terrain patches
+
 
     // 4. High Elevation (Highlands)
     // Removed because it creates a muddy dark boundary outline in the center
@@ -58,8 +59,8 @@ class TerrainGenerator {
     this.renderer.getLayer('landmass').appendChild(gridOverlay);
     */
 
-    // 6. Biome Halos (Ground Blending)
-    this.drawBiomeHalos();
+    // 6. Civilization Zones (Ground Blending)
+    this.drawCivilizationZones(rx, ry, plainsPath);
 
     // 7. Water Network & Regional Separation
     this.generateWaterNetwork();
@@ -107,6 +108,61 @@ class TerrainGenerator {
     this.renderer.getLayer('landmass').appendChild(beach);
   }
 
+  drawCivilizationZones(rx, ry, plainsPath) {
+    const zones = [
+      { id: 'logic', theme: 'plains', cx: this.centerX - rx * 0.6, cy: this.centerY - ry * 0.6, grad: 'url(#logic-zone-grad)' },
+      { id: 'debug', theme: 'debug', cx: this.centerX + rx * 0.6, cy: this.centerY - ry * 0.6, grad: 'url(#debug-zone-grad)' },
+      { id: 'systems', theme: 'systems', cx: this.centerX - rx * 0.6, cy: this.centerY + ry * 0.6, grad: 'url(#systems-zone-grad)' },
+      { id: 'python', theme: 'python', cx: this.centerX + rx * 0.6, cy: this.centerY + ry * 0.6, grad: 'url(#python-zone-grad)' }
+    ];
+
+    if (this.regionsConfig && this.regionsConfig.length > 0) {
+      zones.forEach(zone => {
+        const themeRegions = this.regionsConfig.filter(r => r.theme === zone.theme || (zone.theme === 'plains' && !r.theme));
+        if (themeRegions.length > 0) {
+          const sumX = themeRegions.reduce((sum, r) => sum + r.x, 0);
+          const sumY = themeRegions.reduce((sum, r) => sum + r.y, 0);
+          zone.cx = sumX / themeRegions.length;
+          zone.cy = sumY / themeRegions.length;
+        }
+      });
+    }
+
+    const zoneGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    zoneGroup.setAttribute("id", "civilization-zones");
+
+    // Apply clipping mask so zones don't overflow the base island
+    if (plainsPath) {
+      const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+      const clipPath = document.createElementNS("http://www.w3.org/2000/svg", "clipPath");
+      clipPath.setAttribute("id", "island-clip-path");
+      const clipPoly = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      clipPoly.setAttribute("d", plainsPath);
+      clipPath.appendChild(clipPoly);
+      defs.appendChild(clipPath);
+      zoneGroup.appendChild(defs);
+      zoneGroup.setAttribute("clip-path", "url(#island-clip-path)");
+    }
+
+    zones.forEach(zone => {
+      // Create large, overlapping, organic shapes for each zone
+      const zoneRx = rx * 1.2;
+      const zoneRy = ry * 1.2;
+      const pathData = this.generateIslandPath(zone.cx, zone.cy, zoneRx, zoneRy, 0.45);
+      
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.setAttribute("d", pathData);
+      path.setAttribute("fill", zone.grad);
+      // Using multiply blend mode enhances the organic integration with the base green
+      path.style.mixBlendMode = "multiply"; 
+      
+      zoneGroup.appendChild(path);
+    });
+
+    this.renderer.getLayer('landmass').appendChild(zoneGroup);
+  }
+
+  // Preserved for rollback safety per Phase 1A rules
   drawTerrainPatches(rx, ry) {
     const numPatches = 80;
     const colors = ["#85b060", "#6d914d", "#76a156", "#8bba62"];
@@ -129,6 +185,7 @@ class TerrainGenerator {
     }
   }
 
+  // Preserved for rollback safety per Phase 1A rules
   drawBiomeHalos() {
     const haloGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
     haloGroup.setAttribute("id", "biome-halos");
@@ -490,15 +547,16 @@ class TerrainGenerator {
       const dx = r.x - x;
       const dy = r.y - y;
       const dist = Math.sqrt(dx * dx + dy * dy);
-      // Region plates have a radius of roughly width / 2.2
-      // We want ecology to spawn right at the edge of the plate, so padding is small
-      const safeZone = Math.max(r.width, r.height) / 2.2 + 50; 
+      // Adjusted safe zone (Phase 1B.2 Fix): large enough for landmarks, but reduced from 220 to 150
+      // so the map has rich clearings without mathematically starving the generator.
+      const safeZone = Math.max(r.width, r.height) / 2.2 + 150; 
       if (dist < safeZone + radius) return true;
     }
     return false;
   }
 
-  generateEcology(islandRx, islandRy) {
+  // Preserved for rollback safety per Phase 1B rules
+  generateEcologyOld(islandRx, islandRy) {
     const step = 150; // Grid spacing for Poisson-like distribution
     for (let x = this.playableBounds.minX; x < this.playableBounds.maxX; x += step) {
       for (let y = this.playableBounds.minY; y < this.playableBounds.maxY; y += step) {
@@ -547,11 +605,148 @@ class TerrainGenerator {
     }
   }
 
+  generateEcology(islandRx, islandRy) {
+    // New Cluster-Based Ecology (Phase 1B.2)
+    // We achieve organic boundaries by determining the theme based on the nearest region.
+    
+    // 1. Natural Mountain Ridges
+    this.generateMountainRidges(islandRx, islandRy);
+
+    // 2. Thematic Forest & Prop Clusters with exact controlled density
+    const clusterTargets = {
+      plains: 7,   // Logic Dominion
+      debug: 10,   // Debug Realm
+      systems: 10, // Systems Frontier
+      python: 15   // Python Wildlands
+    };
+
+    const clusterCounts = { plains: 0, debug: 0, systems: 0, python: 0 };
+    let totalAttempts = 0;
+    const maxAttempts = 3000;
+    let targetsMet = false;
+
+    // Phase 1B.2 Debug Counters
+    let rejectedBounds = 0;
+    let rejectedCollision = 0;
+    let totalGroups = 0;
+
+    while (!targetsMet && totalAttempts < maxAttempts) {
+      totalAttempts++;
+      
+      const cx = this.playableBounds.minX + window.rng.next() * (this.playableBounds.maxX - this.playableBounds.minX);
+      const cy = this.playableBounds.minY + window.rng.next() * (this.playableBounds.maxY - this.playableBounds.minY);
+      
+      const dx = cx - this.centerX;
+      const dy = cy - this.centerY;
+      const normalizedDist = (dx*dx)/(islandRx*islandRx) + (dy*dy)/(islandRy*islandRy);
+      
+      if (normalizedDist > 0.85) {
+        rejectedBounds++;
+      } else if (this.isCollision(cx, cy, 40)) {
+        rejectedCollision++;
+      } else {
+        // Find nearest region to organically assign this cluster's theme
+        let nearestRegion = null;
+        let minDist = Infinity;
+        for (let r of this.regionsConfig) {
+          const dist = Math.sqrt(Math.pow(r.x - cx, 2) + Math.pow(r.y - cy, 2));
+          if (dist < minDist) {
+            minDist = dist;
+            nearestRegion = r;
+          }
+        }
+        
+        const theme = nearestRegion && minDist < 2000 ? (nearestRegion.theme || 'plains') : 'plains';
+        
+        // Only spawn if we need more clusters for this territory
+        if (clusterCounts[theme] < clusterTargets[theme]) {
+          clusterCounts[theme]++;
+          
+          let itemsInCluster = 3 + Math.floor(window.rng.next() * 4);
+          // Adjust density strictly per rules
+          if (theme === 'python') itemsInCluster += 2; // Densest
+          else if (theme === 'plains') itemsInCluster -= 1; // Cleanest
+          
+          for(let j = 0; j < itemsInCluster; j++) {
+             const jx = cx + (window.rng.next() * 160 - 80);
+             const jy = cy + (window.rng.next() * 160 - 80);
+             
+             if (!this.isCollision(jx, jy, 40)) {
+               this.spawnDecoration(jx, jy, theme);
+               totalGroups++;
+             }
+          }
+        }
+      }
+      
+      targetsMet = Object.keys(clusterTargets).every(k => clusterCounts[k] >= clusterTargets[k]);
+    }
+
+    // Temporary debug summary for Phase 1B.2 density fix
+    console.log(`=== ECOLOGY GENERATION SUMMARY ===`);
+    console.log(`Attempts: ${totalAttempts}`);
+    console.log(`Accepted Clusters: Logic=${clusterCounts.plains}, Debug=${clusterCounts.debug}, Systems=${clusterCounts.systems}, Python=${clusterCounts.python}`);
+    console.log(`Rejected by Bounds: ${rejectedBounds}`);
+    console.log(`Rejected by Collision: ${rejectedCollision}`);
+    console.log(`Total Decoration Items Rendered: ${totalGroups}`);
+    console.log(`==================================`);
+  }
+  
+  generateMountainRidges(islandRx, islandRy) {
+    // Add 2-3 more ridge groups, especially top-center and top-right per rule 10
+    const ridges = [
+      { startX: 1200, startY: 1000, endX: 1900, endY: 700, count: 9, theme: 'plains' },
+      { startX: 2100, startY: 600, endX: 2800, endY: 850, count: 11, theme: 'plains' },
+      { startX: 3200, startY: 600, endX: 4200, endY: 1400, count: 14, theme: 'debug' },
+      { startX: 3600, startY: 1500, endX: 4500, endY: 1900, count: 12, theme: 'debug' }
+    ];
+    
+    ridges.forEach(ridge => {
+      for(let i=0; i<ridge.count; i++) {
+        const t = i / (ridge.count - 1);
+        const curveY = Math.sin(t * Math.PI) * 150; // Curve the ridge naturally
+        let x = ridge.startX + (ridge.endX - ridge.startX) * t + (window.rng.next() * 60 - 30);
+        let y = ridge.startY + (ridge.endY - ridge.startY) * t + curveY + (window.rng.next() * 60 - 30);
+        
+        if (!this.isCollision(x, y, 100)) {
+           this.drawMountain(x, y, ridge.theme);
+        }
+      }
+    });
+  }
+
+  spawnDecoration(x, y, theme) {
+    if (theme === 'debug') {
+      const roll = window.rng.next();
+      if (roll < 0.25) this.drawCrystal(x, y);
+      else if (roll < 0.5) this.drawDeadTree(x, y);
+      else if (roll < 0.75) this.drawMountain(x, y, theme);
+      else this.drawGroundCrack(x, y);
+    } else if (theme === 'systems') {
+      const roll = window.rng.next();
+      if (roll < 0.6) this.drawIndustrialProp(x, y);
+      else if (roll < 0.8) this.drawMountain(x, y, theme);
+      else this.drawSmallGear(x, y);
+    } else if (theme === 'python') {
+      const roll = window.rng.next();
+      if (roll < 0.35) this.drawPalmTree(x, y);
+      else if (roll < 0.7) this.drawBush(x, y, theme);
+      else this.drawTreeGroup(x, y, theme);
+    } else {
+      // Logic Dominion (Plains) - Keep it clean, low density
+      const roll = window.rng.next();
+      if (roll < 0.6) this.drawTreeGroup(x, y, theme);
+      else if (roll < 0.8) this.drawBush(x, y, theme);
+      else this.drawGrassPatch(x, y);
+    }
+  }
+
   drawCrystal(x, y) {
     const size = window.rng.next() * 40 + 60;
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
     g.setAttribute("transform", `translate(${x}, ${y}) scale(1, 1.666)`);
     g.setAttribute("class", "landmark-shadow");
+    g.style.pointerEvents = "none"; // Safety rule 11
 
     const base = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
     base.setAttribute("points", `0,-${size} -${size*0.3},0 0,${size*0.2} ${size*0.3},0`);
@@ -578,6 +773,7 @@ class TerrainGenerator {
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
     g.setAttribute("transform", `translate(${x}, ${y}) scale(1.5)`);
     g.setAttribute("filter", "url(#drop-shadow)");
+    g.style.pointerEvents = "none";
 
     const trunk = document.createElementNS("http://www.w3.org/2000/svg", "path");
     trunk.setAttribute("d", "M -2,0 Q -5,-15 0,-30 Q 5,-15 2,0 Z");
@@ -597,10 +793,13 @@ class TerrainGenerator {
   }
 
   drawMountain(x, y, theme = 'plains') {
-    const size = window.rng.next() * 60 + 100; // 100 to 160
+    // Add slight natural variation to scale for ridges
+    const baseScale = 0.8 + window.rng.next() * 0.4;
+    const size = window.rng.next() * 50 + 90; // 90 to 140
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    g.setAttribute("transform", `translate(${x}, ${y}) scale(1, 1.666)`);
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(${baseScale}, ${baseScale * 1.666})`);
     g.setAttribute("class", "mountain-shadow");
+    g.style.pointerEvents = "none";
 
     const baseColor = theme === 'debug' ? '#263238' : '#455a64';
 
@@ -631,6 +830,7 @@ class TerrainGenerator {
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
     g.setAttribute("transform", `translate(${x}, ${y}) scale(1, 1.666)`);
     g.setAttribute("filter", "url(#drop-shadow)");
+    g.style.pointerEvents = "none";
 
     // Draw 3 detailed overlapping trees
     const offsets = [[0, -10, 1], [-15, 5, 0.8], [15, 10, 0.9]];
@@ -676,6 +876,122 @@ class TerrainGenerator {
       g.appendChild(treeG);
     });
 
+    this.renderQueue.push({ y: y, element: g });
+  }
+
+  drawDeadTree(x, y) {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(1.5)`);
+    g.setAttribute("filter", "url(#drop-shadow)");
+    g.style.pointerEvents = "none";
+
+    const trunk = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    // Twisted, sharp barren branches (simple stroke)
+    trunk.setAttribute("d", "M -2,0 Q -5,-15 0,-25 L -10,-35 M 0,-25 L 8,-30 L 15,-25 M 5,-15 L 12,-10");
+    trunk.setAttribute("stroke", "#453c5c");
+    trunk.setAttribute("stroke-width", "4");
+    trunk.setAttribute("stroke-linecap", "round");
+    trunk.setAttribute("fill", "none");
+
+    g.appendChild(trunk);
+    this.renderQueue.push({ y: y, element: g });
+  }
+
+  drawIndustrialProp(x, y) {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(1.5)`);
+    g.setAttribute("filter", "url(#drop-shadow)");
+    g.style.pointerEvents = "none";
+
+    const type = window.rng.next();
+    if (type > 0.5) {
+      // Small yellow/orange bent pipe
+      const pipe = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      pipe.setAttribute("d", "M -12,0 L -12,-15 L 12,-15 L 12,0");
+      pipe.setAttribute("stroke", "#ff8f00");
+      pipe.setAttribute("stroke-width", "5");
+      pipe.setAttribute("fill", "none");
+      g.appendChild(pipe);
+    } else {
+      // Grey metal block
+      const block = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      block.setAttribute("x", "-10");
+      block.setAttribute("y", "-14");
+      block.setAttribute("width", "20");
+      block.setAttribute("height", "14");
+      block.setAttribute("fill", "#546e7a");
+      block.setAttribute("stroke", "#37474f");
+      block.setAttribute("stroke-width", "2");
+      g.appendChild(block);
+    }
+
+    this.renderQueue.push({ y: y, element: g });
+  }
+
+  drawBush(x, y, theme = 'python') {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    const scale = 1 + window.rng.next() * 0.5;
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
+    g.setAttribute("filter", "url(#drop-shadow)");
+    g.style.pointerEvents = "none";
+
+    const bush = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    // Simple 3-bump bush
+    bush.setAttribute("d", "M -15,0 Q -20,-15 -5,-20 Q 0,-35 10,-20 Q 25,-15 15,0 Z");
+    const color = theme === 'python' ? '#2e7d32' : '#8bc34a';
+    bush.setAttribute("fill", color);
+
+    g.appendChild(bush);
+    this.renderQueue.push({ y: y, element: g });
+  }
+
+  drawGroundCrack(x, y) {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(1.5)`);
+    g.style.pointerEvents = "none";
+
+    const crack = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    crack.setAttribute("d", "M -10,10 L -5,5 L 0,15 L 10,0 L 5,-5");
+    crack.setAttribute("stroke", "#352f44"); // Dark purple/grey
+    crack.setAttribute("stroke-width", "2");
+    crack.setAttribute("fill", "none");
+    crack.setAttribute("stroke-linecap", "round");
+    crack.setAttribute("stroke-linejoin", "round");
+
+    g.appendChild(crack);
+    this.renderQueue.push({ y: y, element: g });
+  }
+
+  drawSmallGear(x, y) {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(1.5)`);
+    g.setAttribute("filter", "url(#drop-shadow)");
+    g.style.pointerEvents = "none";
+
+    // A simple gear shape (circle with teeth)
+    const gear = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    gear.setAttribute("d", "M -5,-5 L -2,-8 L 2,-8 L 5,-5 L 8,-2 L 8,2 L 5,5 L 2,8 L -2,8 L -5,5 L -8,2 L -8,-2 Z M 0,-3 A 3 3 0 1 0 0,3 A 3 3 0 1 0 0,-3");
+    gear.setAttribute("fill", "#78909c"); // Light metallic
+    gear.setAttribute("stroke", "#455a64");
+    gear.setAttribute("stroke-width", "1.5");
+
+    g.appendChild(gear);
+    this.renderQueue.push({ y: y, element: g });
+  }
+
+  drawGrassPatch(x, y) {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(1.5)`);
+    g.style.pointerEvents = "none";
+
+    const grass = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    grass.setAttribute("d", "M -5,5 Q -3,0 0,5 M 0,5 Q 3,-2 5,5 M 5,5 Q 7,1 10,5");
+    grass.setAttribute("stroke", "#8bc34a");
+    grass.setAttribute("stroke-width", "2");
+    grass.setAttribute("fill", "none");
+    grass.setAttribute("stroke-linecap", "round");
+
+    g.appendChild(grass);
     this.renderQueue.push({ y: y, element: g });
   }
 }
