@@ -148,14 +148,50 @@ class TerrainGenerator {
   }
 
   drawShoreline(baseLayerPath) {
+    const layer = this.renderer.getLayer('landmass');
+    
+    // 1. Coastline Depth/Shadow (Behind everything)
+    const depthShadow = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    depthShadow.setAttribute("d", baseLayerPath);
+    depthShadow.setAttribute("fill", "none");
+    depthShadow.setAttribute("stroke", "#003366");
+    depthShadow.setAttribute("stroke-width", "360");
+    depthShadow.setAttribute("stroke-linejoin", "round");
+    depthShadow.setAttribute("stroke-linecap", "round");
+    depthShadow.setAttribute("opacity", "0.65");
+    layer.appendChild(depthShadow);
+
+    // 2. Shallow Water Edge
+    const shallowWater = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    shallowWater.setAttribute("d", baseLayerPath);
+    shallowWater.setAttribute("fill", "none");
+    shallowWater.setAttribute("stroke", "#00acc1");
+    shallowWater.setAttribute("stroke-width", "240");
+    shallowWater.setAttribute("stroke-linejoin", "round");
+    shallowWater.setAttribute("stroke-linecap", "round");
+    shallowWater.setAttribute("opacity", "0.85");
+    layer.appendChild(shallowWater);
+
+    // 3. Wet Sand Edge
+    const wetSand = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    wetSand.setAttribute("d", baseLayerPath);
+    wetSand.setAttribute("fill", "none");
+    wetSand.setAttribute("stroke", "#a1887f");
+    wetSand.setAttribute("stroke-width", "90");
+    wetSand.setAttribute("stroke-linejoin", "round");
+    wetSand.setAttribute("stroke-linecap", "round");
+    wetSand.setAttribute("opacity", "0.8");
+    layer.appendChild(wetSand);
+
+    // 4. Actual Beach Base
     const beach = document.createElementNS("http://www.w3.org/2000/svg", "path");
     beach.setAttribute("d", baseLayerPath);
     beach.setAttribute("fill", "#eecfa1"); // Sand
-    beach.setAttribute("stroke", "#4bb5c1"); // Shallow turquoise border
-    beach.setAttribute("stroke-width", "30");
-    beach.setAttribute("filter", "drop-shadow(0px 8px 12px rgba(0,0,0,0.3))");
-    
-    this.renderer.getLayer('landmass').appendChild(beach);
+    beach.setAttribute("stroke", "#4dd0e1"); 
+    beach.setAttribute("stroke-width", "24");
+    beach.setAttribute("stroke-linejoin", "round");
+    beach.setAttribute("stroke-linecap", "round");
+    layer.appendChild(beach);
   }
 
   drawCivilizationZones(rx, ry, plainsPath) {
