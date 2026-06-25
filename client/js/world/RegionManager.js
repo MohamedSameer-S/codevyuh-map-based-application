@@ -96,7 +96,7 @@ class RegionManager {
       }
     });
 
-    g.appendChild(hitbox);
+    this.engine.renderer.getLayer('interaction').appendChild(hitbox);
     this.engine.renderer.getLayer('regions').appendChild(g);
   }
 

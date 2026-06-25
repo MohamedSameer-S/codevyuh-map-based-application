@@ -42,7 +42,8 @@ class FogManager {
         // This is 60x faster than blurring every single circle!
         cloudGroup.setAttribute("filter", "url(#cloud-fx)");
         
-        const targetRadius = Math.max(region.width, region.height) / 1.8;
+        const scaleMultiplier = region.cloudScale || 1.0;
+        const targetRadius = (Math.max(region.width, region.height) / 1.8) * scaleMultiplier;
         
         const coreBlob = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
         coreBlob.setAttribute("cx", region.x);
