@@ -379,25 +379,45 @@ class TerrainGenerator {
   }
 
   generateWaterNetwork() {
-    const drawRiver = (pathString, baseColor, coreColor, baseWidth, coreWidth, isJagged = false, highlightColor = null) => {
+    const drawRiver = (config) => {
+      const {
+        path, baseColor, coreColor, highlightColor,
+        baseWidth, coreWidth, highlightWidth,
+        baseOpacity, coreOpacity, highlightOpacity, isJagged
+      } = config;
+
       const riverBase = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      riverBase.setAttribute("d", pathString);
+      riverBase.setAttribute("d", path);
       riverBase.setAttribute("fill", "none");
       riverBase.setAttribute("stroke", baseColor);
       riverBase.setAttribute("stroke-width", baseWidth);
-      riverBase.setAttribute("stroke-linecap", isJagged ? "square" : "round");
-      riverBase.setAttribute("stroke-linejoin", isJagged ? "miter" : "round");
+      if (baseOpacity) riverBase.setAttribute("opacity", baseOpacity);
+      riverBase.setAttribute("stroke-linecap", isJagged ? "butt" : "round");
+      riverBase.setAttribute("stroke-linejoin", isJagged ? "round" : "round");
 
       const riverCore = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      riverCore.setAttribute("d", pathString);
+      riverCore.setAttribute("d", path);
       riverCore.setAttribute("fill", "none");
       riverCore.setAttribute("stroke", coreColor);
       riverCore.setAttribute("stroke-width", coreWidth);
-      riverCore.setAttribute("stroke-linecap", isJagged ? "square" : "round");
-      riverCore.setAttribute("stroke-linejoin", isJagged ? "miter" : "round");
+      if (coreOpacity) riverCore.setAttribute("opacity", coreOpacity);
+      riverCore.setAttribute("stroke-linecap", isJagged ? "butt" : "round");
+      riverCore.setAttribute("stroke-linejoin", isJagged ? "round" : "round");
 
       this.renderer.getLayer('rivers').appendChild(riverBase);
       this.renderer.getLayer('rivers').appendChild(riverCore);
+
+      if (highlightColor) {
+        const riverHighlight = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        riverHighlight.setAttribute("d", path);
+        riverHighlight.setAttribute("fill", "none");
+        riverHighlight.setAttribute("stroke", highlightColor);
+        riverHighlight.setAttribute("stroke-width", highlightWidth);
+        if (highlightOpacity) riverHighlight.setAttribute("opacity", highlightOpacity);
+        riverHighlight.setAttribute("stroke-linecap", isJagged ? "butt" : "round");
+        // Removed dashed array for a smooth natural flow
+        this.renderer.getLayer('rivers').appendChild(riverHighlight);
+      }
     };
 
     const drawLake = (cx, cy, rx, ry, baseColor, coreColor) => {
@@ -405,11 +425,13 @@ class TerrainGenerator {
       const lakeSvg = document.createElementNS("http://www.w3.org/2000/svg", "path");
       lakeSvg.setAttribute("d", lakePath);
       lakeSvg.setAttribute("fill", baseColor);
+      lakeSvg.setAttribute("opacity", "0.75");
       
       const corePath = this.generateIslandPath(cx, cy, rx * 0.6, ry * 0.6, 0.3);
       const coreSvg = document.createElementNS("http://www.w3.org/2000/svg", "path");
       coreSvg.setAttribute("d", corePath);
       coreSvg.setAttribute("fill", coreColor);
+      coreSvg.setAttribute("opacity", "0.9");
       coreSvg.setAttribute("filter", "drop-shadow(inset 0px 5px 10px rgba(0,0,0,0.3))");
       
       this.renderer.getLayer('rivers').appendChild(lakeSvg);
@@ -417,18 +439,19 @@ class TerrainGenerator {
     };
 
     const drawJunctionBay = (cx, cy, radius, baseColor, coreColor) => {
-      // Creates a smooth widening effect where rivers meet lakes
       const bayBase = document.createElementNS("http://www.w3.org/2000/svg", "circle");
       bayBase.setAttribute("cx", cx);
       bayBase.setAttribute("cy", cy);
       bayBase.setAttribute("r", radius);
       bayBase.setAttribute("fill", baseColor);
+      bayBase.setAttribute("opacity", "0.75");
       
       const bayCore = document.createElementNS("http://www.w3.org/2000/svg", "circle");
       bayCore.setAttribute("cx", cx);
       bayCore.setAttribute("cy", cy);
       bayCore.setAttribute("r", radius * 0.65);
       bayCore.setAttribute("fill", coreColor);
+      bayCore.setAttribute("opacity", "0.9");
       bayCore.setAttribute("filter", "drop-shadow(inset 0px 5px 10px rgba(0,0,0,0.3))");
 
       this.renderer.getLayer('rivers').appendChild(bayBase);
@@ -458,44 +481,118 @@ class TerrainGenerator {
     
     // 1. Curated Lakes
     // Python Lake (SE)
-    drawLake(5000, 4400, 320, 200, "#4db6ac", "#00695c");
-    drawJunctionBay(5000, 4400, 110, "#4bb5c1", "#2c7299");
+    drawLake(5000, 4400, 320, 200, "#00695c", "#26c6da");
+    drawJunctionBay(5000, 4400, 110, "#00695c", "#26c6da");
 
     // 2. Curated Rivers Configuration
     const curatedRivers = [
       {
         id: "main-river",
         type: "main",
-        // Clean sweeping S-curve from top center down to lower-left (Systems Frontier)
-        path: "M 2500,-200 C 2500,1000 3500,2000 2500,3000 C 1500,4000 1000,4500 -500,4500",
-        baseColor: "#4bb5c1",
-        coreColor: "#2c7299",
-        baseWidth: 240,
-        coreWidth: 100,
-        highlightColor: null,
+        // Safely ending at -1000, 3800 to clear Systems Republic
+        path: "M 2500,-200 C 2500,1000 3500,2000 2500,3000 C 1500,4000 500,3800 -1000,3800",
+        baseColor: "#00695c",
+        coreColor: "#26c6da",
+        highlightColor: "#b2ebf2",
+        baseWidth: 140,
+        coreWidth: 95,
+        highlightWidth: 14,
+        baseOpacity: 0.75,
+        coreOpacity: 0.9,
+        highlightOpacity: 0.45,
         isJagged: false
       },
       {
         id: "python-branch",
         type: "tributary",
-        // Smooth curve branching to Python Lake
-        path: "M 2500,3000 C 3500,3500 4500,3500 5000,4400",
-        baseColor: "#4bb5c1",
-        coreColor: "#2c7299",
-        baseWidth: 120,
-        coreWidth: 50,
-        highlightColor: null,
+        // Safely ending at 5500, 4000 to clear Python Wildlands
+        path: "M 2500,3000 C 3500,3500 4500,3500 5500,4000",
+        baseColor: "#00695c",
+        coreColor: "#26c6da",
+        highlightColor: "#b2ebf2",
+        baseWidth: 140,
+        coreWidth: 95,
+        highlightWidth: 14,
+        baseOpacity: 0.75,
+        coreOpacity: 0.9,
+        highlightOpacity: 0.45,
         isJagged: false
       }
     ];
 
     // Draw junction points to smooth the river forks
-    drawJunctionBay(2500, 3000, 110, "#4bb5c1", "#2c7299"); // Python branch fork
+    // drawJunctionBay(2500, 3000, 110, "#00695c", "#26c6da"); // Python branch fork (DISABLED FOR PHASE 4L)
 
-    // Render the rivers
+    // Render the rivers (DISABLED FOR PHASE 4L)
+    /*
     curatedRivers.forEach(river => {
-      drawRiver(river.path, river.baseColor, river.coreColor, river.baseWidth, river.coreWidth, river.isJagged, river.highlightColor);
+      drawRiver(river);
     });
+    */
+
+    const drawNaturalRiverSystem = () => {
+      // Natural Source and Confluence Lakes (offset asymmetric lakes)
+      drawLake(2800, -20, 90, 60, "#00695c", "#26c6da"); // Highland Spring Main
+      drawLake(2770, 20, 60, 40, "#00695c", "#26c6da"); // Highland Spring Offset
+      
+      drawLake(2800, 1500, 220, 160, "#00695c", "#26c6da"); // Confluence Blending Bay Main
+      drawLake(2750, 1450, 180, 120, "#00695c", "#26c6da"); // Confluence Blending Bay Offset
+
+      // 1. The Great Divide (West)
+      // Segment 1 (Source)
+      drawRiver({
+        path: "M 2800,-20 C 2400,500 2900,1000 2800,1500",
+        baseColor: "#00695c", coreColor: "#26c6da", highlightColor: "#b2ebf2",
+        baseWidth: 80, coreWidth: 60, highlightWidth: 10,
+        baseOpacity: 0.75, coreOpacity: 0.9, highlightOpacity: 0.45, isJagged: false
+      });
+      // Segment 2 (Mid)
+      drawRiver({
+        path: "M 2800,1500 C 2700,2400 1800,2800 1500,3200",
+        baseColor: "#00695c", coreColor: "#26c6da", highlightColor: "#b2ebf2",
+        baseWidth: 140, coreWidth: 95, highlightWidth: 14,
+        baseOpacity: 0.75, coreOpacity: 0.9, highlightOpacity: 0.45, isJagged: false
+      });
+      // Segment 3 (Approach to West Coastline)
+      drawRiver({
+        path: "M 1500,3200 C 500,3800 -1500,3100 -3400,3800",
+        baseColor: "#00695c", coreColor: "#26c6da", highlightColor: "#b2ebf2",
+        baseWidth: 220, coreWidth: 160, highlightWidth: 24,
+        baseOpacity: 0.75, coreOpacity: 0.9, highlightOpacity: 0.45, isJagged: false
+      });
+      // Segment 4 (West Delta Cut)
+      drawRiver({
+        path: "M -3400,3800 Q -3525,3840 -3650,3870",
+        baseColor: "#00695c", coreColor: "#26c6da", highlightColor: "#b2ebf2",
+        baseWidth: 260, coreWidth: 175, highlightWidth: 20,
+        baseOpacity: 0.75, coreOpacity: 0.9, highlightOpacity: 0.45, isJagged: true
+      });
+
+      // 2. Eastern Basin
+      // Segment 1 (Mid)
+      drawRiver({
+        path: "M 2800,1500 C 3200,1200 4000,2800 4500,2500",
+        baseColor: "#00695c", coreColor: "#26c6da", highlightColor: "#b2ebf2",
+        baseWidth: 80, coreWidth: 60, highlightWidth: 10,
+        baseOpacity: 0.75, coreOpacity: 0.9, highlightOpacity: 0.45, isJagged: false
+      });
+      // Segment 2 (Approach to East Coastline)
+      drawRiver({
+        path: "M 4500,2500 C 5500,2000 7000,4500 8300,4000",
+        baseColor: "#00695c", coreColor: "#26c6da", highlightColor: "#b2ebf2",
+        baseWidth: 200, coreWidth: 140, highlightWidth: 24,
+        baseOpacity: 0.75, coreOpacity: 0.9, highlightOpacity: 0.45, isJagged: false
+      });
+      // Segment 3 (East Delta Cut)
+      drawRiver({
+        path: "M 8300,4000 Q 8450,4040 8600,4070",
+        baseColor: "#00695c", coreColor: "#26c6da", highlightColor: "#b2ebf2",
+        baseWidth: 260, coreWidth: 175, highlightWidth: 20,
+        baseOpacity: 0.75, coreOpacity: 0.9, highlightOpacity: 0.45, isJagged: true
+      });
+    };
+
+    drawNaturalRiverSystem();
 
     // Bridges
     this.drawBridgeHint(2800, 2500, 'stone', -30);
