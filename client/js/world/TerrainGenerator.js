@@ -421,10 +421,6 @@ class TerrainGenerator {
     // --- RENDER CLEAN CURATED RIVERS ---
     
     // 1. Curated Lakes
-    // Logic Pond (NW)
-    drawLake(600, 400, 350, 200, "#80deea", "#00bcd4");
-    drawJunctionBay(600, 400, 110, "#80deea", "#00bcd4");
-    
     // Python Lake (SE)
     drawLake(5000, 4400, 320, 200, "#4db6ac", "#00695c");
     drawJunctionBay(5000, 4400, 110, "#4bb5c1", "#2c7299");
@@ -444,18 +440,6 @@ class TerrainGenerator {
         isJagged: false
       },
       {
-        id: "logic-branch",
-        type: "tributary",
-        // Smooth curve branching from main river to Logic Pond
-        path: "M 2920,1500 C 2000,1500 1000,1000 600,400",
-        baseColor: "#80deea",
-        coreColor: "#00bcd4",
-        baseWidth: 120,
-        coreWidth: 50,
-        highlightColor: null,
-        isJagged: false
-      },
-      {
         id: "python-branch",
         type: "tributary",
         // Smooth curve branching to Python Lake
@@ -470,7 +454,6 @@ class TerrainGenerator {
     ];
 
     // Draw junction points to smooth the river forks
-    drawJunctionBay(2920, 1500, 110, "#4bb5c1", "#2c7299"); // Logic branch fork
     drawJunctionBay(2500, 3000, 110, "#4bb5c1", "#2c7299"); // Python branch fork
 
     // Render the rivers
@@ -530,6 +513,710 @@ class TerrainGenerator {
   }
 
   // Old generateRivers was removed in favor of generateWaterNetwork
+
+  renderLogicDominionVerticalSlice(bounds) {
+    // 1. Anchor on exactly the same coordinate as LandmarkManager logic building (-476, -742)
+    const rootX = -476;
+    const rootY = -742;
+
+    // Layering base priorities for strict Z-sorting
+    const zBasePatch = rootY - 1500;
+    const zRiver = rootY - 1400;
+    const zRoads = rootY - 1300;
+    const zPlaza = rootY - 100;
+    
+    // 1. Terrain Base Patch (Soft blur for better blending)
+    const patchLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    const patchShadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+    patchShadow.setAttribute("cx", rootX); patchShadow.setAttribute("cy", rootY + 200);
+    patchShadow.setAttribute("rx", 2400); patchShadow.setAttribute("ry", 1200);
+    patchShadow.setAttribute("fill", "#64ffda"); // Soft cyan-green
+    patchShadow.setAttribute("opacity", "0.15");
+    patchShadow.setAttribute("filter", "blur(50px)");
+    patchShadow.style.mixBlendMode = "multiply";
+    patchLayer.appendChild(patchShadow);
+    this.renderQueue.push({ y: zBasePatch, element: patchLayer });
+
+    // 2. Natural River Meander (Multi-segment Bezier)
+    const riverY = rootY + 600;
+    const startX = rootX - 2500;
+    const startY = riverY - 300;
+    const endX = rootX + 2500;
+    const endY = riverY + 100;
+    
+    const riverGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    
+    // Smooth snaking river curves using bezier paths
+    const makeRiverPath = (width) => `
+      M ${startX}, ${startY - width/2}
+      C ${rootX - 1000}, ${riverY - 800} ${rootX}, ${riverY + 600} ${rootX + 1500}, ${endY - width/4}
+      C ${endX}, ${endY - width/6} ${endX}, ${endY + width/6} ${rootX + 1500}, ${endY + width/4}
+      C ${rootX}, ${riverY + 1200} ${rootX - 1000}, ${riverY - 200} ${startX}, ${startY + width/2}
+      Z
+    `;
+    
+    const riverBanks = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    riverBanks.setAttribute("d", makeRiverPath(500));
+    riverBanks.setAttribute("fill", "#006064");
+    
+    const riverWater = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    riverWater.setAttribute("d", makeRiverPath(380));
+    riverWater.setAttribute("fill", "#00bcd4");
+    
+    const riverHigh = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    riverHigh.setAttribute("d", makeRiverPath(180));
+    riverHigh.setAttribute("fill", "#80deea");
+
+    riverGroup.appendChild(riverBanks);
+    riverGroup.appendChild(riverWater);
+    riverGroup.appendChild(riverHigh);
+    this.renderQueue.push({ y: zRiver, element: riverGroup });
+
+    // 3. Roads & Bridge
+    const bridgeX = rootX - 800;
+    const bridgeY = riverY - 50; 
+    
+    const plazaX = rootX;
+    const plazaY = rootY; 
+    
+    const roadGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    const dRoad = `
+      M ${bridgeX - 1200}, ${bridgeY + 300}
+      Q ${bridgeX - 400}, ${bridgeY + 200} ${bridgeX}, ${bridgeY}
+      Q ${plazaX - 300}, ${plazaY + 200} ${plazaX}, ${plazaY + 400}
+    `;
+    const dirtRoad = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    dirtRoad.setAttribute("d", dRoad);
+    dirtRoad.setAttribute("fill", "none");
+    dirtRoad.setAttribute("stroke", "#a1887f");
+    dirtRoad.setAttribute("stroke-width", "140");
+    dirtRoad.setAttribute("stroke-linecap", "round");
+    
+    const stoneRoad = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    stoneRoad.setAttribute("d", dRoad);
+    stoneRoad.setAttribute("fill", "none");
+    stoneRoad.setAttribute("stroke", "#d7ccc8");
+    stoneRoad.setAttribute("stroke-width", "70");
+    stoneRoad.setAttribute("stroke-linecap", "round");
+    
+    roadGroup.appendChild(dirtRoad);
+    roadGroup.appendChild(stoneRoad);
+    this.renderQueue.push({ y: zRoads, element: roadGroup });
+
+    // The bridge object
+    const bridgeObj = this.createVerticalSliceBridge(bridgeX, bridgeY, -30);
+    bridgeObj.setAttribute("transform", `translate(${bridgeX}, ${bridgeY}) rotate(-30) scale(3.5)`);
+    this.renderQueue.push({ y: bridgeY, element: bridgeObj });
+
+    // 4. Organic Plaza (Intersecting Diamonds)
+    const plazaGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    
+    const drawDiamond = (cx, cy, rw, rh, thick) => {
+      plazaGroup.appendChild(this.createPoly(`${cx},${cy + rh} ${cx + rw},${cy} ${cx + rw},${cy + thick} ${cx},${cy + rh + thick}`, "#90a4ae"));
+      plazaGroup.appendChild(this.createPoly(`${cx},${cy + rh} ${cx - rw},${cy} ${cx - rw},${cy + thick} ${cx},${cy + rh + thick}`, "#b0bec5"));
+      plazaGroup.appendChild(this.createPoly(`${cx},${cy - rh} ${cx + rw},${cy} ${cx},${cy + rh} ${cx - rw},${cy}`, "#eceff1"));
+    };
+
+    // Shadow for entire plaza group
+    const plazaShadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+    plazaShadow.setAttribute("cx", plazaX); plazaShadow.setAttribute("cy", plazaY + 150);
+    plazaShadow.setAttribute("rx", 1400); plazaShadow.setAttribute("ry", 700);
+    plazaShadow.setAttribute("fill", "rgba(0,0,0,0.3)");
+    plazaShadow.setAttribute("filter", "blur(20px)");
+    plazaGroup.appendChild(plazaShadow);
+
+    // North wing
+    drawDiamond(plazaX + 300, plazaY - 200, 700, 350, 100);
+    // West wing
+    drawDiamond(plazaX - 400, plazaY + 200, 800, 400, 120);
+    // Main central plaza
+    drawDiamond(plazaX, plazaY, 1000, 500, 150);
+    
+    this.renderQueue.push({ y: zPlaza, element: plazaGroup });
+
+    // 5. Canopy Masses (Radius 600-800)
+    const forest1X = rootX - 1600;
+    const forest1Y = rootY - 600;
+    const canopy1 = this.createVerticalSliceCanopy(forest1X, forest1Y, 800, 500);
+    this.renderQueue.push({ y: forest1Y + 200, element: canopy1 });
+
+    const forest2X = rootX + 1500;
+    const forest2Y = rootY + 300;
+    const canopy2 = this.createVerticalSliceCanopy(forest2X, forest2Y, 700, 450);
+    this.renderQueue.push({ y: forest2Y + 200, element: canopy2 });
+
+    const forest3X = rootX + 800;
+    const forest3Y = rootY - 900;
+    const canopy3 = this.createVerticalSliceCanopy(forest3X, forest3Y, 600, 400);
+    this.renderQueue.push({ y: forest3Y + 200, element: canopy3 });
+
+    // 6. Secondary Buildings (Distinct stylized types)
+    // Note: Main Academy is NOT drawn here; LandmarkManager draws it at (rootX, rootY)!
+    
+    // Library (North-East wing)
+    this.drawAcademyLibrary(plazaX + 600, plazaY - 150, 16.0);
+    
+    // Temple (North-West wing)
+    this.drawAcademyTemple(plazaX - 300, plazaY - 200, 14.0);
+    
+    // Dormitories (West/South-West wing)
+    this.drawAcademyDorm(plazaX - 600, plazaY + 150, 12.0);
+    this.drawAcademyDorm(plazaX - 300, plazaY + 300, 12.0);
+
+    // 7. Ground Details and Edge Trees
+    for (let i = 0; i < 20; i++) {
+        const tx = plazaX - 800 + window.rng.next() * 1600;
+        const ty = plazaY - 300 + window.rng.next() * 600;
+        const tempG = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        const ogLayer = this.renderer.getLayer.bind(this.renderer);
+        this.renderer.getLayer = () => tempG;
+        this.drawStoneTile(tx, ty, 8.0 + window.rng.next() * 4);
+        this.renderer.getLayer = ogLayer;
+        const finalTile = tempG.firstChild;
+        if(finalTile) this.renderQueue.push({ y: ty, element: finalTile });
+    }
+
+    // Edge framing trees (Large, Scale 18)
+    this.renderAcademyTreeCustom(forest1X + 600, forest1Y + 300, 18.0, forest1Y + 300);
+    this.renderAcademyTreeCustom(forest1X - 600, forest1Y + 200, 18.0, forest1Y + 200);
+    this.renderAcademyTreeCustom(forest2X - 500, forest2Y + 350, 18.0, forest2Y + 350);
+    this.renderAcademyTreeCustom(plazaX, plazaY + 700, 20.0, plazaY + 700); // Front focal tree
+  }
+
+  renderDebugWastelandVerticalSlice(bounds) {
+    // 1. Anchor on explicitly hardcoded Debug Wasteland Landmark center
+    const rootX = 6076;
+    const rootY = -742;
+
+    // Layering base priorities for strict Z-sorting
+    const zBasePatch = rootY - 1500;
+    const zScar = rootY - 1400;
+    const zRoads = rootY - 1300;
+    const zFoundation = rootY - 100;
+    
+    // 1. Cracked Dark Terrain Base (Radius 1600px)
+    // Deep purple/grey blend to visually poison the grass
+    const patchLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    const patchShadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+    patchShadow.setAttribute("cx", rootX); patchShadow.setAttribute("cy", rootY + 200);
+    patchShadow.setAttribute("rx", 1600); patchShadow.setAttribute("ry", 800);
+    patchShadow.setAttribute("fill", "#311b92"); // Deep purple
+    patchShadow.setAttribute("opacity", "0.25");
+    patchShadow.setAttribute("filter", "blur(40px)");
+    patchShadow.style.mixBlendMode = "multiply";
+    patchLayer.appendChild(patchShadow);
+    this.renderQueue.push({ y: zBasePatch, element: patchLayer });
+
+    // 2. Corruption Fissures (Radiating outwards like cracked glass)
+    const scarGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    
+    // Crack helper
+    const drawFissure = (dPath, widthOuter, widthInner) => {
+      const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      const rim = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      rim.setAttribute("d", dPath);
+      rim.setAttribute("fill", "none");
+      rim.setAttribute("stroke", "#1a1a1a");
+      rim.setAttribute("stroke-width", widthOuter);
+      rim.setAttribute("stroke-linejoin", "miter");
+      
+      const mid = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      mid.setAttribute("d", dPath);
+      mid.setAttribute("fill", "none");
+      mid.setAttribute("stroke", "#311b92");
+      mid.setAttribute("stroke-width", widthInner);
+      mid.setAttribute("stroke-linejoin", "miter");
+      
+      const core = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      core.setAttribute("d", dPath);
+      core.setAttribute("fill", "none");
+      core.setAttribute("stroke", "#e91e63");
+      core.setAttribute("stroke-width", "40"); // thin neon core
+      core.setAttribute("stroke-linejoin", "miter");
+      core.setAttribute("filter", "blur(4px)");
+      
+      g.appendChild(rim); g.appendChild(mid); g.appendChild(core);
+      return g;
+    };
+
+    // West crack
+    const dWest = `M ${rootX},${rootY} L ${rootX - 500},${rootY + 100} L ${rootX - 900},${rootY - 150} L ${rootX - 1400},${rootY + 50}`;
+    scarGroup.appendChild(drawFissure(dWest, 250, 100));
+
+    // South crack
+    const dSouth = `M ${rootX},${rootY} L ${rootX + 200},${rootY + 600} L ${rootX - 100},${rootY + 1000} L ${rootX + 300},${rootY + 1300}`;
+    scarGroup.appendChild(drawFissure(dSouth, 200, 80));
+
+    // East crack
+    const dEast = `M ${rootX},${rootY} L ${rootX + 600},${rootY - 100} L ${rootX + 1100},${rootY + 200} L ${rootX + 1500},${rootY - 50}`;
+    scarGroup.appendChild(drawFissure(dEast, 180, 70));
+
+    this.renderQueue.push({ y: zScar, element: scarGroup });
+
+    // 3. Broken Roads (Entering from the West/Logic Bridge)
+    const roadX = rootX - 1600;
+    const roadY = rootY - 100;
+    const roadGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    
+    const dRoad = `
+      M ${roadX}, ${roadY}
+      L ${rootX - 1000}, ${rootY + 100}
+      L ${rootX - 500}, ${rootY + 50}
+      L ${rootX - 200}, ${rootY + 300}
+    `;
+    
+    const dirtRoad = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    dirtRoad.setAttribute("d", dRoad);
+    dirtRoad.setAttribute("fill", "none");
+    dirtRoad.setAttribute("stroke", "#3e2723"); // Dark dirt
+    dirtRoad.setAttribute("stroke-width", "120");
+    dirtRoad.setAttribute("stroke-linecap", "square"); // sharp cracked breaks
+    
+    const brokenPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    brokenPath.setAttribute("d", dRoad);
+    brokenPath.setAttribute("fill", "none");
+    brokenPath.setAttribute("stroke", "#424242"); // Cracked stone
+    brokenPath.setAttribute("stroke-width", "60");
+    brokenPath.setAttribute("stroke-linecap", "square");
+    brokenPath.setAttribute("stroke-dasharray", "80, 40"); // Gives a broken, shattered look
+    
+    roadGroup.appendChild(dirtRoad);
+    roadGroup.appendChild(brokenPath);
+    this.renderQueue.push({ y: zRoads, element: roadGroup });
+
+    // 4. Ruined Foundation (Width 1400px)
+    const foundationGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    const plazaX = rootX;
+    const plazaY = rootY;
+    
+    const foundationShadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+    foundationShadow.setAttribute("cx", plazaX); foundationShadow.setAttribute("cy", plazaY + 100);
+    foundationShadow.setAttribute("rx", 800); foundationShadow.setAttribute("ry", 400);
+    foundationShadow.setAttribute("fill", "rgba(0,0,0,0.5)");
+    foundationShadow.setAttribute("filter", "blur(20px)");
+    foundationGroup.appendChild(foundationShadow);
+
+    const rw = 700; // Total width 1400
+    const rh = 350;
+    const thick = 80;
+    
+    // Jagged ruined foundation
+    foundationGroup.appendChild(this.createPoly(`${plazaX},${plazaY + rh} ${plazaX + rw},${plazaY} ${plazaX + rw - 100},${plazaY + thick} ${plazaX},${plazaY + rh + thick}`, "#1a1a1a"));
+    foundationGroup.appendChild(this.createPoly(`${plazaX},${plazaY + rh} ${plazaX - rw},${plazaY} ${plazaX - rw + 150},${plazaY + thick} ${plazaX},${plazaY + rh + thick}`, "#333333"));
+    foundationGroup.appendChild(this.createPoly(`${plazaX},${plazaY - rh} ${plazaX + rw},${plazaY} ${plazaX},${plazaY + rh} ${plazaX - rw},${plazaY}`, "#424242"));
+    
+    this.renderQueue.push({ y: zFoundation, element: foundationGroup });
+
+    // 5. Dead Tree Masses (Radius ~400px)
+    const deadForest1X = rootX - 1000;
+    const deadForest1Y = rootY - 400;
+    const deadForest1 = this.createDeadTreeMass(deadForest1X, deadForest1Y, 400, 250);
+    this.renderQueue.push({ y: deadForest1Y + 100, element: deadForest1 });
+
+    const deadForest2X = rootX + 900;
+    const deadForest2Y = rootY + 200;
+    const deadForest2 = this.createDeadTreeMass(deadForest2X, deadForest2Y, 450, 280);
+    this.renderQueue.push({ y: deadForest2Y + 100, element: deadForest2 });
+
+    // 6. Grouped Crystal Fields (Distributed to Perimeter)
+    // NW Field
+    this.drawCorruptedCrystalCluster(rootX - 500, rootY - 200, 14.0);
+    this.drawCorruptedCrystalCluster(rootX - 600, rootY - 300, 18.0);
+    // East Field
+    this.drawCorruptedCrystalCluster(rootX + 650, rootY + 100, 16.0);
+    this.drawCorruptedCrystalCluster(rootX + 800, rootY + 250, 18.0);
+    this.drawCorruptedCrystalCluster(rootX + 950, rootY + 150, 14.0);
+    // South Field
+    this.drawCorruptedCrystalCluster(rootX - 100, rootY + 450, 15.0);
+    this.drawCorruptedCrystalCluster(rootX + 150, rootY + 550, 20.0); // Hero crystal peeking out
+    
+    // 7. Small Ruined Buildings (Scale 10 to 14)
+    // Note: Main Tower is drawn by LandmarkManager at (rootX, rootY)
+    this.drawRuinedBuilding(plazaX + 300, plazaY - 100, 14.0);
+    this.drawRuinedBuilding(plazaX - 250, plazaY - 150, 12.0);
+    this.drawRuinedBuilding(plazaX - 400, plazaY + 150, 10.0);
+  }
+
+  renderSystemsRepublicVerticalSlice(bounds) {
+    // 1. Anchor on explicitly hardcoded Systems Republic Landmark center
+    const rootX = -476;
+    const rootY = 5342;
+
+    // Layering base priorities for strict Z-sorting
+    const zBasePatch = rootY - 1500;
+    const zRoads = rootY - 1400;
+    const zPipes = rootY - 1300;
+    const zFoundation = rootY - 100;
+    
+    // 1. Industrial Base Platform
+    const foundationGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    
+    // Isometric Metal Octagon Base
+    // Scaled to a massive 1000px radius to perfectly frame the 1700px wide fog-of-war lock cloud!
+    const rL = 1000; // long radius
+    const rS = 500;  // short radius
+    const rhL = 500; // long height
+    const rhS = 250; // short height
+    const thick = 60;
+    
+    // Octagon Top Face (#78909c)
+    const baseOct = `
+      ${rootX - rS},${rootY - rhL} 
+      ${rootX + rS},${rootY - rhL}
+      ${rootX + rL},${rootY - rhS}
+      ${rootX + rL},${rootY + rhS}
+      ${rootX + rS},${rootY + rhL}
+      ${rootX - rS},${rootY + rhL}
+      ${rootX - rL},${rootY + rhS}
+      ${rootX - rL},${rootY - rhS}
+    `;
+    foundationGroup.appendChild(this.createPoly(baseOct, "#78909c"));
+
+    // Deep Drop Edges (Thickness)
+    const edge1 = `${rootX + rL},${rootY + rhS} ${rootX + rS},${rootY + rhL} ${rootX + rS},${rootY + rhL + thick} ${rootX + rL},${rootY + rhS + thick}`;
+    const edge2 = `${rootX + rS},${rootY + rhL} ${rootX - rS},${rootY + rhL} ${rootX - rS},${rootY + rhL + thick} ${rootX + rS},${rootY + rhL + thick}`;
+    const edge3 = `${rootX - rS},${rootY + rhL} ${rootX - rL},${rootY + rhS} ${rootX - rL},${rootY + rhS + thick} ${rootX - rS},${rootY + rhL + thick}`;
+    
+    foundationGroup.appendChild(this.createPoly(edge1, "#37474f"));
+    foundationGroup.appendChild(this.createPoly(edge2, "#455a64"));
+    foundationGroup.appendChild(this.createPoly(edge3, "#263238"));
+
+    // High-Contrast Grating Strips across the floor to make it clearly engineered
+    const stripe1 = `${rootX - 600},${rootY + 300} ${rootX + 600},${rootY - 300} ${rootX + 650},${rootY - 275} ${rootX - 550},${rootY + 325}`;
+    const stripe2 = `${rootX - 700},${rootY + 250} ${rootX + 500},${rootY - 350} ${rootX + 550},${rootY - 325} ${rootX - 650},${rootY + 275}`;
+    foundationGroup.appendChild(this.createPoly(stripe1, "#263238"));
+    foundationGroup.appendChild(this.createPoly(stripe2, "#263238"));
+
+    this.renderQueue.push({ y: zFoundation, element: foundationGroup });
+
+    // 2. Mechanical Road Connection
+    const roadGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    const dRoad = `
+      M ${rootX}, ${rootY - 500}
+      L ${rootX - 400}, ${rootY - 1100}
+      L ${rootX - 300}, ${rootY - 1600}
+    `;
+    const steelRoad = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    steelRoad.setAttribute("d", dRoad);
+    steelRoad.setAttribute("fill", "none");
+    steelRoad.setAttribute("stroke", "#455a64"); // Dark metal
+    steelRoad.setAttribute("stroke-width", "120");
+    steelRoad.setAttribute("stroke-linejoin", "bevel");
+    
+    const railLine = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    railLine.setAttribute("d", dRoad);
+    railLine.setAttribute("fill", "none");
+    railLine.setAttribute("stroke", "#ffb300"); // caution yellow/amber stripe
+    railLine.setAttribute("stroke-width", "10");
+    railLine.setAttribute("stroke-dasharray", "40, 20");
+    
+    roadGroup.appendChild(steelRoad);
+    roadGroup.appendChild(railLine);
+    this.renderQueue.push({ y: zRoads, element: roadGroup });
+
+    // 3. Structured Pipe Network
+    // Bridging from the central safe zone all the way out to ±1000px bounds
+    const pipeGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    
+    const makePipe = (x1, y1, x2, y2, width) => {
+      const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      const pipe = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      pipe.setAttribute("x1", x1); pipe.setAttribute("y1", y1);
+      pipe.setAttribute("x2", x2); pipe.setAttribute("y2", y2);
+      pipe.setAttribute("stroke", "#102027");
+      pipe.setAttribute("stroke-width", width);
+      pipe.setAttribute("stroke-linecap", "round");
+      
+      const highlight = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      highlight.setAttribute("x1", x1); highlight.setAttribute("y1", y1);
+      highlight.setAttribute("x2", x2); highlight.setAttribute("y2", y2);
+      highlight.setAttribute("stroke", "#78909c");
+      highlight.setAttribute("stroke-width", width * 0.4);
+      highlight.setAttribute("stroke-linecap", "round");
+
+      // Glowing valve/joint (small)
+      const joint = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      joint.setAttribute("cx", x2); joint.setAttribute("cy", y2);
+      joint.setAttribute("r", width * 0.4);
+      joint.setAttribute("fill", "#ff9800"); 
+      
+      g.appendChild(pipe);
+      g.appendChild(highlight);
+      g.appendChild(joint);
+      return g;
+    };
+
+    // Right Pipe (Eastwards to Tanks)
+    pipeGroup.appendChild(makePipe(rootX + 400, rootY + 200, rootX + 1000, rootY + 500, 120));
+    
+    // Left Pipe (Westwards to Gears)
+    pipeGroup.appendChild(makePipe(rootX - 400, rootY + 200, rootX - 1000, rootY + 500, 120));
+    
+    // South Pipe (Down to Energy Core)
+    pipeGroup.appendChild(makePipe(rootX, rootY + 400, rootX, rootY + 800, 120));
+
+    this.renderQueue.push({ y: zPipes, element: pipeGroup });
+
+    // 4. Perimeter Machinery Clusters
+    // Hugging the massive cloud tightly at ±1000px limits to ensure perfect visibility
+    
+    // East Sector (Cooling & Tanks)
+    this.drawSystemsCoolingTower(rootX + 1000, rootY + 100, 24.0);
+    this.drawSystemsTank(rootX + 1150, rootY + 200, 24.0);
+    this.drawSystemsTank(rootX + 850, rootY + 250, 20.0);
+    
+    // West Sector (Gear Yards)
+    this.drawSystemsGearCluster(rootX - 1000, rootY + 200, 24.0);
+    this.drawSystemsGearCluster(rootX - 1200, rootY + 300, 20.0);
+    
+    // South Sector (Energy Core - Hero piece)
+    this.drawSystemsEnergyCore(rootX, rootY + 800, 28.0);
+  }
+
+  renderPythonWildlandsVerticalSlice(bounds) {
+    // 1. Anchor on explicitly hardcoded Python Wildlands Landmark center
+    const rootX = 6076;
+    const rootY = 5342;
+
+    // Layering base priorities for strict Z-sorting
+    const zBasePatch = rootY - 1500;
+    const zWater = rootY - 1400;
+    const zRoads = rootY - 1300;
+    const zFoundation = rootY - 100;
+    
+    // 1. Ancient Mossy Stone Foundation
+    const foundationGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    
+    // Isometric Stone Base (1000px radius to perfectly frame the temple)
+    const rL = 1000; // long radius
+    const rS = 500;  // short radius
+    const rhL = 500; // long height
+    const rhS = 250; // short height
+    const thick = 80;
+    
+    // Base Face (Mossy grey-green)
+    const baseOct = `
+      ${rootX - rS},${rootY - rhL} 
+      ${rootX + rS},${rootY - rhL}
+      ${rootX + rL},${rootY - rhS}
+      ${rootX + rL},${rootY + rhS}
+      ${rootX + rS},${rootY + rhL}
+      ${rootX - rS},${rootY + rhL}
+      ${rootX - rL},${rootY + rhS}
+      ${rootX - rL},${rootY - rhS}
+    `;
+    foundationGroup.appendChild(this.createPoly(baseOct, "#607d8b"));
+
+    // Drop Edges (Darker mossy stone thickness)
+    const edge1 = `${rootX + rL},${rootY + rhS} ${rootX + rS},${rootY + rhL} ${rootX + rS},${rootY + rhL + thick} ${rootX + rL},${rootY + rhS + thick}`;
+    const edge2 = `${rootX + rS},${rootY + rhL} ${rootX - rS},${rootY + rhL} ${rootX - rS},${rootY + rhL + thick} ${rootX + rS},${rootY + rhL + thick}`;
+    const edge3 = `${rootX - rS},${rootY + rhL} ${rootX - rL},${rootY + rhS} ${rootX - rL},${rootY + rhS + thick} ${rootX - rS},${rootY + rhL + thick}`;
+    
+    foundationGroup.appendChild(this.createPoly(edge1, "#37474f"));
+    foundationGroup.appendChild(this.createPoly(edge2, "#263238"));
+    foundationGroup.appendChild(this.createPoly(edge3, "#1c313a"));
+
+    // Cracked Paving & Moss Overlays
+    const paving1 = `${rootX - 400},${rootY + 100} ${rootX + 300},${rootY - 250} ${rootX + 350},${rootY - 200} ${rootX - 350},${rootY + 150}`;
+    const paving2 = `${rootX + 400},${rootY + 100} ${rootX - 300},${rootY - 250} ${rootX - 250},${rootY - 200} ${rootX + 450},${rootY + 150}`;
+    foundationGroup.appendChild(this.createPoly(paving1, "#455a64"));
+    foundationGroup.appendChild(this.createPoly(paving2, "#2e7d32")); // Deep moss stripe
+
+    this.renderQueue.push({ y: zFoundation, element: foundationGroup });
+
+    // 2. Organic Jungle Stream (crossing the southern edge)
+    const streamGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    const dStream = `
+      M ${rootX - 1100}, ${rootY + 400}
+      Q ${rootX - 600}, ${rootY + 600} ${rootX}, ${rootY + 700}
+      Q ${rootX + 600}, ${rootY + 800} ${rootX + 1100}, ${rootY + 500}
+    `;
+    const streamBase = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    streamBase.setAttribute("d", dStream);
+    streamBase.setAttribute("fill", "none");
+    streamBase.setAttribute("stroke", "#004d40"); // dark teal bank
+    streamBase.setAttribute("stroke-width", "160");
+    streamBase.setAttribute("stroke-linecap", "round");
+    
+    const streamWater = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    streamWater.setAttribute("d", dStream);
+    streamWater.setAttribute("fill", "none");
+    streamWater.setAttribute("stroke", "#00897b"); // bright cyan/teal water
+    streamWater.setAttribute("stroke-width", "100");
+    streamWater.setAttribute("stroke-linecap", "round");
+    
+    const streamHighlight = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    streamHighlight.setAttribute("d", dStream);
+    streamHighlight.setAttribute("fill", "none");
+    streamHighlight.setAttribute("stroke", "#4db6ac");
+    streamHighlight.setAttribute("stroke-width", "20");
+    streamHighlight.setAttribute("stroke-dasharray", "80, 40");
+    streamHighlight.setAttribute("stroke-linecap", "round");
+    
+    streamGroup.appendChild(streamBase);
+    streamGroup.appendChild(streamWater);
+    streamGroup.appendChild(streamHighlight);
+    this.renderQueue.push({ y: zWater, element: streamGroup });
+
+    // 3. Cracked Stone Path
+    const pathGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    const dPath = `
+      M ${rootX}, ${rootY - 200}
+      L ${rootX - 100}, ${rootY + 200}
+      L ${rootX + 50}, ${rootY + 600}
+      L ${rootX - 200}, ${rootY + 1100}
+    `;
+    const stonePath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    stonePath.setAttribute("d", dPath);
+    stonePath.setAttribute("fill", "none");
+    stonePath.setAttribute("stroke", "#78909c");
+    stonePath.setAttribute("stroke-width", "80");
+    stonePath.setAttribute("stroke-linejoin", "round");
+    
+    const pathMoss = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    pathMoss.setAttribute("d", dPath);
+    pathMoss.setAttribute("fill", "none");
+    pathMoss.setAttribute("stroke", "#1b5e20");
+    pathMoss.setAttribute("stroke-width", "20");
+    pathMoss.setAttribute("stroke-dasharray", "30, 50");
+    
+    pathGroup.appendChild(stonePath);
+    pathGroup.appendChild(pathMoss);
+    this.renderQueue.push({ y: zRoads, element: pathGroup });
+
+    // 4. Massive Dense Jungle Canopy Masses (Framing the temple)
+    // Placed at perimeters so the center is 100% visible
+    const canopy1 = this.createVerticalSliceCanopy(rootX - 800, rootY - 100, 600, 400); // West massive
+    const canopy2 = this.createVerticalSliceCanopy(rootX + 850, rootY - 50, 550, 350);  // East massive
+    const canopy3 = this.createVerticalSliceCanopy(rootX - 500, rootY - 500, 450, 250); // NW fill
+    const canopy4 = this.createVerticalSliceCanopy(rootX + 500, rootY + 600, 400, 250); // SE corner near water
+    
+    this.renderQueue.push({ y: rootY - 100, element: canopy1 });
+    this.renderQueue.push({ y: rootY - 50, element: canopy2 });
+    this.renderQueue.push({ y: rootY - 500, element: canopy3 });
+    this.renderQueue.push({ y: rootY + 600, element: canopy4 });
+
+    // 5. Perimeter Shrines, Pillars, and Flora (Scale 16-24)
+    this.drawPythonShrine(rootX - 900, rootY + 300, 20.0);
+    this.drawPythonShrine(rootX + 800, rootY + 250, 18.0);
+    this.drawPythonRuinPillar(rootX - 400, rootY + 350, 22.0);
+    this.drawPythonRuinPillar(rootX + 350, rootY + 400, 20.0);
+    this.drawPythonRuinPillar(rootX - 100, rootY + 850, 24.0); // Next to stream
+
+    this.drawPythonHeroFlora(rootX - 600, rootY + 500, 20.0);
+    this.drawPythonHeroFlora(rootX + 500, rootY + 700, 24.0);
+    this.drawPythonHeroFlora(rootX + 900, rootY + 100, 20.0);
+  }
+
+  // --- VERTICAL SLICE HELPERS ---
+  createVerticalSliceCanopy(cx, cy, rx, ry) {
+    const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    group.style.pointerEvents = "none";
+    
+    // Drop shadow base
+    const shadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+    shadow.setAttribute("cx", cx); shadow.setAttribute("cy", cy);
+    shadow.setAttribute("rx", rx); shadow.setAttribute("ry", ry);
+    shadow.setAttribute("fill", "rgba(0,0,0,0.5)");
+    shadow.setAttribute("filter", "blur(15px)");
+    group.appendChild(shadow);
+
+    const layers = [
+      { rx: rx, ry: ry, fill: "#1b5e20", dy: 0 },
+      { rx: rx * 0.85, ry: ry * 0.85, fill: "#2e7d32", dy: -25 },
+      { rx: rx * 0.7, ry: ry * 0.7, fill: "#388e3c", dy: -50 },
+      { rx: rx * 0.5, ry: ry * 0.5, fill: "#4caf50", dy: -75 }
+    ];
+
+    layers.forEach(layer => {
+      let path = "";
+      const steps = 18;
+      for (let i = 0; i <= steps; i++) {
+        const angle = (i / steps) * Math.PI * 2;
+        // Fluffy blob effect (sine waves along the edge)
+        const blobFactor = Math.sin(angle * 6) * 0.2;
+        const radX = layer.rx * (1 + blobFactor);
+        const radY = layer.ry * (1 + blobFactor);
+        const px = cx + Math.cos(angle) * radX;
+        const py = cy + layer.dy + Math.sin(angle) * radY;
+        
+        if (i === 0) path += `M ${px},${py} `;
+        else {
+           const prevAngle = ((i - 0.5) / steps) * Math.PI * 2;
+           const pBlob = Math.sin(prevAngle * 6) * 0.2;
+           const ctrlX = cx + Math.cos(prevAngle) * (layer.rx * (1 + pBlob)) * 1.15;
+           const ctrlY = cy + layer.dy + Math.sin(prevAngle) * (layer.ry * (1 + pBlob)) * 1.15;
+           path += `Q ${ctrlX},${ctrlY} ${px},${py} `;
+        }
+      }
+      path += "Z";
+      
+      const svgPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      svgPath.setAttribute("d", path);
+      svgPath.setAttribute("fill", layer.fill);
+      group.appendChild(svgPath);
+    });
+    
+    return group;
+  }
+
+  createVerticalSliceBridge(cx, cy, angle) {
+    const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    group.setAttribute("transform", `translate(${cx}, ${cy}) rotate(${angle})`);
+    group.style.pointerEvents = "none";
+
+    // Massive stone base
+    const bridge = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    bridge.setAttribute("x", "-100"); bridge.setAttribute("y", "-70");
+    bridge.setAttribute("width", "200"); bridge.setAttribute("height", "140");
+    bridge.setAttribute("fill", "#cfd8dc");
+    bridge.setAttribute("rx", "20");
+    bridge.setAttribute("filter", "drop-shadow(0px 20px 15px rgba(0,0,0,0.5))");
+    group.appendChild(bridge);
+
+    // Stone railings
+    const p1 = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    p1.setAttribute("x", "-100"); p1.setAttribute("y", "-70"); p1.setAttribute("width", "200"); p1.setAttribute("height", "25"); p1.setAttribute("fill", "#90a4ae");
+    const p2 = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    p2.setAttribute("x", "-100"); p2.setAttribute("y", "45"); p2.setAttribute("width", "200"); p2.setAttribute("height", "25"); p2.setAttribute("fill", "#90a4ae");
+    group.appendChild(p1); group.appendChild(p2);
+
+    return group;
+  }
+
+  renderAcademyHouseCustom(cx, cy, scale, zIndex) {
+    const tempGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    const originalGetLayer = this.renderer.getLayer.bind(this.renderer);
+    this.renderer.getLayer = () => tempGroup; // intercept draw
+    
+    this.drawAcademyHouse(cx, cy, scale);
+    
+    this.renderer.getLayer = originalGetLayer; // restore
+    
+    const finalGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    finalGroup.style.pointerEvents = "none";
+    while (tempGroup.firstChild) {
+      finalGroup.appendChild(tempGroup.firstChild);
+    }
+    this.renderQueue.push({ y: zIndex, element: finalGroup });
+  }
+
+  renderAcademyTreeCustom(cx, cy, scale, zIndex) {
+    const tempGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    const originalGetLayer = this.renderer.getLayer.bind(this.renderer);
+    this.renderer.getLayer = () => tempGroup; 
+    
+    this.drawAcademyTree(cx, cy, scale);
+    
+    this.renderer.getLayer = originalGetLayer;
+    
+    const finalGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    finalGroup.style.pointerEvents = "none";
+    while (tempGroup.firstChild) {
+      finalGroup.appendChild(tempGroup.firstChild);
+    }
+    this.renderQueue.push({ y: zIndex, element: finalGroup });
+  }
 
   generateRoads() {
     if (this.regionsConfig.length < 2) return;
@@ -674,6 +1361,7 @@ class TerrainGenerator {
     const angles = [0, Math.PI/4, Math.PI/2, 3*Math.PI/4, Math.PI, 5*Math.PI/4, 3*Math.PI/2, 7*Math.PI/4];
 
     this.ecosystemZoneTemplates.forEach(template => {
+      if (template.theme === 'logic' || template.theme === 'python') return; // Handled by Vertical Slices
       const polygon = this.territoryPolygons[template.theme];
       const bounds = territoryBounds[template.theme];
       const report = { id: template.id, theme: template.theme, rendered: false, propCount: 0, fallback: 'none', usedRadius10: false, reason: null, cx: 0, cy: 0 };
@@ -819,7 +1507,7 @@ class TerrainGenerator {
     });
 
     // 4. Light territory filler (only if territory looks sparse)
-    const clusterTargets = { logic: 4, debug: 4, systems: 4, python: 5 };
+    const clusterTargets = { logic: 0, debug: 0, systems: 0, python: 0 }; // Handled by Vertical Slices
     const clusterCounts = { logic: 0, debug: 0, systems: 0, python: 0 };
     let totalAttempts = 0;
     const maxAttempts = 3000;
@@ -855,7 +1543,13 @@ class TerrainGenerator {
       targetsMet = Object.keys(clusterTargets).every(k => clusterCounts[k] >= clusterTargets[k]);
     }
 
-    // 5. Console report
+    // 5. Render Hand-Authored Vertical Slices
+    this.renderLogicDominionVerticalSlice(territoryBounds['logic']);
+    this.renderDebugWastelandVerticalSlice(territoryBounds['debug']);
+    this.renderSystemsRepublicVerticalSlice(territoryBounds['systems']);
+    this.renderPythonWildlandsVerticalSlice(territoryBounds['python']);
+
+    // 6. Console report
     console.log(`=== ECOSYSTEM REPORT (PHASE 4G) ===`);
     console.log(`Total Zones Configured: ${this.ecosystemZoneTemplates.length}`);
     console.log(`Valid Zones Rendered: ${validZones}`);
@@ -1301,6 +1995,303 @@ class TerrainGenerator {
     this.renderQueue.push({ y: y, element: g });
   }
 
+  drawAcademyLibrary(x, y, scale = 1.0) {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
+    g.style.pointerEvents = "none";
+    // Shadow
+    const shadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+    shadow.setAttribute("cx", 0); shadow.setAttribute("cy", 5);
+    shadow.setAttribute("rx", 35); shadow.setAttribute("ry", 15);
+    shadow.setAttribute("fill", "rgba(0,0,0,0.3)");
+    shadow.setAttribute("filter", "blur(4px)");
+    g.appendChild(shadow);
+
+    // Wide base
+    g.appendChild(this.createPoly("-30,0 0,-15 30,0 0,15", "#b2ebf2"));
+    g.appendChild(this.createPoly("-30,0 0,15 0,-10 -30,-25", "#80deea"));
+    g.appendChild(this.createPoly("30,0 0,15 0,-10 30,-25", "#e0f7fa"));
+    
+    // Central tier
+    g.appendChild(this.createPoly("-15,-20 0,-30 15,-20 0,-10", "#4dd0e1"));
+    g.appendChild(this.createPoly("-15,-20 0,-10 0,-35 -15,-45", "#26c6da"));
+    g.appendChild(this.createPoly("15,-20 0,-10 0,-35 15,-45", "#b2ebf2"));
+
+    // Roof
+    g.appendChild(this.createPoly("-20,-40 0,-55 20,-40 0,-25", "#00bcd4"));
+    g.appendChild(this.createPoly("-20,-40 0,-25 -2,-32 -22,-47", "#00acc1"));
+    
+    this.renderQueue.push({ y: y, element: g });
+  }
+
+  drawAcademyTemple(x, y, scale = 1.0) {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
+    g.style.pointerEvents = "none";
+    
+    // Shadow
+    const shadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+    shadow.setAttribute("cx", 0); shadow.setAttribute("cy", 5);
+    shadow.setAttribute("rx", 25); shadow.setAttribute("ry", 12);
+    shadow.setAttribute("fill", "rgba(0,0,0,0.3)");
+    shadow.setAttribute("filter", "blur(4px)");
+    g.appendChild(shadow);
+
+    // Octagonal/Pillar base (simplified to 3 vertical faces)
+    g.appendChild(this.createPoly("-15,-5 -5,0 5,-5 -5,-10", "#e0f7fa")); // Top of base
+    g.appendChild(this.createPoly("-15,-5 -5,0 -5,-35 -15,-40", "#80deea"));
+    g.appendChild(this.createPoly("5,-5 -5,0 -5,-35 5,-40", "#b2ebf2"));
+    g.appendChild(this.createPoly("5,-5 15,-10 15,-45 5,-40", "#e0f7fa")); // Right side face
+
+    // Glowing Dome
+    const dome = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    dome.setAttribute("d", "M -18,-38 Q 0,-65 18,-43 Q 0,-25 -18,-38 Z");
+    dome.setAttribute("fill", "#00bcd4");
+    dome.setAttribute("opacity", "0.85");
+    g.appendChild(dome);
+
+    this.renderQueue.push({ y: y, element: g });
+  }
+
+  drawAcademyDorm(x, y, scale = 1.0) {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
+    g.style.pointerEvents = "none";
+
+    // Shadow
+    const shadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+    shadow.setAttribute("cx", 0); shadow.setAttribute("cy", 5);
+    shadow.setAttribute("rx", 20); shadow.setAttribute("ry", 10);
+    shadow.setAttribute("fill", "rgba(0,0,0,0.3)");
+    shadow.setAttribute("filter", "blur(3px)");
+    g.appendChild(shadow);
+
+    // Main house
+    g.appendChild(this.createPoly("0,0 -15,-8 -15,-25 0,-17", "#b2ebf2"));
+    g.appendChild(this.createPoly("0,0 15,-8 15,-25 0,-17", "#ffffff"));
+    g.appendChild(this.createPoly("-18,-20 0,-32 18,-20 0,-8", "#00bcd4")); 
+
+    // Attached L-wing
+    g.appendChild(this.createPoly("-10,5 -20,0 -20,-15 -10,-10", "#80deea"));
+    g.appendChild(this.createPoly("-10,5 5,-2 5,-17 -10,-10", "#e0f7fa"));
+    g.appendChild(this.createPoly("-22,-12 -8,-20 7,-12 -7,-4", "#00acc1")); 
+
+    this.renderQueue.push({ y: y, element: g });
+  }
+
+  createDeadTreeMass(cx, cy, rx, ry) {
+    const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    group.style.pointerEvents = "none";
+    
+    const shadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+    shadow.setAttribute("cx", cx); shadow.setAttribute("cy", cy);
+    shadow.setAttribute("rx", rx * 1.1); shadow.setAttribute("ry", ry * 1.1);
+    shadow.setAttribute("fill", "rgba(0,0,0,0.3)");
+    shadow.setAttribute("filter", "blur(15px)");
+    group.appendChild(shadow);
+
+    const base = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    const d = `
+      M ${cx - rx}, ${cy}
+      Q ${cx - rx/2}, ${cy - ry*1.2} ${cx}, ${cy - ry}
+      Q ${cx + rx/2}, ${cy - ry*1.1} ${cx + rx}, ${cy}
+      Q ${cx + rx/2}, ${cy + ry*0.8} ${cx}, ${cy + ry}
+      Q ${cx - rx/2}, ${cy + ry*1.1} ${cx - rx}, ${cy}
+      Z
+    `;
+    base.setAttribute("d", d);
+    base.setAttribute("fill", "#3e2723"); // Dark dead brown
+    group.appendChild(base);
+    
+    // Sharp thorny highlights
+    const highlight = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    const dh = `
+      M ${cx - rx*0.8}, ${cy - 20}
+      L ${cx - rx*0.5}, ${cy - ry*0.8} L ${cx - rx*0.3}, ${cy - 10}
+      L ${cx}, ${cy - ry*0.9} L ${cx + rx*0.4}, ${cy - 30}
+      L ${cx + rx*0.7}, ${cy - ry*0.6}
+    `;
+    highlight.setAttribute("d", dh);
+    highlight.setAttribute("stroke", "#4e342e");
+    highlight.setAttribute("stroke-width", "30");
+    highlight.setAttribute("fill", "none");
+    highlight.setAttribute("stroke-linejoin", "miter");
+    group.appendChild(highlight);
+    
+    return group;
+  }
+
+  drawCorruptedCrystalCluster(x, y, scale = 1.0) {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
+    g.style.pointerEvents = "none";
+    
+    const shadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+    shadow.setAttribute("cx", 0); shadow.setAttribute("cy", 5);
+    shadow.setAttribute("rx", 30); shadow.setAttribute("ry", 15);
+    shadow.setAttribute("fill", "rgba(0,0,0,0.4)");
+    shadow.setAttribute("filter", "blur(4px)");
+    g.appendChild(shadow);
+
+    // Large center crystal
+    g.appendChild(this.createPoly("0,0 -15,-40 0,-70 15,-35", "#8e24aa"));
+    g.appendChild(this.createPoly("0,0 15,-35 8,-55", "#e040fb"));
+    g.appendChild(this.createPoly("0,0 -18,-25 -5,-45", "#4a148c"));
+
+    // Left leaning crystal
+    g.appendChild(this.createPoly("-10,5 -30,-20 -25,-40 -15,-15", "#7b1fa2"));
+    g.appendChild(this.createPoly("-10,5 -15,-15 -5,-25", "#d500f9"));
+
+    // Right leaning crystal
+    g.appendChild(this.createPoly("10,2 25,-15 35,-35 20,-10", "#9c27b0"));
+    g.appendChild(this.createPoly("10,2 20,-10 15,-25", "#ea80fc"));
+
+    this.renderQueue.push({ y: y, element: g });
+  }
+
+  // --- SYSTEMS REPUBLIC HELPERS ---
+  drawSystemsCoolingTower(x, y, scale) {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
+    g.style.pointerEvents = "none";
+    
+    // Shadow
+    const shadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+    shadow.setAttribute("cx", 0); shadow.setAttribute("cy", 5);
+    shadow.setAttribute("rx", 25); shadow.setAttribute("ry", 12);
+    shadow.setAttribute("fill", "rgba(0,0,0,0.4)");
+    shadow.setAttribute("filter", "blur(3px)");
+    g.appendChild(shadow);
+
+    // Base
+    g.appendChild(this.createPoly("0,0 -20,-10 -20,-30 0,-20", "#546e7a"));
+    g.appendChild(this.createPoly("0,0 20,-10 20,-30 0,-20", "#78909c"));
+    g.appendChild(this.createPoly("-20,-30 0,-40 20,-30 0,-20", "#37474f")); // Inner dark rim
+    
+    // Smoke Puff
+    const smoke = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    smoke.setAttribute("cx", "0"); smoke.setAttribute("cy", "-45");
+    smoke.setAttribute("r", "15");
+    smoke.setAttribute("fill", "#eceff1");
+    smoke.setAttribute("opacity", "0.2");
+    smoke.setAttribute("filter", "blur(4px)");
+    g.appendChild(smoke);
+
+    this.renderQueue.push({ y: y, element: g });
+  }
+
+  drawSystemsTank(x, y, scale) {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
+    g.style.pointerEvents = "none";
+    
+    const shadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+    shadow.setAttribute("cx", 0); shadow.setAttribute("cy", 5);
+    shadow.setAttribute("rx", 20); shadow.setAttribute("ry", 10);
+    shadow.setAttribute("fill", "rgba(0,0,0,0.4)");
+    shadow.setAttribute("filter", "blur(3px)");
+    g.appendChild(shadow);
+
+    // Base cylinder (hexagonal)
+    g.appendChild(this.createPoly("0,0 -15,-8 -15,-35 0,-27", "#455a64"));
+    g.appendChild(this.createPoly("0,0 15,-8 15,-35 0,-27", "#607d8b"));
+    
+    // Glowing fluid band
+    g.appendChild(this.createPoly("0,-15 -15,-23 -15,-28 0,-20", "#f57c00"));
+    g.appendChild(this.createPoly("0,-15 15,-23 15,-28 0,-20", "#ff9800"));
+    
+    // Dome top
+    g.appendChild(this.createPoly("-15,-35 0,-43 15,-35 0,-27", "#b0bec5"));
+
+    this.renderQueue.push({ y: y, element: g });
+  }
+
+  drawSystemsGearCluster(x, y, scale) {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
+    g.style.pointerEvents = "none";
+    
+    const shadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+    shadow.setAttribute("cx", 0); shadow.setAttribute("cy", 5);
+    shadow.setAttribute("rx", 35); shadow.setAttribute("ry", 15);
+    shadow.setAttribute("fill", "rgba(0,0,0,0.4)");
+    shadow.setAttribute("filter", "blur(4px)");
+    g.appendChild(shadow);
+
+    const drawHalfGear = (ox, oy, rot) => {
+      const gear = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      // Stylized gear teeth isometric projection
+      gear.setAttribute("d", `M -15,0 L -12,-8 L -5,-10 L 0,-18 L 5,-10 L 12,-8 L 15,0 Z`);
+      gear.setAttribute("fill", "#546e7a");
+      gear.setAttribute("stroke", "#263238");
+      gear.setAttribute("stroke-width", "2");
+      gear.setAttribute("transform", `translate(${ox}, ${oy}) scale(1, 0.5) rotate(${rot})`);
+      return gear;
+    };
+
+    g.appendChild(drawHalfGear(-10, -5, 0));
+    g.appendChild(drawHalfGear(15, -10, 45));
+    g.appendChild(drawHalfGear(0, 5, 20));
+
+    this.renderQueue.push({ y: y, element: g });
+  }
+
+  drawSystemsEnergyCore(x, y, scale) {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
+    g.style.pointerEvents = "none";
+    
+    const shadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+    shadow.setAttribute("cx", 0); shadow.setAttribute("cy", 5);
+    shadow.setAttribute("rx", 30); shadow.setAttribute("ry", 15);
+    shadow.setAttribute("fill", "rgba(0,0,0,0.5)");
+    shadow.setAttribute("filter", "blur(5px)");
+    g.appendChild(shadow);
+
+    // Heavy housing
+    g.appendChild(this.createPoly("-25,0 0,-15 25,0 0,15", "#263238")); // Base pad
+    g.appendChild(this.createPoly("-15,-5 0,-12 15,-5 0,-2", "#455a64"));
+    g.appendChild(this.createPoly("-15,-5 0,-2 0,-30 -15,-35", "#37474f"));
+    g.appendChild(this.createPoly("15,-5 0,-2 0,-30 15,-35", "#546e7a"));
+
+    // Glowing core
+    const core = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+    core.setAttribute("cx", 0); core.setAttribute("cy", -20);
+    core.setAttribute("rx", 10); core.setAttribute("ry", 15);
+    core.setAttribute("fill", "#00bcd4"); // Bright cyan energy
+    core.setAttribute("filter", "blur(2px)");
+    g.appendChild(core);
+
+    this.renderQueue.push({ y: y, element: g });
+  }
+
+  drawRuinedBuilding(x, y, scale = 1.0) {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
+    g.style.pointerEvents = "none";
+    
+    const shadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+    shadow.setAttribute("cx", 0); shadow.setAttribute("cy", 5);
+    shadow.setAttribute("rx", 20); shadow.setAttribute("ry", 10);
+    shadow.setAttribute("fill", "rgba(0,0,0,0.4)");
+    shadow.setAttribute("filter", "blur(3px)");
+    g.appendChild(shadow);
+
+    // Base ruined walls
+    g.appendChild(this.createPoly("0,0 -20,-10 -20,-20 0,-10", "#424242"));
+    g.appendChild(this.createPoly("0,0 20,-10 20,-15 5,-5", "#616161")); // broken right wall
+
+    // Shattered dome/roof pieces
+    g.appendChild(this.createPoly("-15,-15 -5,-30 0,-10", "#212121"));
+    g.appendChild(this.createPoly("0,-10 5,-25 15,-12", "#757575"));
+
+    // Debris
+    g.appendChild(this.createPoly("15,5 25,-5 20,-10 10,0", "#424242"));
+    g.appendChild(this.createPoly("-25,2 -15,-5 -20,-10 -30,0", "#212121"));
+
+    this.renderQueue.push({ y: y, element: g });
+  }
+
   drawAcademyTree(x, y, scale = 3.0) {
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
     g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
@@ -1464,6 +2455,67 @@ class TerrainGenerator {
     p.setAttribute("points", points);
     p.setAttribute("fill", color);
     return p;
+  }
+
+  drawPythonShrine(x, y, scale = 20.0) {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
+    g.style.pointerEvents = "none";
+    
+    // Mossy stone base
+    g.appendChild(this.createPoly("-1.5,0 1.5,0 1.5,1 -1.5,1", "#455a64"));
+    g.appendChild(this.createPoly("-1.2,1 1.2,1 1.2,2 -1.2,2", "#37474f"));
+    
+    // Shrine body
+    g.appendChild(this.createPoly("-1,-3 1,-3 1,0 -1,0", "#546e7a"));
+    
+    // Ancient glowing core
+    const core = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    core.setAttribute("cx", "0"); core.setAttribute("cy", "-1.5");
+    core.setAttribute("r", "0.4");
+    core.setAttribute("fill", "#64ffda"); // Cyan/Teal glow
+    g.appendChild(core);
+    
+    // Moss overlay
+    g.appendChild(this.createPoly("-1,-3 -0.5,-3 -0.8,-1", "#1b5e20"));
+    g.appendChild(this.createPoly("0.5,0 1,0 1,-1", "#2e7d32"));
+
+    // Roof
+    g.appendChild(this.createPoly("-1.5,-3 1.5,-3 0,-4.5", "#263238"));
+
+    this.renderQueue.push({ y: y, element: g });
+  }
+
+  drawPythonRuinPillar(x, y, scale = 20.0) {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
+    g.style.pointerEvents = "none";
+    
+    // Broken pillar base
+    g.appendChild(this.createPoly("-1,0 1,0 1,1 -1,1", "#37474f"));
+    
+    // Pillar shaft
+    g.appendChild(this.createPoly("-0.8,-4 0.8,-3 0.8,0 -0.8,0", "#546e7a"));
+    
+    // Moss and cracks
+    g.appendChild(this.createPoly("-0.8,-4 0,-3.5 -0.5,-1", "#2e7d32"));
+    g.appendChild(this.createPoly("-0.5,-2 0.5,-1.5 0.2,0", "#1b5e20"));
+    
+    this.renderQueue.push({ y: y, element: g });
+  }
+
+  drawPythonHeroFlora(x, y, scale = 20.0) {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
+    g.style.pointerEvents = "none";
+    
+    // Giant stylized fern/glowing plant
+    g.appendChild(this.createPoly("0,0 -2,-3 -0.5,-1.5", "#00c853"));
+    g.appendChild(this.createPoly("0,0 -1,-4 -0.2,-2", "#64dd17"));
+    g.appendChild(this.createPoly("0,0 1,-4 0.2,-2", "#00e676"));
+    g.appendChild(this.createPoly("0,0 2,-3 0.5,-1.5", "#1de9b6"));
+    
+    this.renderQueue.push({ y: y, element: g });
   }
 }
 
