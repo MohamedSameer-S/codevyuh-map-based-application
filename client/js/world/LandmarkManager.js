@@ -18,11 +18,11 @@ class LandmarkManager {
     const dirt = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
     dirt.setAttribute("cx", x);
     dirt.setAttribute("cy", y);
-    dirt.setAttribute("rx", 640); // Proportional massive dirt path
-    dirt.setAttribute("ry", 360);
-    dirt.setAttribute("fill", "#5d4037");
-    dirt.setAttribute("opacity", "0.4");
-    dirt.setAttribute("filter", "blur(10px)");
+    dirt.setAttribute("rx", 220); // Subtle base shadow for grounding only
+    dirt.setAttribute("ry", 110);
+    dirt.setAttribute("fill", "#2d1f18");
+    dirt.setAttribute("opacity", "0.25");
+    dirt.setAttribute("filter", "blur(15px)");
     dirt.style.pointerEvents = "none";
     this.renderer.getLayer('landmass').appendChild(dirt);
 
@@ -54,14 +54,17 @@ class LandmarkManager {
     labelGroup.setAttribute("class", "region-label-group");
     labelGroup.style.pointerEvents = "none"; // Safety rule 8: Keep labels non-interactive
     
-    // Per-region Y-offsets scaled up perfectly to match the new 43x height
-    let labelY = 1000; // Default offset
-    if (region.landmarkType === 'academy') labelY = 900;
-    else if (region.landmarkType === 'fortress') labelY = 1100;
-    else if (region.landmarkType === 'industrial') labelY = 1050;
-    else if (region.landmarkType === 'temple') labelY = 1150;
+    // Per-region offsets scaled up perfectly to match the new 43x height
+    let labelX = region.labelOffsetX || 0;
+    let labelY = region.labelOffsetY || 1000; // Default offset
+    if (!region.labelOffsetY) {
+      if (region.landmarkType === 'academy') labelY = 900;
+      else if (region.landmarkType === 'fortress') labelY = 1100;
+      else if (region.landmarkType === 'industrial') labelY = 1050;
+      else if (region.landmarkType === 'temple') labelY = 1150;
+    }
     
-    labelGroup.setAttribute("transform", `translate(0, ${labelY})`);
+    labelGroup.setAttribute("transform", `translate(${labelX}, ${labelY})`);
 
     // Banner styling colors based on region theme
     let bannerFill = "#1e3a8a"; // Default dark blue
