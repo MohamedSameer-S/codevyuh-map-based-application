@@ -31,8 +31,10 @@ class SVGRenderer {
       landmass: this.createGroup("layer-landmass"),
       rivers: this.createGroup("layer-rivers"),
       roads: this.createGroup("layer-roads"),
+      bridges: this.createGroup("layer-bridges"),
       regions: this.createGroup("layer-regions"),
       terrain: this.createGroup("layer-terrain"),
+      environmentDetails: this.createGroup("layer-environment-details"),
       landmarks: this.createGroup("layer-landmarks"),
       fog: this.createGroup("layer-fog"),
       interaction: this.createGroup("layer-interaction")
