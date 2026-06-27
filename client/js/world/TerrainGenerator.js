@@ -57,6 +57,9 @@ class TerrainGenerator {
     ];
 
     this.DEBUG_ECOSYSTEM_ZONES = false;
+
+    // Cache of road/river points for environment details collision detection
+    this.infrastructurePoints = [];
   }
 
   generateBaseLandmass(renderQueue) {
@@ -116,12 +119,19 @@ class TerrainGenerator {
     this.generateWaterNetwork();
     
     // 8. Roads
-    // Removed to eliminate the straight brown divider paths
-    // this.generateRoads(); // MST Roads
+    this.generateAuthoredRoads(); // Phase 4M-D: Authored Road Network
+    this.generateAuthoredBridges(); // Phase 6A: Bridge Generation
     
     // 9. Ecology (Unified generation with Z-Sorting)
     this.renderQueue = renderQueue || [];
+    console.log("Generating ecology overlay...");
     this.generateEcology(rx * 1.8, ry * 1.8);
+
+    // Phase 5A: Procedural Environment Layer
+    console.log("Generating environment details...");
+    this.generateEnvironmentDetails(rx * 1.8, ry * 1.8);
+
+    console.log("Map generation complete.");
     
     // If we own the queue, render it immediately. Otherwise defer to WorldEngine.
     if (!renderQueue) {
@@ -130,6 +140,95 @@ class TerrainGenerator {
         this.renderer.getLayer('terrain').appendChild(item.element);
       });
     }
+  }
+
+  isValidEnvironmentPoint(x, y, radius) {
+    // Check civilization landmarks
+    if (this.isCollision(x, y, radius)) return false;
+
+    // Check roads and rivers (infrastructure)
+    if (this.infrastructurePoints) {
+      for (let i = 0; i < this.infrastructurePoints.length; i++) {
+        const pt = this.infrastructurePoints[i];
+        const dx = pt.x - x;
+        const dy = pt.y - y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        // Ensure a decent margin from any road/river
+        if (dist < radius + 110) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  generateEnvironmentDetails(islandRx, islandRy) {
+    const layer = this.renderer.getLayer('environmentDetails');
+    if (!layer) return;
+
+    const originalQueue = this.renderQueue;
+    this.renderQueue = [];
+
+    const step = 200;
+    for (let x = this.playableBounds.minX; x < this.playableBounds.maxX; x += step) {
+      for (let y = this.playableBounds.minY; y < this.playableBounds.maxY; y += step) {
+        
+        const jitterX = x + (window.rng.next() * 150 - 75);
+        const jitterY = y + (window.rng.next() * 150 - 75);
+
+        const dx = jitterX - this.centerX;
+        const dy = jitterY - this.centerY;
+        const normalizedDist = (dx*dx)/(islandRx*islandRx) + (dy*dy)/(islandRy*islandRy);
+        if (normalizedDist > 0.8) continue;
+
+        if (!this.isValidEnvironmentPoint(jitterX, jitterY, 80)) continue;
+        if (window.rng.next() > 0.5) continue;
+
+        let biome = 'plains';
+        if (this.isPointInPolygon(jitterX, jitterY, this.territoryPolygons.logic)) biome = 'logic';
+        else if (this.isPointInPolygon(jitterX, jitterY, this.territoryPolygons.debug)) biome = 'debug';
+        else if (this.isPointInPolygon(jitterX, jitterY, this.territoryPolygons.systems)) biome = 'systems';
+        else if (this.isPointInPolygon(jitterX, jitterY, this.territoryPolygons.python)) biome = 'python';
+
+        const r = window.rng.next();
+        if (biome === 'logic') {
+           if (r < 0.25) this.drawTreeGroup(jitterX, jitterY, 'logic');
+           else if (r < 0.45) this.drawAcademyTree(jitterX, jitterY, 4.0);
+           else if (r < 0.65) this.drawBush(jitterX, jitterY, 'logic');
+           else if (r < 0.8) this.drawFlowerPatch(jitterX, jitterY, 4.0);
+           else if (r < 0.9) this.drawStoneTile(jitterX, jitterY, 3.5);
+           else this.drawGrassPatch(jitterX, jitterY, 4.5);
+        } else if (biome === 'debug') {
+           if (r < 0.25) this.drawDeadTree(jitterX, jitterY, 5.0);
+           else if (r < 0.5) this.drawCorruptCrystal(jitterX, jitterY, 4.0);
+           else if (r < 0.7) this.drawGroundCrack(jitterX, jitterY, 4.5);
+           else if (r < 0.85) this.drawBurnedRock(jitterX, jitterY, 4.0);
+           else this.drawDeadTree(jitterX, jitterY, 3.5);
+        } else if (biome === 'systems') {
+           if (r < 0.2) this.drawRockPile(jitterX, jitterY, 4.0);
+           else if (r < 0.4) this.drawScrapMetal(jitterX, jitterY, 4.5);
+           else if (r < 0.6) this.drawStorageCrate(jitterX, jitterY, 4.0);
+           else if (r < 0.8) this.drawSmallGear(jitterX, jitterY, 4.5);
+           else this.drawPipe(jitterX - 30, jitterY - 30, jitterX + 30, jitterY + 30);
+        } else if (biome === 'python') {
+           if (r < 0.25) this.drawJungleBush(jitterX, jitterY, 5.5);
+           else if (r < 0.5) this.drawPalmTree(jitterX, jitterY);
+           else if (r < 0.7) this.drawVine(jitterX, jitterY, 4.5);
+           else if (r < 0.85) this.drawAncientRuin(jitterX, jitterY, 5.0);
+           else this.drawRockPile(jitterX, jitterY, 4.5);
+        } else {
+           if (r < 0.6) this.drawTreeGroup(jitterX, jitterY, 'plains');
+           else this.drawGrassPatch(jitterX, jitterY, 4.0);
+        }
+      }
+    }
+
+    this.renderQueue.sort((a, b) => a.y - b.y);
+    this.renderQueue.forEach(item => {
+      layer.appendChild(item.element);
+    });
+
+    this.renderQueue = originalQueue;
   }
 
   drawOceanDepth(rx, ry) {
@@ -379,45 +478,45 @@ class TerrainGenerator {
   }
 
   generateWaterNetwork() {
-    const drawRiver = (config) => {
-      const {
-        path, baseColor, coreColor, highlightColor,
-        baseWidth, coreWidth, highlightWidth,
-        baseOpacity, coreOpacity, highlightOpacity, isJagged
-      } = config;
+    const drawOrganicRiver = (riverConfig) => {
+      let combinedPoints = [];
+      riverConfig.segments.forEach(seg => {
+        const pts = this.sampleBezierPath(seg.path, 150); // High res for organic meanders
+        if (combinedPoints.length > 0) {
+          // Avoid duplicate points at segment joins
+          combinedPoints = combinedPoints.concat(pts.slice(1));
+        } else {
+          combinedPoints = pts;
+        }
+      });
+
+      const taperConfigBase = {
+        riverMode: true,
+        startWidth: riverConfig.startWidth / 2,
+        endWidth: riverConfig.endWidth / 2
+      };
+
+      const taperConfigCore = {
+        riverMode: true,
+        startWidth: (riverConfig.startWidth * 0.7) / 2,
+        endWidth: (riverConfig.endWidth * 0.7) / 2
+      };
 
       const riverBase = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      riverBase.setAttribute("d", path);
-      riverBase.setAttribute("fill", "none");
-      riverBase.setAttribute("stroke", baseColor);
-      riverBase.setAttribute("stroke-width", baseWidth);
-      if (baseOpacity) riverBase.setAttribute("opacity", baseOpacity);
-      riverBase.setAttribute("stroke-linecap", isJagged ? "butt" : "round");
-      riverBase.setAttribute("stroke-linejoin", isJagged ? "round" : "round");
+      // Add a small noise amplitude (3) for natural, irregular shorelines
+      riverBase.setAttribute("d", this.buildRoadPolygon(combinedPoints, 0, taperConfigBase, 3));
+      riverBase.setAttribute("fill", riverConfig.baseColor);
+      riverBase.setAttribute("stroke", "none");
+      riverBase.setAttribute("opacity", riverConfig.baseOpacity);
 
       const riverCore = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      riverCore.setAttribute("d", path);
-      riverCore.setAttribute("fill", "none");
-      riverCore.setAttribute("stroke", coreColor);
-      riverCore.setAttribute("stroke-width", coreWidth);
-      if (coreOpacity) riverCore.setAttribute("opacity", coreOpacity);
-      riverCore.setAttribute("stroke-linecap", isJagged ? "butt" : "round");
-      riverCore.setAttribute("stroke-linejoin", isJagged ? "round" : "round");
-
+      riverCore.setAttribute("d", this.buildRoadPolygon(combinedPoints, 0, taperConfigCore, 2));
+      riverCore.setAttribute("fill", riverConfig.coreColor);
+      riverCore.setAttribute("stroke", "none");
+      riverCore.setAttribute("opacity", riverConfig.coreOpacity);
+      
       this.renderer.getLayer('rivers').appendChild(riverBase);
       this.renderer.getLayer('rivers').appendChild(riverCore);
-
-      if (highlightColor) {
-        const riverHighlight = document.createElementNS("http://www.w3.org/2000/svg", "path");
-        riverHighlight.setAttribute("d", path);
-        riverHighlight.setAttribute("fill", "none");
-        riverHighlight.setAttribute("stroke", highlightColor);
-        riverHighlight.setAttribute("stroke-width", highlightWidth);
-        if (highlightOpacity) riverHighlight.setAttribute("opacity", highlightOpacity);
-        riverHighlight.setAttribute("stroke-linecap", isJagged ? "butt" : "round");
-        // Removed dashed array for a smooth natural flow
-        this.renderer.getLayer('rivers').appendChild(riverHighlight);
-      }
     };
 
     const drawLake = (cx, cy, rx, ry, baseColor, coreColor) => {
@@ -438,165 +537,69 @@ class TerrainGenerator {
       this.renderer.getLayer('rivers').appendChild(coreSvg);
     };
 
-    const drawJunctionBay = (cx, cy, radius, baseColor, coreColor) => {
-      const bayBase = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-      bayBase.setAttribute("cx", cx);
-      bayBase.setAttribute("cy", cy);
-      bayBase.setAttribute("r", radius);
-      bayBase.setAttribute("fill", baseColor);
-      bayBase.setAttribute("opacity", "0.75");
-      
-      const bayCore = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-      bayCore.setAttribute("cx", cx);
-      bayCore.setAttribute("cy", cy);
-      bayCore.setAttribute("r", radius * 0.65);
-      bayCore.setAttribute("fill", coreColor);
-      bayCore.setAttribute("opacity", "0.9");
-      bayCore.setAttribute("filter", "drop-shadow(inset 0px 5px 10px rgba(0,0,0,0.3))");
-
-      this.renderer.getLayer('rivers').appendChild(bayBase);
-      this.renderer.getLayer('rivers').appendChild(bayCore);
-    };
-
-    const catmullRom2bezier = (points) => {
-      let d = `M ${points[0].x},${points[0].y} `;
-      for (let i = 0; i < points.length - 1; i++) {
-        const p0 = i === 0 ? points[0] : points[i - 1];
-        const p1 = points[i];
-        const p2 = points[i + 1];
-        const p3 = i + 2 < points.length ? points[i + 2] : p2;
-
-        const cp1x = p1.x + (p2.x - p0.x) / 6;
-        const cp1y = p1.y + (p2.y - p0.y) / 6;
-
-        const cp2x = p2.x - (p3.x - p1.x) / 6;
-        const cp2y = p2.y - (p3.y - p1.y) / 6;
-
-        d += `C ${cp1x},${cp1y} ${cp2x},${cp2y} ${p2.x},${p2.y} `;
-      }
-      return d;
-    };
-
-    // --- RENDER CLEAN CURATED RIVERS ---
-    
-    // 1. Curated Lakes
-    // Python Lake (SE)
-    drawLake(5000, 4400, 320, 200, "#00695c", "#26c6da");
-    drawJunctionBay(5000, 4400, 110, "#00695c", "#26c6da");
-
-    // 2. Curated Rivers Configuration
-    const curatedRivers = [
-      {
-        id: "main-river",
-        type: "main",
-        // Safely ending at -1000, 3800 to clear Systems Republic
-        path: "M 2500,-200 C 2500,1000 3500,2000 2500,3000 C 1500,4000 500,3800 -1000,3800",
-        baseColor: "#00695c",
-        coreColor: "#26c6da",
-        highlightColor: "#b2ebf2",
-        baseWidth: 140,
-        coreWidth: 95,
-        highlightWidth: 14,
-        baseOpacity: 0.75,
-        coreOpacity: 0.9,
-        highlightOpacity: 0.45,
-        isJagged: false
-      },
-      {
-        id: "python-branch",
-        type: "tributary",
-        // Safely ending at 5500, 4000 to clear Python Wildlands
-        path: "M 2500,3000 C 3500,3500 4500,3500 5500,4000",
-        baseColor: "#00695c",
-        coreColor: "#26c6da",
-        highlightColor: "#b2ebf2",
-        baseWidth: 140,
-        coreWidth: 95,
-        highlightWidth: 14,
-        baseOpacity: 0.75,
-        coreOpacity: 0.9,
-        highlightOpacity: 0.45,
-        isJagged: false
-      }
-    ];
-
-    // Draw junction points to smooth the river forks
-    // drawJunctionBay(2500, 3000, 110, "#00695c", "#26c6da"); // Python branch fork (DISABLED FOR PHASE 4L)
-
-    // Render the rivers (DISABLED FOR PHASE 4L)
-    /*
-    curatedRivers.forEach(river => {
-      drawRiver(river);
-    });
-    */
-
     const drawNaturalRiverSystem = () => {
-      // Natural Source and Confluence Lakes (offset asymmetric lakes)
-      drawLake(2800, -20, 90, 60, "#00695c", "#26c6da"); // Highland Spring Main
-      drawLake(2770, 20, 60, 40, "#00695c", "#26c6da"); // Highland Spring Offset
-      
-      drawLake(2800, 1500, 220, 160, "#00695c", "#26c6da"); // Confluence Blending Bay Main
-      drawLake(2750, 1450, 180, 120, "#00695c", "#26c6da"); // Confluence Blending Bay Offset
+      // Natural Source and Confluence Lakes
+      drawLake(2800, -20, 90, 60, "#00695c", "#26c6da"); // Highland Spring
+      drawLake(2800, 1500, 220, 160, "#00695c", "#26c6da"); // Confluence Blending Bay
 
-      // 1. The Great Divide (West)
-      // Segment 1 (Source)
-      drawRiver({
-        path: "M 2800,-20 C 2400,500 2900,1000 2800,1500",
-        baseColor: "#00695c", coreColor: "#26c6da", highlightColor: "#b2ebf2",
-        baseWidth: 80, coreWidth: 60, highlightWidth: 10,
-        baseOpacity: 0.75, coreOpacity: 0.9, highlightOpacity: 0.45, isJagged: false
-      });
-      // Segment 2 (Mid)
-      drawRiver({
-        path: "M 2800,1500 C 2700,2400 1800,2800 1500,3200",
-        baseColor: "#00695c", coreColor: "#26c6da", highlightColor: "#b2ebf2",
-        baseWidth: 140, coreWidth: 95, highlightWidth: 14,
-        baseOpacity: 0.75, coreOpacity: 0.9, highlightOpacity: 0.45, isJagged: false
-      });
-      // Segment 3 (Approach to West Coastline)
-      drawRiver({
-        path: "M 1500,3200 C 500,3800 -1500,3100 -3400,3800",
-        baseColor: "#00695c", coreColor: "#26c6da", highlightColor: "#b2ebf2",
-        baseWidth: 220, coreWidth: 160, highlightWidth: 24,
-        baseOpacity: 0.75, coreOpacity: 0.9, highlightOpacity: 0.45, isJagged: false
-      });
-      // Segment 4 (West Delta Cut)
-      drawRiver({
-        path: "M -3400,3800 Q -3525,3840 -3650,3870",
-        baseColor: "#00695c", coreColor: "#26c6da", highlightColor: "#b2ebf2",
-        baseWidth: 260, coreWidth: 175, highlightWidth: 20,
-        baseOpacity: 0.75, coreOpacity: 0.9, highlightOpacity: 0.45, isJagged: true
+      // Tributary 1: Originates from elevated terrain behind mountains
+      drawOrganicRiver({
+        startWidth: 15, endWidth: 50,
+        baseColor: "#00695c", coreColor: "#26c6da", baseOpacity: 0.75, coreOpacity: 0.9,
+        segments: [
+          { path: "M 800,-2500 C 1200,-2200 1600,-1800 2000,-1500" }, // Highland source
+          { path: "M 2000,-1500 C 2200,-1200 2400,-1000 2500,-700" }, // North Bridge crossing
+          { path: "M 2500,-700 C 2600,-400 2700,-200 2800,-20" }
+        ]
       });
 
-      // 2. Eastern Basin
-      // Segment 1 (Mid)
-      drawRiver({
-        path: "M 2800,1500 C 3200,1200 4000,2800 4500,2500",
-        baseColor: "#00695c", coreColor: "#26c6da", highlightColor: "#b2ebf2",
-        baseWidth: 80, coreWidth: 60, highlightWidth: 10,
-        baseOpacity: 0.75, coreOpacity: 0.9, highlightOpacity: 0.45, isJagged: false
+      // Tributary 2: Originates in the south, merges into West River slightly north of the bridge
+      drawOrganicRiver({
+        startWidth: 15, endWidth: 70,
+        baseColor: "#00695c", coreColor: "#26c6da", baseOpacity: 0.75, coreOpacity: 0.9,
+        segments: [
+          { path: "M 3500,6500 C 3000,6000 2800,5600 2500,5400" }, // South Bridge crossing
+          { path: "M 2500,5400 C 2200,5200 2000,4500 1800,4000" },
+          { path: "M 1800,4000 C 1600,3500 1700,3100 1600,2900" } // Smooth Y-junction shifted north
+        ]
       });
-      // Segment 2 (Approach to East Coastline)
-      drawRiver({
-        path: "M 4500,2500 C 5500,2000 7000,4500 8300,4000",
-        baseColor: "#00695c", coreColor: "#26c6da", highlightColor: "#b2ebf2",
-        baseWidth: 200, coreWidth: 140, highlightWidth: 24,
-        baseOpacity: 0.75, coreOpacity: 0.9, highlightOpacity: 0.45, isJagged: false
+
+      // The Great Divide (West River) - The Southern river reaching the ocean
+      drawOrganicRiver({
+        startWidth: 50, endWidth: 320,
+        baseColor: "#00695c", coreColor: "#26c6da", baseOpacity: 0.75, coreOpacity: 0.9,
+        segments: [
+          { path: "M 2800,-20 C 2600,300 2400,500 2600,900" },
+          { path: "M 2600,900 C 2800,1200 2900,1300 2800,1500" },
+          { path: "M 2800,1500 C 2500,1800 2000,2000 1800,2400" },
+          { path: "M 1800,2400 C 1600,2800 1600,3000 1500,3200" }, // GW Bridge intersection
+          { path: "M 1500,3200 C 1300,3400 1000,3800 500,3800" },
+          { path: "M 500,3800 C 0,3800 -500,3600 -1000,3600" },
+          { path: "M -1000,3600 C -1800,3600 -2000,4200 -2600,4000" }, // Gentle meander added before ocean
+          { path: "M -2600,4000 C -3200,3800 -3400,3800 -3800,4000" },
+          // Final segment extending into the ocean
+          { path: "M -3800,4000 C -4200,4300 -4800,4500 -5500,4800" }
+        ]
       });
-      // Segment 3 (East Delta Cut)
-      drawRiver({
-        path: "M 8300,4000 Q 8450,4040 8600,4070",
-        baseColor: "#00695c", coreColor: "#26c6da", highlightColor: "#b2ebf2",
-        baseWidth: 260, coreWidth: 175, highlightWidth: 20,
-        baseOpacity: 0.75, coreOpacity: 0.9, highlightOpacity: 0.45, isJagged: true
+
+      // Eastern Basin (East River)
+      drawOrganicRiver({
+        startWidth: 80, endWidth: 320,
+        baseColor: "#00695c", coreColor: "#26c6da", baseOpacity: 0.75, coreOpacity: 0.9,
+        segments: [
+          { path: "M 2800,1500 C 3000,1800 3500,1500 4000,1800" },
+          { path: "M 4000,1800 C 4500,2100 4200,2500 4500,2500" },
+          { path: "M 4500,2500 C 4800,2500 5200,2200 5500,2000" },
+          { path: "M 5500,2000 C 6000,1800 6500,2500 7000,3000" },
+          { path: "M 7000,3000 C 7500,3500 7800,4000 8300,4000" },
+          { path: "M 8300,4000 C 8500,4000 8500,4300 8800,4200" }, // Gentle meander added before ocean
+          // Final segment extending into the ocean
+          { path: "M 8800,4200 C 9200,4400 9500,4600 9800,4800" }
+        ]
       });
     };
 
     drawNaturalRiverSystem();
-
-    // Bridges
-    this.drawBridgeHint(2800, 2500, 'stone', -30);
-    this.drawBridgeHint(1200, 4500, 'mechanical', 0);
   }
 
   generateStrategyGrid(clipPathD) {
@@ -1351,6 +1354,774 @@ class TerrainGenerator {
     this.renderQueue.push({ y: zIndex, element: finalGroup });
   }
 
+  // --- Road Surface Renderer Math Helpers (Phase 4N-B) ---
+
+  sampleBezierPath(pathString, resolution = 20) {
+    const points = [];
+    const commands = pathString.match(/[a-zA-Z][^a-zA-Z]*/g);
+    if (!commands) return points;
+
+    let currentX = 0, currentY = 0;
+
+    commands.forEach(cmd => {
+      const type = cmd[0];
+      const args = cmd.substring(1).trim().split(/[\s,]+/).map(parseFloat);
+
+      if (type === 'M' || type === 'm') {
+        currentX = type === 'M' ? args[0] : currentX + args[0];
+        currentY = type === 'M' ? args[1] : currentY + args[1];
+        points.push({ x: currentX, y: currentY });
+      } else if (type === 'C' || type === 'c') {
+        const p0 = { x: currentX, y: currentY };
+        const p1 = { 
+          x: type === 'C' ? args[0] : currentX + args[0], 
+          y: type === 'C' ? args[1] : currentY + args[1] 
+        };
+        const p2 = { 
+          x: type === 'C' ? args[2] : currentX + args[2], 
+          y: type === 'C' ? args[3] : currentY + args[3] 
+        };
+        const p3 = { 
+          x: type === 'C' ? args[4] : currentX + args[4], 
+          y: type === 'C' ? args[5] : currentY + args[5] 
+        };
+
+        for (let i = 1; i <= resolution; i++) {
+          const t = i / resolution;
+          const u = 1 - t;
+          const u3 = u * u * u;
+          const u2t = 3 * u * u * t;
+          const ut2 = 3 * u * t * t;
+          const t3 = t * t * t;
+
+          const x = u3 * p0.x + u2t * p1.x + ut2 * p2.x + t3 * p3.x;
+          const y = u3 * p0.y + u2t * p1.y + ut2 * p2.y + t3 * p3.y;
+          
+          points.push({ x, y });
+        }
+        
+        currentX = p3.x;
+        currentY = p3.y;
+      }
+    });
+
+    return points;
+  }
+
+  calculateNormals(points) {
+    const normals = [];
+    if (points.length < 2) return normals;
+
+    for (let i = 0; i < points.length; i++) {
+      let pPrev = points[i - 1];
+      let pNext = points[i + 1];
+
+      // Handle endpoints
+      if (i === 0) pPrev = points[i];
+      if (i === points.length - 1) pNext = points[i];
+
+      let dx = pNext.x - pPrev.x;
+      let dy = pNext.y - pPrev.y;
+
+      if (dx === 0 && dy === 0) {
+        if (i === 0 && points.length > 1) {
+          dx = points[1].x - points[0].x;
+          dy = points[1].y - points[0].y;
+        } else if (i === points.length - 1 && points.length > 1) {
+          dx = points[i].x - points[i - 1].x;
+          dy = points[i].y - points[i - 1].y;
+        }
+      }
+
+      const length = Math.sqrt(dx * dx + dy * dy);
+      if (length > 0) {
+        dx /= length;
+        dy /= length;
+      }
+
+      // Normal is perpendicular to tangent (-dy, dx)
+      normals.push({ nx: -dy, ny: dx });
+    }
+
+    return normals;
+  }
+
+  buildRoadPolygon(points, width, taperConfig = {}, noiseAmplitude = 0) {
+    if (!points || points.length < 2) return "";
+
+    // Cache points for collision detection later
+    if (this.infrastructurePoints) {
+      // Sub-sample to save memory, pushing every 5th point is enough for collision
+      for (let i = 0; i < points.length; i += 5) {
+        this.infrastructurePoints.push({ x: points[i].x, y: points[i].y });
+      }
+    }
+
+    const normals = this.calculateNormals(points);
+    const leftPoints = [];
+    const rightPoints = [];
+    const total = points.length;
+
+    for (let i = 0; i < total; i++) {
+      const p = points[i];
+      const n = normals[i];
+      
+      let currentWidth = width / 2;
+
+      // Apply tapering
+      if (taperConfig.riverMode) {
+        const lastP = points[total - 1];
+        const distFromEnd = Math.hypot(p.x - lastP.x, p.y - lastP.y);
+        
+        let flare = 0;
+        if (distFromEnd < 120) {
+          // Exponential flare for the last 120 units to create a natural fan shape
+          flare = Math.pow((120 - distFromEnd) / 120, 2);
+        }
+        
+        const t = i / (total - 1);
+        // Linear growth for the river body, up to 1.5x startWidth
+        const linearWidth = taperConfig.startWidth + (taperConfig.startWidth * 0.5) * t; 
+        
+        // Final width is linear body + flare to the endWidth
+        currentWidth = linearWidth + (taperConfig.endWidth - linearWidth) * flare;
+      } else if (taperConfig.wilderness) {
+        const mid = total / 2;
+        const distFromMid = Math.abs(i - mid);
+        const normalized = distFromMid / mid;
+        currentWidth *= (taperConfig.wilderness + (1 - taperConfig.wilderness) * normalized);
+      } else if (taperConfig.start && i < taperConfig.start) {
+        currentWidth *= (i / taperConfig.start);
+      } else if (taperConfig.end && i > total - 1 - taperConfig.end) {
+        currentWidth *= ((total - 1 - i) / taperConfig.end);
+      }
+      // Apply noise variation
+      if (noiseAmplitude > 0) {
+        const noise = Math.sin(i * 0.5) * Math.cos(i * 0.3) * noiseAmplitude;
+        currentWidth += noise;
+      }
+
+      currentWidth = Math.max(0, currentWidth);
+
+      // Generate boundary points
+      leftPoints.push({
+        x: p.x + n.nx * currentWidth,
+        y: p.y + n.ny * currentWidth
+      });
+      
+      rightPoints.push({
+        x: p.x - n.nx * currentWidth,
+        y: p.y - n.ny * currentWidth
+      });
+    }
+
+    // Assemble closed SVG path
+    let pathString = `M ${leftPoints[0].x.toFixed(2)},${leftPoints[0].y.toFixed(2)}`;
+    for (let i = 1; i < leftPoints.length; i++) {
+      pathString += ` L ${leftPoints[i].x.toFixed(2)},${leftPoints[i].y.toFixed(2)}`;
+    }
+
+    if (taperConfig.riverMode) {
+      // Generate a naturally bulging, fan-shaped river mouth cap (smooth semi-circle)
+      const pL = leftPoints[leftPoints.length - 1];
+      const pR = rightPoints[rightPoints.length - 1];
+      const steps = 12;
+      for (let s = 1; s < steps; s++) {
+        const t = s / steps;
+        const ix = pL.x + (pR.x - pL.x) * t;
+        const iy = pL.y + (pR.y - pL.y) * t;
+        const bulge = Math.sin(t * Math.PI) * (taperConfig.endWidth * 0.5);
+        const dx = pR.x - pL.x;
+        const dy = pR.y - pL.y;
+        const len = Math.hypot(dx, dy) || 1;
+        const nx = -dy / len;
+        const ny = dx / len;
+        pathString += ` L ${(ix + nx * bulge).toFixed(2)},${(iy + ny * bulge).toFixed(2)}`;
+      }
+    }
+
+    for (let i = rightPoints.length - 1; i >= 0; i--) {
+      pathString += ` L ${rightPoints[i].x.toFixed(2)},${rightPoints[i].y.toFixed(2)}`;
+    }
+    pathString += " Z";
+
+    return pathString;
+  }
+
+  generateAuthoredRoads() {
+    this.authoredBridgeAnchors = [];
+
+    // --- Create filters safely ---
+    if (!this.renderer.defs.querySelector('#road-weathering-filter')) {
+      const createFilter = (id, html) => {
+        const filter = document.createElementNS("http://www.w3.org/2000/svg", "filter");
+        filter.setAttribute("id", id);
+        filter.setAttribute("x", "-20%");
+        filter.setAttribute("y", "-20%");
+        filter.setAttribute("width", "140%");
+        filter.setAttribute("height", "140%");
+        filter.innerHTML = html;
+        this.renderer.defs.appendChild(filter);
+      };
+      
+      createFilter('road-weathering-filter', `
+        <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="3" result="noise" />
+        <feDisplacementMap in="SourceGraphic" in2="noise" scale="3" xChannelSelector="R" yChannelSelector="G" result="displaced" />
+        <feGaussianBlur in="displaced" stdDeviation="2.5" result="blurred" />
+      `);
+      
+      createFilter('road-core-filter', `
+        <feTurbulence type="fractalNoise" baseFrequency="0.06" numOctaves="2" result="noise" />
+        <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.5" xChannelSelector="R" yChannelSelector="G" result="displaced" />
+      `);
+    }
+
+    const drawRoad = (roadData) => {
+      const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      group.setAttribute("id", `road-${roadData.id}`);
+      group.style.pointerEvents = "none";
+
+      const baseGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      if (roadData.baseOpacity !== undefined) baseGroup.setAttribute("opacity", roadData.baseOpacity);
+      // baseGroup.setAttribute("filter", "url(#road-weathering-filter)"); // Temp disabled for visibility test
+
+      const coreGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      if (roadData.coreOpacity !== undefined) coreGroup.setAttribute("opacity", roadData.coreOpacity);
+      // coreGroup.setAttribute("filter", "url(#road-core-filter)"); // Temp disabled for visibility test
+
+      const segments = roadData.segments || [roadData];
+      let allPoints = [];
+
+      segments.forEach(seg => {
+        // 1. Convert Bezier to Point Array with increased resolution
+        const points = this.sampleBezierPath(seg.path, 100);
+        if (points.length < 2) return;
+
+        // Prevent duplicate points where segments connect
+        if (allPoints.length > 0) {
+          const lastPoint = allPoints[allPoints.length - 1];
+          const firstPoint = points[0];
+          if (Math.abs(lastPoint.x - firstPoint.x) < 0.1 && Math.abs(lastPoint.y - firstPoint.y) < 0.1) {
+            points.shift();
+          }
+        }
+        allPoints = allPoints.concat(points);
+      });
+
+      if (allPoints.length < 2) return;
+
+      // 2. Resolve Widths
+      const baseWidth = roadData.baseWidth || 260;
+      const coreWidth = roadData.coreWidth || 140;
+
+      // 3. Generate exactly ONE continuous base polygon
+      const basePolygon = this.buildRoadPolygon(allPoints, baseWidth, { wilderness: 0.4 }, 2);
+      
+      // 4. Generate exactly ONE continuous core polygon
+      const corePolygon = this.buildRoadPolygon(allPoints, coreWidth, { wilderness: 0.4 }, 1);
+
+      // 5. Append Base Surface
+      const base = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      base.setAttribute("d", basePolygon);
+      base.setAttribute("fill", roadData.baseColor);
+      base.setAttribute("stroke", "none");
+      baseGroup.appendChild(base);
+
+      // 6. Append Core Surface
+      const core = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      core.setAttribute("d", corePolygon);
+      core.setAttribute("fill", roadData.coreColor);
+      core.setAttribute("stroke", "none");
+      coreGroup.appendChild(core);
+
+      group.appendChild(baseGroup);
+      group.appendChild(coreGroup);
+      
+      this.renderer.getLayer('roads').appendChild(group);
+
+      if (roadData.bridgeAnchors) {
+        this.authoredBridgeAnchors.push(...roadData.bridgeAnchors);
+      }
+    };
+
+    const roadsConfig = [
+      {
+        id: 'great-western-trade-route',
+        type: 'main-trade-route',
+        baseColor: '#4A2F1B', 
+        coreColor: '#E8D2A8', 
+        baseOpacity: 0.75, 
+        coreOpacity: 1.0,
+        baseWidth: 260,
+        coreWidth: 140,
+        segments: [
+          { path: 'M -550,-1000 C -450,-850 -350,-750 -300,-700' },
+          { path: 'M -300,-700 C -150,-400 0,-200 200,100' },
+          { path: 'M 150,50 C 300,300 450,700 600,1200' },
+          { path: 'M 550,1100 C 700,1600 850,2000 1100,2600' },
+          { path: 'M 1050,2500 C 1200,2800 1350,3000 1400,3250' },
+          { path: 'M 1400,3200 C 1250,3800 800,4300 400,4700' },
+          { path: 'M 450,4650 C 200,4900 0,5050 -200,5200' },
+          { path: 'M -200,5200 C -300,5350 -400,5500 -500,5650' }
+        ],
+        bridgeAnchors: [{ id: 'west-delta-crossing', x: 1400, y: 3250, type: 'mechanical', rotation: 80 }]
+      },
+      {
+        id: 'northern-trade-route',
+        type: 'main-trade-route',
+        baseColor: '#4A2F1B', 
+        coreColor: '#E8D2A8', 
+        baseOpacity: 0.75, 
+        coreOpacity: 1.0,
+        baseWidth: 260,
+        coreWidth: 140,
+        segments: [
+          { path: 'M -550,-1000 C 0,-1100 1000,-1100 1800,-900' },
+          { path: 'M 1800,-900 C 2200,-800 2400,-700 2500,-700' },
+          { path: 'M 2500,-700 C 3500,-700 4500,-300 5500,0' }
+        ],
+        bridgeAnchors: [{ id: 'north-river-crossing', x: 2500, y: -700, type: 'stone', rotation: 10 }]
+      },
+      {
+        id: 'southern-trade-route',
+        type: 'main-trade-route',
+        baseColor: '#4A2F1B', 
+        coreColor: '#E8D2A8', 
+        baseOpacity: 0.75, 
+        coreOpacity: 1.0,
+        baseWidth: 260,
+        coreWidth: 140,
+        segments: [
+          { path: 'M -500,5650 C 0,5700 1000,5700 1800,5500' },
+          { path: 'M 1800,5500 C 2200,5400 2400,5400 2500,5400' },
+          { path: 'M 2500,5400 C 3500,5400 4500,5500 5500,5500' }
+        ],
+        bridgeAnchors: [{ id: 'south-river-crossing', x: 2500, y: 5400, type: 'wooden', rotation: 0 }]
+      },
+      {
+        id: 'eastern-trade-route',
+        type: 'main-trade-route',
+        baseColor: '#4A2F1B', 
+        coreColor: '#E8D2A8', 
+        baseOpacity: 0.75, 
+        coreOpacity: 1.0,
+        baseWidth: 260,
+        coreWidth: 140,
+        segments: [
+          { path: 'M 5500,0 C 6500,1000 7000,1500 7500,2500' },
+          { path: 'M 7500,2500 C 8000,3500 7500,4500 6500,5000' },
+          { path: 'M 6500,5000 C 6000,5200 5800,5300 5500,5500' }
+        ]
+      }
+    ];
+
+    roadsConfig.forEach(road => drawRoad(road));
+
+    const internalRoads = [
+      // Logic Dominion (Elegant, gentle curves)
+      {
+        id: 'logic-campus-path',
+        type: 'internal-road',
+        baseColor: '#4A2F1B', coreColor: '#E8D2A8', baseOpacity: 0.75, coreOpacity: 1.0,
+        baseWidth: 160, coreWidth: 80,
+        segments: [
+          { path: 'M -550,-1000 C -700,-1100 -800,-1300 -1000,-1400' },
+          { path: 'M -1000,-1400 C -1200,-1500 -1300,-1500 -1400,-1300' }
+        ]
+      },
+      {
+        id: 'logic-garden-path',
+        type: 'internal-road',
+        baseColor: '#4A2F1B', coreColor: '#E8D2A8', baseOpacity: 0.75, coreOpacity: 1.0,
+        baseWidth: 120, coreWidth: 60,
+        segments: [
+          { path: 'M -550,-1000 C -800,-800 -1000,-600 -1200,-700' }
+        ]
+      },
+
+      // Systems Republic (Engineered, sharper angles)
+      {
+        id: 'systems-factory-line',
+        type: 'internal-road',
+        baseColor: '#4A2F1B', coreColor: '#E8D2A8', baseOpacity: 0.75, coreOpacity: 1.0,
+        baseWidth: 160, coreWidth: 80,
+        segments: [
+          { path: 'M -500,5650 C -600,5600 -700,5500 -900,5300' },
+          { path: 'M -900,5300 C -1100,5100 -1150,5100 -1300,5100' }
+        ]
+      },
+      {
+        id: 'systems-rail-access',
+        type: 'internal-road',
+        baseColor: '#4A2F1B', coreColor: '#E8D2A8', baseOpacity: 0.75, coreOpacity: 1.0,
+        baseWidth: 120, coreWidth: 60,
+        segments: [
+          { path: 'M -500,5650 C -400,5800 -300,6000 -400,6200' }
+        ]
+      },
+
+      // Python Wildlands (Organic, winding)
+      {
+        id: 'python-temple-trail',
+        type: 'internal-road',
+        baseColor: '#4A2F1B', coreColor: '#E8D2A8', baseOpacity: 0.75, coreOpacity: 1.0,
+        baseWidth: 160, coreWidth: 80,
+        segments: [
+          { path: 'M 5500,5500 C 5300,5700 5600,6000 5400,6300' },
+          { path: 'M 5400,6300 C 5200,6600 5500,6800 5300,7000' }
+        ]
+      },
+      {
+        id: 'python-village-trail',
+        type: 'internal-road',
+        baseColor: '#4A2F1B', coreColor: '#E8D2A8', baseOpacity: 0.75, coreOpacity: 1.0,
+        baseWidth: 120, coreWidth: 60,
+        segments: [
+          { path: 'M 5500,5500 C 5800,5300 6000,5600 6200,5500' }
+        ]
+      },
+
+      // Debug Wasteland (Fractured, irregular)
+      {
+        id: 'debug-crystal-path',
+        type: 'internal-road',
+        baseColor: '#4A2F1B', coreColor: '#E8D2A8', baseOpacity: 0.75, coreOpacity: 1.0,
+        baseWidth: 160, coreWidth: 80,
+        segments: [
+          { path: 'M 5500,0 C 5700,-100 5600,-400 5800,-500' },
+          { path: 'M 5800,-500 C 6000,-600 5900,-800 6200,-800' }
+        ]
+      },
+      {
+        id: 'debug-ruin-access',
+        type: 'internal-road',
+        baseColor: '#4A2F1B', coreColor: '#E8D2A8', baseOpacity: 0.75, coreOpacity: 1.0,
+        baseWidth: 120, coreWidth: 60,
+        segments: [
+          { path: 'M 5500,0 C 5300,200 5200,100 5000,300' }
+        ]
+      }
+    ];
+
+    internalRoads.forEach(road => drawRoad(road));
+  }
+
+  generateAuthoredBridges() {
+    if (!this.authoredBridgeAnchors || this.authoredBridgeAnchors.length === 0) return;
+
+    // Bridge config maps to visual rendering styles for the SVG bridge geometry
+    const bridgeConfig = {
+      stone: {
+        width: 320,
+        height: 280, // wide enough to cover the river
+        baseColor: '#cfd8dc', // Light gray masonry
+        accentColor: '#90a4ae', 
+        deckColor: '#78909c'
+      },
+      mechanical: {
+        width: 320,
+        height: 280,
+        baseColor: '#37474f', // Dark metal
+        accentColor: '#d32f2f', // Red mechanical accents
+        deckColor: '#263238'
+      },
+      wooden: {
+        width: 320,
+        height: 280,
+        baseColor: '#5d4037', // Natural timber
+        accentColor: '#d7ccc8', // Rope railings
+        deckColor: '#795548'
+      },
+      corrupted: {
+        width: 320,
+        height: 280,
+        baseColor: '#424242', // Broken stone
+        accentColor: '#9c27b0', // Purple crystal growth
+        deckColor: '#212121'
+      }
+    };
+
+    this.authoredBridgeAnchors.forEach(anchor => {
+      const config = bridgeConfig[anchor.type] || bridgeConfig['stone'];
+      let bridgeGroup;
+      
+      switch (anchor.type) {
+        case 'mechanical':
+          bridgeGroup = this.drawMechanicalBridge(anchor, config);
+          break;
+        case 'wooden':
+          bridgeGroup = this.drawWoodenBridge(anchor, config);
+          break;
+        case 'corrupted':
+          bridgeGroup = this.drawCorruptedBridge(anchor, config);
+          break;
+        case 'stone':
+        default:
+          bridgeGroup = this.drawStoneBridge(anchor, config);
+          break;
+      }
+
+      if (bridgeGroup) {
+        this.renderer.getLayer('bridges').appendChild(bridgeGroup);
+      }
+    });
+  }
+
+  drawStoneBridge(anchor, config) {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    const rotation = anchor.rotation || 0;
+    g.setAttribute("transform", `translate(${anchor.x}, ${anchor.y}) rotate(${rotation})`);
+    g.setAttribute("class", `bridge-stone`);
+
+    const w = config.width;
+    const h = config.height;
+    const roadWidth = 260; 
+
+    // Base foundation (elegant rounded stone)
+    const foundation = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    foundation.setAttribute("x", -w/2);
+    foundation.setAttribute("y", -h/2);
+    foundation.setAttribute("width", w);
+    foundation.setAttribute("height", h);
+    foundation.setAttribute("fill", config.baseColor);
+    foundation.setAttribute("rx", 40);
+    foundation.setAttribute("ry", 40);
+    g.appendChild(foundation);
+
+    // Cyan decorative trim
+    const trim = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    trim.setAttribute("x", -w/2 + 10);
+    trim.setAttribute("y", -h/2 + 10);
+    trim.setAttribute("width", w - 20);
+    trim.setAttribute("height", h - 20);
+    trim.setAttribute("fill", "none");
+    trim.setAttribute("stroke", "#00bcd4"); // cyan trim
+    trim.setAttribute("stroke-width", "4");
+    trim.setAttribute("rx", 30);
+    g.appendChild(trim);
+
+    // Deck
+    const deck = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    deck.setAttribute("x", -w/2 + 40);
+    deck.setAttribute("y", -h/2);
+    deck.setAttribute("width", w - 80);
+    deck.setAttribute("height", h);
+    deck.setAttribute("fill", config.deckColor);
+    g.appendChild(deck);
+
+    // Small side parapets
+    [-roadWidth/2 - 10, roadWidth/2].forEach(yPos => {
+      const parapet = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      parapet.setAttribute("x", -w/2);
+      parapet.setAttribute("y", yPos);
+      parapet.setAttribute("width", w);
+      parapet.setAttribute("height", 10);
+      parapet.setAttribute("fill", config.accentColor);
+      parapet.setAttribute("rx", 5);
+      g.appendChild(parapet);
+    });
+
+    return g;
+  }
+
+  drawMechanicalBridge(anchor, config) {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    const rotation = anchor.rotation || 0;
+    g.setAttribute("transform", `translate(${anchor.x}, ${anchor.y}) rotate(${rotation})`);
+    g.setAttribute("class", `bridge-mechanical`);
+
+    const w = config.width;
+    const h = config.height;
+    const roadWidth = 260;
+
+    // Thick steel deck
+    const deck = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    deck.setAttribute("x", -w/2);
+    deck.setAttribute("y", -h/2);
+    deck.setAttribute("width", w);
+    deck.setAttribute("height", h);
+    deck.setAttribute("fill", config.baseColor);
+    g.appendChild(deck);
+
+    // Industrial orange accents and rails
+    [-roadWidth/2 - 30, roadWidth/2 + 10].forEach(yPos => {
+      const rail = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      rail.setAttribute("x", -w/2);
+      rail.setAttribute("y", yPos);
+      rail.setAttribute("width", w);
+      rail.setAttribute("height", 20);
+      rail.setAttribute("fill", "#ff9800"); // orange accent
+      g.appendChild(rail);
+      
+      // Rivets on the rail
+      for (let i = -w/2 + 20; i < w/2; i += 40) {
+        const rivet = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        rivet.setAttribute("cx", i);
+        rivet.setAttribute("cy", yPos + 10);
+        rivet.setAttribute("r", 3);
+        rivet.setAttribute("fill", "#000");
+        g.appendChild(rivet);
+      }
+    });
+
+    // Mechanical support beams crossing the road
+    for (let i = -w/2 + 40; i < w/2; i += 80) {
+      const beam = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      beam.setAttribute("x", i);
+      beam.setAttribute("y", -h/2);
+      beam.setAttribute("width", 20);
+      beam.setAttribute("height", h);
+      beam.setAttribute("fill", config.deckColor);
+      g.appendChild(beam);
+      
+      // X bracing
+      const brace1 = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      brace1.setAttribute("x1", i);
+      brace1.setAttribute("y1", -h/2);
+      brace1.setAttribute("x2", i + 20);
+      brace1.setAttribute("y2", h/2);
+      brace1.setAttribute("stroke", "#ff9800");
+      brace1.setAttribute("stroke-width", "4");
+      g.appendChild(brace1);
+
+      const brace2 = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      brace2.setAttribute("x1", i + 20);
+      brace2.setAttribute("y1", -h/2);
+      brace2.setAttribute("x2", i);
+      brace2.setAttribute("y2", h/2);
+      brace2.setAttribute("stroke", "#ff9800");
+      brace2.setAttribute("stroke-width", "4");
+      g.appendChild(brace2);
+    }
+    
+    return g;
+  }
+
+  drawWoodenBridge(anchor, config) {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    const rotation = anchor.rotation || 0;
+    g.setAttribute("transform", `translate(${anchor.x}, ${anchor.y}) rotate(${rotation})`);
+    g.setAttribute("class", `bridge-wooden`);
+
+    const w = config.width;
+    const h = config.height;
+    const roadWidth = 260;
+
+    // Foundation
+    const foundation = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    foundation.setAttribute("x", -w/2);
+    foundation.setAttribute("y", -h/2);
+    foundation.setAttribute("width", w);
+    foundation.setAttribute("height", h);
+    foundation.setAttribute("fill", config.baseColor);
+    g.appendChild(foundation);
+
+    // Layered timber planks
+    for (let i = -w/2 + 5; i < w/2; i += 15) {
+      const plankLength = h - (window.rng.next() * 20); // slight organic variation
+      const plankY = -plankLength / 2;
+      const plank = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      plank.setAttribute("x", i);
+      plank.setAttribute("y", plankY);
+      plank.setAttribute("width", 12);
+      plank.setAttribute("height", plankLength);
+      plank.setAttribute("fill", config.deckColor);
+      plank.setAttribute("rx", 2);
+      g.appendChild(plank);
+    }
+
+    // Rope railings
+    [-roadWidth/2 - 20, roadWidth/2 + 10].forEach(yPos => {
+      // Posts
+      for (let i = -w/2 + 20; i < w/2; i += 60) {
+        const post = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        post.setAttribute("cx", i);
+        post.setAttribute("cy", yPos + 5);
+        post.setAttribute("r", 6);
+        post.setAttribute("fill", "#3e2723");
+        g.appendChild(post);
+      }
+      
+      // The rope (a wavy line)
+      let d = `M ${-w/2 + 20} ${yPos + 5}`;
+      for (let i = -w/2 + 20 + 60; i < w/2; i += 60) {
+         d += ` Q ${i - 30} ${yPos + 20} ${i} ${yPos + 5}`;
+      }
+      const rope = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      rope.setAttribute("d", d);
+      rope.setAttribute("fill", "none");
+      rope.setAttribute("stroke", config.accentColor); // Rope color
+      rope.setAttribute("stroke-width", "4");
+      g.appendChild(rope);
+    });
+
+    return g;
+  }
+
+  drawCorruptedBridge(anchor, config) {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    const rotation = anchor.rotation || 0;
+    g.setAttribute("transform", `translate(${anchor.x}, ${anchor.y}) rotate(${rotation})`);
+    g.setAttribute("class", `bridge-corrupted`);
+
+    const w = config.width;
+    const h = config.height;
+    const roadWidth = 260;
+
+    // Broken stone deck (uneven silhouette)
+    const deck = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    let d = `M ${-w/2},${-h/2} `;
+    // Top edge uneven
+    for (let i = -w/2; i <= w/2; i += 40) {
+      d += `L ${i},${-h/2 + window.rng.next() * 20 - 10} `;
+    }
+    // Right edge
+    d += `L ${w/2},${h/2} `;
+    // Bottom edge uneven
+    for (let i = w/2; i >= -w/2; i -= 40) {
+      d += `L ${i},${h/2 + window.rng.next() * 20 - 10} `;
+    }
+    d += `Z`;
+    deck.setAttribute("d", d);
+    deck.setAttribute("fill", config.baseColor);
+    g.appendChild(deck);
+
+    // Inner deck cracks
+    for (let i = 0; i < 5; i++) {
+      const crack = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      const startX = (window.rng.next() - 0.5) * w;
+      const startY = (window.rng.next() - 0.5) * h;
+      crack.setAttribute("d", `M ${startX},${startY} L ${startX + window.rng.next()*40 - 20},${startY + window.rng.next()*40 - 20} L ${startX + window.rng.next()*40 - 20},${startY + window.rng.next()*40 - 20}`);
+      crack.setAttribute("fill", "none");
+      crack.setAttribute("stroke", config.deckColor);
+      crack.setAttribute("stroke-width", "3");
+      g.appendChild(crack);
+    }
+
+    // Purple crystal formations
+    for (let i = 0; i < 8; i++) {
+      const crystal = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+      const cx = (window.rng.next() - 0.5) * w;
+      // Clustered near the edges
+      const cy = (window.rng.next() > 0.5 ? 1 : -1) * (roadWidth/2 - window.rng.next() * 30);
+      
+      const sizeX = 15 + window.rng.next() * 20;
+      const sizeY = 25 + window.rng.next() * 30;
+      
+      crystal.setAttribute("points", `${cx},${cy} ${cx+sizeX/2},${cy-sizeY} ${cx+sizeX},${cy}`);
+      crystal.setAttribute("fill", config.accentColor);
+      g.appendChild(crystal);
+      
+      // Crystal core
+      const core = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+      core.setAttribute("points", `${cx+sizeX/4},${cy} ${cx+sizeX/2},${cy-sizeY*0.8} ${cx+sizeX*0.75},${cy}`);
+      core.setAttribute("fill", "#e1bee7"); // light purple core
+      g.appendChild(core);
+    }
+
+    return g;
+  }
+
   generateRoads() {
     if (this.regionsConfig.length < 2) return;
 
@@ -1425,6 +2196,8 @@ class TerrainGenerator {
     return false;
   }
 
+
+
   // Preserved for rollback safety per Phase 1B rules
   generateEcologyOld(islandRx, islandRy) {
     const step = 150; // Grid spacing for Poisson-like distribution
@@ -1460,6 +2233,8 @@ class TerrainGenerator {
           const theme = nearestRegion && minDist < (Math.max(nearestRegion.width, nearestRegion.height) * 2) 
                         ? nearestRegion.theme : 'plains';
 
+          /* 
+          // Disabled as per user request to remove small scatter props
           if (theme === 'debug') {
             if (window.rng.next() > 0.6) this.drawCrystal(jitterX, jitterY);
             else this.drawMountain(jitterX, jitterY, '#37474f');
@@ -1470,6 +2245,7 @@ class TerrainGenerator {
             if (window.rng.next() > 0.85) this.drawMountain(jitterX, jitterY);
             else this.drawTreeGroup(jitterX, jitterY, theme);
           }
+          */
         }
       }
     }
@@ -1646,6 +2422,8 @@ class TerrainGenerator {
     const maxAttempts = 3000;
     let targetsMet = false;
 
+    /*
+    // Disabled as per user request to remove random filler
     while (!targetsMet && totalAttempts < maxAttempts) {
       totalAttempts++;
       const cx = this.playableBounds.minX + window.rng.next() * (this.playableBounds.maxX - this.playableBounds.minX);
@@ -1675,6 +2453,7 @@ class TerrainGenerator {
       }
       targetsMet = Object.keys(clusterTargets).every(k => clusterCounts[k] >= clusterTargets[k]);
     }
+    */
 
     // 5. Render Hand-Authored Vertical Slices
     this.renderLogicDominionVerticalSlice(territoryBounds['logic']);
@@ -1759,77 +2538,47 @@ class TerrainGenerator {
     // LOGIC SCENES
     if (sceneType === 'academyVillage') {
       trySpawn(this.drawAcademyHouse, [7.5], 0, 0); setAnchor('AcademyHouse', 7.5);
-      trySpawn(this.drawAcademyHouse, [6.0], randomOffset(radius*0.5), randomOffset(radius*0.5));
-      for(let i=0; i<3; i++) trySpawn(this.drawStoneTile, [4.5], randomOffset(radius), randomOffset(radius));
-      for(let i=0; i<2; i++) trySpawn(this.drawAcademyTree, [6.0], randomOffset(radius), randomOffset(radius));
     } else if (sceneType === 'gardenCampus') {
       trySpawn(this.drawAcademyTree, [7.0], 0, 0); setAnchor('AcademyTree', 7.0);
-      for(let i=0; i<4; i++) trySpawn(this.drawAcademyTree, [5.5], randomOffset(radius), randomOffset(radius));
-      for(let i=0; i<3; i++) trySpawn(this.drawGrassPatch, [4.5], randomOffset(radius), randomOffset(radius));
     } else if (sceneType === 'riversideStudy') {
       trySpawn(this.drawAcademyHouse, [7.0], 0, 0); setAnchor('AcademyHouse', 7.0);
-      for(let i=0; i<3; i++) trySpawn(this.drawStoneTile, [4.5], randomOffset(radius), randomOffset(radius));
     } else if (sceneType === 'forestEdge') {
       trySpawn(this.drawTreeGroup, [theme], 0, 0); setAnchor('TreeGroup', 6.0); // base scale inside function
-      for(let i=0; i<4; i++) trySpawn(this.drawTreeGroup, [theme], randomOffset(radius), randomOffset(radius));
     }
     
     // DEBUG SCENES
     else if (sceneType === 'crystalField') {
-      trySpawn(this.drawCrystal, [], 0, 0); setAnchor('Crystal', 8.0); // massive base scale inside
-      for(let i=0; i<3; i++) trySpawn(this.drawCorruptCrystal, [6.0], randomOffset(radius), randomOffset(radius));
+      // Intentionally left blank as per user request to remove scatter props
     } else if (sceneType === 'scarZone') {
-      trySpawn(this.drawDeadTree, [7.0], 0, 0); setAnchor('DeadTree', 7.0);
-      for(let i=0; i<2; i++) trySpawn(this.drawGroundCrack, [6.0], randomOffset(radius), randomOffset(radius));
-      trySpawn(this.drawDeadTree, [5.5], randomOffset(radius), randomOffset(radius));
+      // Intentionally left blank
     } else if (sceneType === 'ruinedStone') {
-      trySpawn(this.drawMountain, [theme], 0, 0); setAnchor('Stone/Mountain', 7.0);
-      for(let i=0; i<3; i++) trySpawn(this.drawMountain, [theme], randomOffset(radius), randomOffset(radius));
-      trySpawn(this.drawDeadTree, [5.5], randomOffset(radius), randomOffset(radius));
+      // Intentionally left blank
     } else if (sceneType === 'rockyBorder') {
-      trySpawn(this.drawMountain, [theme], 0, 0); setAnchor('Stone/Mountain', 7.0);
-      for(let i=0; i<3; i++) trySpawn(this.drawMountain, [theme], randomOffset(radius), randomOffset(radius));
+      // Intentionally left blank
     }
 
     // SYSTEMS SCENES
     else if (sceneType === 'pipeYard') {
-      trySpawn(this.drawTank, [7.5], 0, 0); setAnchor('Tank', 7.5);
-      trySpawn(this.drawTank, [6.0], randomOffset(radius*0.5), randomOffset(radius*0.5));
-      trySpawn(this.drawPipe, [cx + randomOffset(radius), cy + randomOffset(radius)], 0, 0);
-      trySpawn(this.drawPipe, [cx + randomOffset(radius), cy + randomOffset(radius)], randomOffset(radius*0.5), randomOffset(radius*0.5));
+      // Intentionally left blank
     } else if (sceneType === 'gearCluster') {
-      trySpawn(this.drawSmallGear, [7.0], 0, 0); setAnchor('LargeGear', 7.0);
-      for(let i=0; i<3; i++) trySpawn(this.drawSmallGear, [5.0], randomOffset(radius), randomOffset(radius));
+      // Intentionally left blank
     } else if (sceneType === 'railZone') {
-      trySpawn(this.drawIndustrialProp, [7.0], 0, 0); setAnchor('IndustrialProp', 7.0);
-      trySpawn(this.drawIndustrialProp, [5.5], randomOffset(radius), randomOffset(radius));
-      for(let i=0; i<2; i++) trySpawn(this.drawSmallGear, [4.5], randomOffset(radius), randomOffset(radius));
+      // Intentionally left blank
     } else if (sceneType === 'industrialOutpost') {
-      trySpawn(this.drawTank, [7.0], 0, 0); setAnchor('Tank', 7.0);
-      trySpawn(this.drawIndustrialProp, [5.5], randomOffset(radius), randomOffset(radius));
-      trySpawn(this.drawSmallGear, [4.5], randomOffset(radius), randomOffset(radius));
+      // Intentionally left blank
     }
 
     // PYTHON SCENES
     else if (sceneType === 'denseJungle') {
-      trySpawn(this.drawJungleBush, [7.5], 0, 0); setAnchor('JungleBush', 7.5);
-      for(let i=0; i<3; i++) trySpawn(this.drawJungleBush, [6.0], randomOffset(radius), randomOffset(radius));
-      for(let i=0; i<2; i++) trySpawn(this.drawVine, [5.5], randomOffset(radius), randomOffset(radius));
+      // Intentionally left blank
     } else if (sceneType === 'overgrownRuins') {
-      trySpawn(this.drawAncientRuin, [7.5], 0, 0); setAnchor('AncientRuin', 7.5);
-      for(let i=0; i<2; i++) trySpawn(this.drawVine, [5.5], randomOffset(radius), randomOffset(radius));
-      trySpawn(this.drawJungleBush, [5.5], randomOffset(radius), randomOffset(radius));
+      // Intentionally left blank
     } else if (sceneType === 'vineCluster') {
-      trySpawn(this.drawVine, [7.0], 0, 0); setAnchor('Vine', 7.0);
-      for(let i=0; i<3; i++) trySpawn(this.drawVine, [5.5], randomOffset(radius), randomOffset(radius));
-      trySpawn(this.drawAncientRuin, [6.0], randomOffset(radius), randomOffset(radius));
+      // Intentionally left blank
     } else if (sceneType === 'tropicalEdge') {
-      trySpawn(this.drawPalmTree, [], 0, 0); setAnchor('PalmTree', 7.0); // base scale inside
-      for(let i=0; i<4; i++) trySpawn(this.drawTreeGroup, [theme], randomOffset(radius), randomOffset(radius));
+      // Intentionally left blank
     } else if (sceneType === 'templeSupport') {
-      trySpawn(this.drawAncientRuin, [7.0], 0, 0); setAnchor('AncientRuin', 7.0);
-      trySpawn(this.drawJungleBush, [6.0], randomOffset(radius), randomOffset(radius));
-      trySpawn(this.drawVine, [5.0], randomOffset(radius), randomOffset(radius));
+      // Intentionally left blank
     }
 
     return { propCount: propsRendered, usedRadius10, anchorType: mainAnchorType, anchorScale: mainAnchorScale };
@@ -2647,6 +3396,75 @@ class TerrainGenerator {
     g.appendChild(this.createPoly("0,0 -1,-4 -0.2,-2", "#64dd17"));
     g.appendChild(this.createPoly("0,0 1,-4 0.2,-2", "#00e676"));
     g.appendChild(this.createPoly("0,0 2,-3 0.5,-1.5", "#1de9b6"));
+    
+    this.renderQueue.push({ y: y, element: g });
+  }
+
+  // Phase 5A: Environment Details Specific Props
+  drawFlowerPatch(x, y, scale = 4.0) {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
+    g.style.pointerEvents = "none";
+    
+    // Flowers
+    g.appendChild(this.createPoly("-0.5,0 -1,-0.5 -0.5,-1 0,-0.5", "#f48fb1"));
+    g.appendChild(this.createPoly("0.5,0.2 0,-0.3 0.5,-0.8 1,-0.3", "#ce93d8"));
+    g.appendChild(this.createPoly("-0.2,-0.8 -0.7,-1.3 -0.2,-1.8 0.3,-1.3", "#ffcc80"));
+    
+    this.renderQueue.push({ y: y, element: g });
+  }
+
+  drawBurnedRock(x, y, scale = 4.0) {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
+    g.style.pointerEvents = "none";
+    g.setAttribute("filter", "url(#drop-shadow)");
+    
+    // Burned jagged rock
+    g.appendChild(this.createPoly("-1,0.5 -2,-0.5 -1,-2 0,-1.5", "#212121"));
+    g.appendChild(this.createPoly("0,-1.5 1,-2.5 1.5,-1 0.5,0", "#424242"));
+    
+    this.renderQueue.push({ y: y, element: g });
+  }
+
+  drawScrapMetal(x, y, scale = 4.0) {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
+    g.style.pointerEvents = "none";
+    g.setAttribute("filter", "url(#drop-shadow)");
+    
+    // Twisted scrap plates
+    g.appendChild(this.createPoly("-1,0.5 -2,-1 0,-1.5 1,-0.5", "#546e7a"));
+    g.appendChild(this.createPoly("-0.5,-1 0.5,-2.5 2,-1.5 1,0", "#78909c"));
+    // Rust accent
+    g.appendChild(this.createPoly("0,-1 1,-2 1.5,-1.2 0.5,-0.2", "#d84315"));
+    
+    this.renderQueue.push({ y: y, element: g });
+  }
+
+  drawStorageCrate(x, y, scale = 4.0) {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
+    g.style.pointerEvents = "none";
+    g.setAttribute("filter", "url(#drop-shadow)");
+    
+    // Small industrial crate (isometric cube)
+    g.appendChild(this.createPoly("0,0 -1,-0.5 0,-1 1,-0.5", "#ffb300")); // Top
+    g.appendChild(this.createPoly("-1,-0.5 -1,0.5 0,1 0,0", "#ff8f00")); // Left
+    g.appendChild(this.createPoly("1,-0.5 1,0.5 0,1 0,0", "#ff6f00")); // Right
+    
+    this.renderQueue.push({ y: y, element: g });
+  }
+
+  drawRockPile(x, y, scale = 4.0) {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
+    g.style.pointerEvents = "none";
+    g.setAttribute("filter", "url(#drop-shadow)");
+    
+    g.appendChild(this.createPoly("-1.5,0.5 -2.5,-0.5 -1,-1.5 -0.5,0", "#795548"));
+    g.appendChild(this.createPoly("-0.5,0 -1,-1.5 0.5,-2 1,-0.5", "#8d6e63"));
+    g.appendChild(this.createPoly("0.5,0.5 1,-0.5 2,0 1.5,1.5", "#5d4037"));
     
     this.renderQueue.push({ y: y, element: g });
   }
