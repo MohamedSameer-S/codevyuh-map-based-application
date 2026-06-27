@@ -542,38 +542,42 @@ class TerrainGenerator {
       drawLake(2800, -20, 90, 60, "#00695c", "#26c6da"); // Highland Spring
       drawLake(2800, 1500, 220, 160, "#00695c", "#26c6da"); // Confluence Blending Bay
 
-      // Tributary 1: Originates from elevated terrain behind mountains
+      // North-West River (Formerly Tributary 1): Flows from the central highlands to the NW ocean
       drawOrganicRiver({
-        startWidth: 15, endWidth: 50,
+        startWidth: 120, endWidth: 450,
         baseColor: "#00695c", coreColor: "#26c6da", baseOpacity: 0.75, coreOpacity: 0.9,
         segments: [
-          { path: "M 800,-2500 C 1200,-2200 1600,-1800 2000,-1500" }, // Highland source
-          { path: "M 2000,-1500 C 2200,-1200 2400,-1000 2500,-700" }, // North Bridge crossing
-          { path: "M 2500,-700 C 2600,-400 2700,-200 2800,-20" }
+          { path: "M 2800,-20 C 2700,-200 2600,-400 2500,-700" },
+          { path: "M 2500,-700 C 2400,-1000 2200,-1200 2000,-1500" }, // North Bridge crossing
+          { path: "M 2000,-1500 C 1600,-1800 1200,-2200 800,-2500" },
+          { path: "M 800,-2500 C 400,-2800 0,-3300 -500,-3800" }, // Extended to beach
+          { path: "M -500,-3800 C -1000,-4300 -1500,-4600 -2000,-4800" } // Deep into ocean
         ]
       });
 
-      // Tributary 2: Originates in the south, merges into West River slightly north of the bridge
+      // South-West Branch (Formerly Tributary 2): Flows from the West River down to the South ocean
       drawOrganicRiver({
-        startWidth: 15, endWidth: 70,
+        startWidth: 120, endWidth: 450,
         baseColor: "#00695c", coreColor: "#26c6da", baseOpacity: 0.75, coreOpacity: 0.9,
         segments: [
-          { path: "M 3500,6500 C 3000,6000 2800,5600 2500,5400" }, // South Bridge crossing
-          { path: "M 2500,5400 C 2200,5200 2000,4500 1800,4000" },
-          { path: "M 1800,4000 C 1600,3500 1700,3100 1600,2900" } // Smooth Y-junction shifted north
+          { path: "M 2000,2000 C 2200,2800 2200,3400 1800,4000" }, // Splits far upstream from West River
+          { path: "M 1800,4000 C 2000,4500 2200,5200 2500,5400" },
+          { path: "M 2500,5400 C 2800,5600 3000,6000 3500,6500" }, // South Bridge crossing
+          { path: "M 3500,6500 C 3800,7000 4000,7500 4300,8000" }, // Extended to beach
+          { path: "M 4300,8000 C 4600,8500 4800,9000 5200,9500" }  // Deep into ocean
         ]
       });
 
       // The Great Divide (West River) - The Southern river reaching the ocean
       drawOrganicRiver({
-        startWidth: 50, endWidth: 320,
+        startWidth: 150, endWidth: 500,
         baseColor: "#00695c", coreColor: "#26c6da", baseOpacity: 0.75, coreOpacity: 0.9,
         segments: [
           { path: "M 2800,-20 C 2600,300 2400,500 2600,900" },
           { path: "M 2600,900 C 2800,1200 2900,1300 2800,1500" },
           { path: "M 2800,1500 C 2500,1800 2000,2000 1800,2400" },
-          { path: "M 1800,2400 C 1600,2800 1600,3000 1500,3200" }, // GW Bridge intersection
-          { path: "M 1500,3200 C 1300,3400 1000,3800 500,3800" },
+          { path: "M 1800,2400 C 1600,2800 1500,3000 1400,3250" }, // GW Bridge intersection
+          { path: "M 1400,3250 C 1300,3400 1000,3800 500,3800" },
           { path: "M 500,3800 C 0,3800 -500,3600 -1000,3600" },
           { path: "M -1000,3600 C -1800,3600 -2000,4200 -2600,4000" }, // Gentle meander added before ocean
           { path: "M -2600,4000 C -3200,3800 -3400,3800 -3800,4000" },
@@ -584,7 +588,7 @@ class TerrainGenerator {
 
       // Eastern Basin (East River)
       drawOrganicRiver({
-        startWidth: 80, endWidth: 320,
+        startWidth: 200, endWidth: 500,
         baseColor: "#00695c", coreColor: "#26c6da", baseOpacity: 0.75, coreOpacity: 0.9,
         segments: [
           { path: "M 2800,1500 C 3000,1800 3500,1500 4000,1800" },
@@ -1660,7 +1664,7 @@ class TerrainGenerator {
           { path: 'M 150,50 C 300,300 450,700 600,1200' },
           { path: 'M 550,1100 C 700,1600 850,2000 1100,2600' },
           { path: 'M 1050,2500 C 1200,2800 1350,3000 1400,3250' },
-          { path: 'M 1400,3200 C 1250,3800 800,4300 400,4700' },
+          { path: 'M 1400,3250 C 1250,3800 800,4300 400,4700' },
           { path: 'M 450,4650 C 200,4900 0,5050 -200,5200' },
           { path: 'M -200,5200 C -300,5350 -400,5500 -500,5650' }
         ],
@@ -1812,29 +1816,29 @@ class TerrainGenerator {
     // Bridge config maps to visual rendering styles for the SVG bridge geometry
     const bridgeConfig = {
       stone: {
-        width: 320,
-        height: 280, // wide enough to cover the river
+        width: 900,
+        height: 450, // wide enough to cover the river
         baseColor: '#cfd8dc', // Light gray masonry
         accentColor: '#90a4ae', 
         deckColor: '#78909c'
       },
       mechanical: {
-        width: 320,
-        height: 280,
+        width: 900,
+        height: 450,
         baseColor: '#37474f', // Dark metal
         accentColor: '#d32f2f', // Red mechanical accents
         deckColor: '#263238'
       },
       wooden: {
-        width: 320,
-        height: 280,
+        width: 900,
+        height: 450,
         baseColor: '#5d4037', // Natural timber
         accentColor: '#d7ccc8', // Rope railings
         deckColor: '#795548'
       },
       corrupted: {
-        width: 320,
-        height: 280,
+        width: 900,
+        height: 450,
         baseColor: '#424242', // Broken stone
         accentColor: '#9c27b0', // Purple crystal growth
         deckColor: '#212121'
@@ -1875,7 +1879,7 @@ class TerrainGenerator {
 
     const w = config.width;
     const h = config.height;
-    const roadWidth = 260; 
+    const roadWidth = 400; 
 
     // Base foundation (elegant rounded stone)
     const foundation = document.createElementNS("http://www.w3.org/2000/svg", "rect");
@@ -1932,7 +1936,7 @@ class TerrainGenerator {
 
     const w = config.width;
     const h = config.height;
-    const roadWidth = 260;
+    const roadWidth = 400;
 
     // Thick steel deck
     const deck = document.createElementNS("http://www.w3.org/2000/svg", "rect");
@@ -2005,7 +2009,7 @@ class TerrainGenerator {
 
     const w = config.width;
     const h = config.height;
-    const roadWidth = 260;
+    const roadWidth = 400;
 
     // Foundation
     const foundation = document.createElementNS("http://www.w3.org/2000/svg", "rect");
@@ -2066,7 +2070,7 @@ class TerrainGenerator {
 
     const w = config.width;
     const h = config.height;
-    const roadWidth = 260;
+    const roadWidth = 400;
 
     // Broken stone deck (uneven silhouette)
     const deck = document.createElementNS("http://www.w3.org/2000/svg", "path");
