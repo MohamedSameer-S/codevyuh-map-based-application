@@ -2904,76 +2904,84 @@ class TerrainGenerator {
   drawAcademyLibrary(x, y, scale = 1.0) {
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
     
-    // Apply non-uniform isometric scaling for visibility (X: 20, Y: 30) based on a base scale of 16
-    const scaleX = scale * 1.25; // 20
-    const scaleY = scale * 1.875; // 30
+    // Apply non-uniform isometric scaling (reduced to make Library smaller than Academy while maintaining 1.5 ratio)
+    const scaleX = scale * 0.375; // e.g. 6 (instead of 20)
+    const scaleY = scale * 0.5625; // e.g. 9 (instead of 30)
     g.setAttribute("transform", `translate(${x}, ${y}) scale(${scaleX}, ${scaleY})`);
     g.style.pointerEvents = "none";
     
-    // Stronger Shadow for better contrast against green terrain
+    // 9. Stronger shadow for separation from Academy
     const shadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
-    shadow.setAttribute("cx", 0); shadow.setAttribute("cy", 12);
-    shadow.setAttribute("rx", 75); shadow.setAttribute("ry", 35);
-    shadow.setAttribute("fill", "rgba(0,0,0,0.5)");
-    shadow.setAttribute("filter", "blur(8px)");
+    shadow.setAttribute("cx", 0); shadow.setAttribute("cy", 20);
+    shadow.setAttribute("rx", 95); shadow.setAttribute("ry", 45);
+    shadow.setAttribute("fill", "rgba(0,0,0,0.75)");
+    shadow.setAttribute("filter", "blur(6px)");
     g.appendChild(shadow);
 
-    // 1. Wider White Marble Base (Platform)
-    g.appendChild(this.createPoly("-60,30 0,0 60,30 0,60", "#ffffff"));
-    g.appendChild(this.createPoly("-60,30 0,60 0,72 -60,42", "#cfd8dc")); // left depth (darker for contrast)
-    g.appendChild(this.createPoly("60,30 0,60 0,72 60,42", "#b0bec5"));  // right depth (even darker)
+    // 1. Wide Rectangular Base (White Marble)
+    g.appendChild(this.createPoly("-60,20 0,0 60,20 0,40", "#ffffff"));
+    g.appendChild(this.createPoly("-60,20 0,40 0,48 -60,28", "#cfd8dc")); 
+    g.appendChild(this.createPoly("60,20 0,40 0,48 60,28", "#b0bec5"));  
 
-    // 2. Small Stair Entrance (Extending out from the front base, drawn back-to-front)
-    g.appendChild(this.createPoly("-15,53 0,45 15,53 0,61", "#eeeeee"));
-    g.appendChild(this.createPoly("-15,53 0,61 0,65 -15,57", "#cfd8dc"));
-    g.appendChild(this.createPoly("15,53 0,61 0,65 15,57", "#b0bec5"));
-    
-    g.appendChild(this.createPoly("-15,57 0,49 15,57 0,65", "#f5f5f5"));
-    g.appendChild(this.createPoly("-15,57 0,65 0,69 -15,61", "#cfd8dc"));
-    g.appendChild(this.createPoly("15,57 0,65 0,69 15,61", "#b0bec5"));
-    
-    g.appendChild(this.createPoly("-15,61 0,53 15,61 0,69", "#ffffff"));
-    g.appendChild(this.createPoly("-15,61 0,69 0,73 -15,65", "#cfd8dc"));
-    g.appendChild(this.createPoly("15,61 0,69 0,73 15,65", "#b0bec5"));
+    // 2 & 3. Clear Front Entrance with Marble Staircase
+    g.appendChild(this.createPoly("-18,41 0,35 18,41 0,47", "#f5f5f5"));
+    g.appendChild(this.createPoly("-18,41 0,47 0,51 -18,45", "#cfd8dc"));
+    g.appendChild(this.createPoly("18,41 0,47 0,51 18,45", "#b0bec5"));
 
-    // 3. Main Structure (White Marble Walls - Taller central hall)
-    g.appendChild(this.createPoly("-45,22 0,-1 45,22 0,45", "#fafafa")); // interior ceiling base
-    g.appendChild(this.createPoly("-45,22 0,45 0,-5 -45,-28", "#eceff1")); // left wall
-    g.appendChild(this.createPoly("45,22 0,45 0,-5 45,-28", "#ffffff")); // right wall
+    g.appendChild(this.createPoly("-14,39 0,33 14,39 0,45", "#eeeeee"));
+    g.appendChild(this.createPoly("-14,39 0,45 0,49 -14,43", "#cfd8dc"));
+    g.appendChild(this.createPoly("14,39 0,45 0,49 14,43", "#b0bec5"));
 
-    // 4. More Visible Front Columns (Cyan and Gold Accents)
-    // Left side columns (drawn back-to-front)
-    for (let i = 3; i >= 0; i--) {
-        const px = -30 + i * 8.5;
-        const py = 37 - i * 4.25;
-        g.appendChild(this.createPoly(`${px},${py} ${px+3.5},${py-1.75} ${px+3.5},${py-38} ${px},${py-36.25}`, "#ffffff"));
-        g.appendChild(this.createPoly(`${px+3.5},${py-1.75} ${px+7},${py} ${px+7},${py-36.25} ${px+3.5},${py-38}`, "#cfd8dc"));
-        g.appendChild(this.createPoly(`${px},${py-36.25} ${px+3.5},${py-38} ${px+7},${py-36.25} ${px+3.5},${py-34.5}`, "#00acc1")); // Stronger cyan capital
+    g.appendChild(this.createPoly("-10,37 0,31 10,37 0,43", "#ffffff"));
+    g.appendChild(this.createPoly("-10,37 0,43 0,47 -10,41", "#cfd8dc"));
+    g.appendChild(this.createPoly("10,37 0,43 0,47 10,41", "#b0bec5"));
+
+    // 8. Subtle darker side wall shading (Inner Reading Hall)
+    g.appendChild(this.createPoly("-48,16 0,0 48,16 0,32", "#fafafa")); 
+    g.appendChild(this.createPoly("-48,16 0,32 0,-8 -48,-24", "#b0bec5")); // Left Wall (Darker!)
+    g.appendChild(this.createPoly("0,32 48,16 48,-24 0,-8", "#eceff1"));   // Right Wall (Lighter)
+
+    // 7. Small cyan glowing book pedestal / archive symbol in the center
+    g.appendChild(this.createPoly("-6,28 0,26 6,28 0,30", "#455a64")); 
+    g.appendChild(this.createPoly("-6,28 0,30 0,36 -6,34", "#263238")); 
+    g.appendChild(this.createPoly("6,28 0,30 0,36 6,34", "#37474f")); 
+
+    g.appendChild(this.createPoly("-4,25 0,23 4,25 0,27", "#e0f7fa"));
+    const glow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+    glow.setAttribute("cx", 0); glow.setAttribute("cy", 25);
+    glow.setAttribute("rx", 10); glow.setAttribute("ry", 5);
+    glow.setAttribute("fill", "#00e5ff");
+    glow.setAttribute("opacity", "0.85");
+    glow.setAttribute("filter", "blur(2px)");
+    g.appendChild(glow);
+
+    // 4. Row of Visible Columns dynamically reaching the pitched roof
+    for(let px = -54; px <= -18; px += 12) {
+        let py = 40 + px/3; 
+        let topY = -25 + Math.abs(px) * 0.323; // Match roof slope
+        g.appendChild(this.createPoly(`${px},${py} ${px+3},${py-1} ${px+3},${topY-1} ${px},${topY}`, "#ffffff"));
+        g.appendChild(this.createPoly(`${px+3},${py-1} ${px+6},${py} ${px+6},${topY} ${px+3},${topY-1}`, "#cfd8dc"));
+        g.appendChild(this.createPoly(`${px},${topY+2} ${px+3},${topY+1} ${px+6},${topY+2} ${px+3},${topY+3}`, "#00bcd4")); 
     }
-    // Right side columns (drawn back-to-front)
-    for (let i = 3; i >= 0; i--) {
-        const px2 = 30 - i * 8.5;
-        const py2 = 37 - i * 4.25;
-        g.appendChild(this.createPoly(`${px2},${py2} ${px2-3.5},${py2-1.75} ${px2-3.5},${py2-38} ${px2},${py2-36.25}`, "#ffffff"));
-        g.appendChild(this.createPoly(`${px2-3.5},${py2-1.75} ${px2-7},${py2} ${px2-7},${py2-36.25} ${px2-3.5},${py2-38}`, "#cfd8dc"));
-        g.appendChild(this.createPoly(`${px2},${py2-36.25} ${px2-3.5},${py2-38} ${px2-7},${py2-36.25} ${px2-3.5},${py2-34.5}`, "#00acc1")); // Stronger cyan capital
+    for(let px = 18; px <= 54; px += 12) {
+        let py = 40 - px/3; 
+        let topY = -25 + Math.abs(px) * 0.323; 
+        g.appendChild(this.createPoly(`${px},${py} ${px-3},${py-1} ${px-3},${topY-1} ${px},${topY}`, "#ffffff"));
+        g.appendChild(this.createPoly(`${px-3},${py-1} ${px-6},${py} ${px-6},${topY} ${px-3},${topY-1}`, "#cfd8dc"));
+        g.appendChild(this.createPoly(`${px},${topY+2} ${px-3},${topY+1} ${px-6},${topY+2} ${px-3},${topY+3}`, "#00bcd4")); 
     }
 
-    // 5. Clearer Cyan Roof (Stronger tiered isometric depth & taller)
-    g.appendChild(this.createPoly("-50,-25 0,-50 50,-25 0,0", "#00bcd4")); // Roof top
-    g.appendChild(this.createPoly("-50,-25 0,0 0,-12 -50,-37", "#00838f")); // Left edge (dark cyan)
-    g.appendChild(this.createPoly("50,-25 0,0 0,-12 50,-37", "#0097a7")); // Right edge (mid cyan)
+    // 5 & 6. Book/Archive-inspired Cyan Roof (Less dome-like, open book face-down)
+    // Left Cyan Cover
+    g.appendChild(this.createPoly("-70,-20 0,-45 0,-85 -70,-60", "#00bcd4")); // top
+    g.appendChild(this.createPoly("-70,-20 0,-45 0,-40 -70,-15", "#00838f")); // front edge
+    // Right Cyan Cover
+    g.appendChild(this.createPoly("0,-45 70,-20 70,-60 0,-85", "#4dd0e1")); // top
+    g.appendChild(this.createPoly("0,-45 70,-20 70,-15 0,-40", "#0097a7")); // front edge
 
-    // Upper tier (Central cyan dome structure, taller)
-    g.appendChild(this.createPoly("-25,-37 0,-50 25,-37 0,-25", "#00838f")); // top floor base
-    const dome = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    dome.setAttribute("d", "M -25,-37 C -25,-60 25,-60 25,-37 Z");
-    dome.setAttribute("fill", "#00acc1");
-    g.appendChild(dome);
-
-    // 6. Gold Accent Spire
-    g.appendChild(this.createPoly("-3.5,-55 0,-80 3.5,-55", "#ffc107"));
-    g.appendChild(this.createPoly("-3.5,-55 3.5,-55 0,-47", "#ff8f00")); // Spire base
+    // White/Grey Pages (Underneath the cover)
+    g.appendChild(this.createPoly("-68,-16 0,-38 0,-25 -68,-3", "#eceff1"));
+    g.appendChild(this.createPoly("0,-38 68,-16 68,-3 0,-25", "#ffffff"));
 
     this.renderQueue.push({ y: y, element: g });
   }
