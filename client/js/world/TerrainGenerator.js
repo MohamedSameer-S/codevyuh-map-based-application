@@ -2903,65 +2903,77 @@ class TerrainGenerator {
 
   drawAcademyLibrary(x, y, scale = 1.0) {
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
+    
+    // Apply non-uniform isometric scaling for visibility (X: 20, Y: 30) based on a base scale of 16
+    const scaleX = scale * 1.25; // 20
+    const scaleY = scale * 1.875; // 30
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scaleX}, ${scaleY})`);
     g.style.pointerEvents = "none";
     
-    // Large shadow
+    // Stronger Shadow for better contrast against green terrain
     const shadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
-    shadow.setAttribute("cx", 0); shadow.setAttribute("cy", 8);
-    shadow.setAttribute("rx", 55); shadow.setAttribute("ry", 25);
-    shadow.setAttribute("fill", "rgba(0,0,0,0.3)");
-    shadow.setAttribute("filter", "blur(6px)");
+    shadow.setAttribute("cx", 0); shadow.setAttribute("cy", 12);
+    shadow.setAttribute("rx", 75); shadow.setAttribute("ry", 35);
+    shadow.setAttribute("fill", "rgba(0,0,0,0.5)");
+    shadow.setAttribute("filter", "blur(8px)");
     g.appendChild(shadow);
 
-    // Foundation (Cyan marble base)
-    g.appendChild(this.createPoly("-40,20 0,0 40,20 0,40", "#e0f7fa"));
-    g.appendChild(this.createPoly("-40,20 0,40 0,30 -40,10", "#b2ebf2"));
-    g.appendChild(this.createPoly("40,20 0,40 0,30 40,10", "#80deea"));
+    // 1. Wider White Marble Base (Platform)
+    g.appendChild(this.createPoly("-60,30 0,0 60,30 0,60", "#ffffff"));
+    g.appendChild(this.createPoly("-60,30 0,60 0,72 -60,42", "#cfd8dc")); // left depth (darker for contrast)
+    g.appendChild(this.createPoly("60,30 0,60 0,72 60,42", "#b0bec5"));  // right depth (even darker)
 
-    // Staircase (Isometric depth)
-    g.appendChild(this.createPoly("-10,35 0,30 10,35 0,40", "#ffffff"));
-    g.appendChild(this.createPoly("-10,35 0,40 0,43 -10,38", "#e0e0e0"));
-    g.appendChild(this.createPoly("10,35 0,40 0,43 10,38", "#eeeeee"));
-    g.appendChild(this.createPoly("-12,38 0,32 12,38 0,44", "#f5f5f5"));
-    g.appendChild(this.createPoly("-12,38 0,44 0,47 -12,41", "#e0e0e0"));
-    g.appendChild(this.createPoly("12,38 0,44 0,47 12,41", "#eeeeee"));
+    // 2. Small Stair Entrance (Extending out from the front base, drawn back-to-front)
+    g.appendChild(this.createPoly("-15,53 0,45 15,53 0,61", "#eeeeee"));
+    g.appendChild(this.createPoly("-15,53 0,61 0,65 -15,57", "#cfd8dc"));
+    g.appendChild(this.createPoly("15,53 0,61 0,65 15,57", "#b0bec5"));
+    
+    g.appendChild(this.createPoly("-15,57 0,49 15,57 0,65", "#f5f5f5"));
+    g.appendChild(this.createPoly("-15,57 0,65 0,69 -15,61", "#cfd8dc"));
+    g.appendChild(this.createPoly("15,57 0,65 0,69 15,61", "#b0bec5"));
+    
+    g.appendChild(this.createPoly("-15,61 0,53 15,61 0,69", "#ffffff"));
+    g.appendChild(this.createPoly("-15,61 0,69 0,73 -15,65", "#cfd8dc"));
+    g.appendChild(this.createPoly("15,61 0,69 0,73 15,65", "#b0bec5"));
 
-    // Main Structure (White Marble Walls)
-    g.appendChild(this.createPoly("-30,15 0,-5 30,15 0,35", "#ffffff"));
-    g.appendChild(this.createPoly("-30,15 0,35 0,-10 -30,-30", "#e0e0e0")); // left wall
-    g.appendChild(this.createPoly("30,15 0,35 0,-10 30,-30", "#ffffff")); // right wall
+    // 3. Main Structure (White Marble Walls - Taller central hall)
+    g.appendChild(this.createPoly("-45,22 0,-1 45,22 0,45", "#fafafa")); // interior ceiling base
+    g.appendChild(this.createPoly("-45,22 0,45 0,-5 -45,-28", "#eceff1")); // left wall
+    g.appendChild(this.createPoly("45,22 0,45 0,-5 45,-28", "#ffffff")); // right wall
 
-    // Marble Columns (Cyan Accents)
-    for (let i = 0; i < 3; i++) {
-        // Left side columns
-        const px = -20 + i * 8;
-        const py = 25 - i * 4;
-        g.appendChild(this.createPoly(`${px},${py} ${px+2},${py-1} ${px+2},${py-30} ${px},${py-29}`, "#ffffff"));
-        g.appendChild(this.createPoly(`${px+2},${py-1} ${px+4},${py} ${px+4},${py-29} ${px+2},${py-30}`, "#e0e0e0"));
-        g.appendChild(this.createPoly(`${px},${py-29} ${px+2},${py-30} ${px+4},${py-29} ${px+2},${py-28}`, "#00bcd4")); // Cyan capital
-        
-        // Right side columns
-        const px2 = 20 - i * 8;
-        const py2 = 25 - i * 4;
-        g.appendChild(this.createPoly(`${px2},${py2} ${px2-2},${py2-1} ${px2-2},${py2-30} ${px2},${py2-29}`, "#ffffff"));
-        g.appendChild(this.createPoly(`${px2-2},${py2-1} ${px2-4},${py2} ${px2-4},${py2-29} ${px2-2},${py2-30}`, "#f5f5f5"));
-        g.appendChild(this.createPoly(`${px2},${py2-29} ${px2-2},${py2-30} ${px2-4},${py2-29} ${px2-2},${py2-28}`, "#00bcd4")); // Cyan capital
+    // 4. More Visible Front Columns (Cyan and Gold Accents)
+    // Left side columns (drawn back-to-front)
+    for (let i = 3; i >= 0; i--) {
+        const px = -30 + i * 8.5;
+        const py = 37 - i * 4.25;
+        g.appendChild(this.createPoly(`${px},${py} ${px+3.5},${py-1.75} ${px+3.5},${py-38} ${px},${py-36.25}`, "#ffffff"));
+        g.appendChild(this.createPoly(`${px+3.5},${py-1.75} ${px+7},${py} ${px+7},${py-36.25} ${px+3.5},${py-38}`, "#cfd8dc"));
+        g.appendChild(this.createPoly(`${px},${py-36.25} ${px+3.5},${py-38} ${px+7},${py-36.25} ${px+3.5},${py-34.5}`, "#00acc1")); // Stronger cyan capital
+    }
+    // Right side columns (drawn back-to-front)
+    for (let i = 3; i >= 0; i--) {
+        const px2 = 30 - i * 8.5;
+        const py2 = 37 - i * 4.25;
+        g.appendChild(this.createPoly(`${px2},${py2} ${px2-3.5},${py2-1.75} ${px2-3.5},${py2-38} ${px2},${py2-36.25}`, "#ffffff"));
+        g.appendChild(this.createPoly(`${px2-3.5},${py2-1.75} ${px2-7},${py2} ${px2-7},${py2-36.25} ${px2-3.5},${py2-38}`, "#cfd8dc"));
+        g.appendChild(this.createPoly(`${px2},${py2-36.25} ${px2-3.5},${py2-38} ${px2-7},${py2-36.25} ${px2-3.5},${py2-34.5}`, "#00acc1")); // Stronger cyan capital
     }
 
-    // Grand Cyan Roof (Library style, tiered with isometric faces)
-    g.appendChild(this.createPoly("-35,-25 0,-45 35,-25 0,-5", "#00bcd4")); // Bottom tier roof top
-    g.appendChild(this.createPoly("-35,-25 0,-5 0,-12 -35,-32", "#00acc1")); // Left roof face
-    g.appendChild(this.createPoly("35,-25 0,-5 0,-12 35,-32", "#4dd0e1")); // Right roof face
+    // 5. Clearer Cyan Roof (Stronger tiered isometric depth & taller)
+    g.appendChild(this.createPoly("-50,-25 0,-50 50,-25 0,0", "#00bcd4")); // Roof top
+    g.appendChild(this.createPoly("-50,-25 0,0 0,-12 -50,-37", "#00838f")); // Left edge (dark cyan)
+    g.appendChild(this.createPoly("50,-25 0,0 0,-12 50,-37", "#0097a7")); // Right edge (mid cyan)
 
-    // Second Tier (Cyan Dome)
+    // Upper tier (Central cyan dome structure, taller)
+    g.appendChild(this.createPoly("-25,-37 0,-50 25,-37 0,-25", "#00838f")); // top floor base
     const dome = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    dome.setAttribute("d", "M -18,-35 A 18 14 0 0 1 18,-35 Z");
-    dome.setAttribute("fill", "#26c6da");
+    dome.setAttribute("d", "M -25,-37 C -25,-60 25,-60 25,-37 Z");
+    dome.setAttribute("fill", "#00acc1");
     g.appendChild(dome);
 
-    // Golden Spire on top
-    g.appendChild(this.createPoly("-2,-49 0,-65 2,-49", "#ffb300"));
+    // 6. Gold Accent Spire
+    g.appendChild(this.createPoly("-3.5,-55 0,-80 3.5,-55", "#ffc107"));
+    g.appendChild(this.createPoly("-3.5,-55 3.5,-55 0,-47", "#ff8f00")); // Spire base
 
     this.renderQueue.push({ y: y, element: g });
   }
