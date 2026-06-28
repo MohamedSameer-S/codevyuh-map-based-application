@@ -12,22 +12,20 @@ class TerrainGenerator {
     // Mapped exactly to the winding river networks and natural coastline.
     this.territoryPolygons = {
       logic: [
-        [-3000, -3100], [2500, -3100], [2500, -200], [2700, 600], [2920, 1500],
-        [2000, 1500], [1000, 1000], [600, 400], [0, 0], [-3000, 0]
+        [-3800, -3300], [-1500, -3300], [300, -2800], [1800, -1300], [2300, -500], [2500, -20],
+        [2500, 1300], [1800, 2000], [1400, 2800], [500, 3300], [-1000, 3100], [-2600, 3500], [-3800, 3500]
       ],
       debug: [
-        [2500, -3100], [8600, -3100], [8600, 3500], 
-        [5000, 4400], [4500, 3500], [3500, 3500], [2500, 3000],
-        [3500, 2000], [2700, 600], [2500, -200]
+        [8600, -3700], [-1500, -3700], [300, -3200], [1800, -1700], [2300, -900], [2700, -200], [3100, -20],
+        [3100, 1300], [4000, 1600], [4500, 2300], [5500, 1800], [7000, 2800], [8600, 3800]
       ],
       systems: [
-        [-3000, 0], [0, 0], [600, 400], [1000, 1000], [2000, 1500], [2920, 1500],
-        [2500, 3000], [1500, 4000], [1000, 4500], [-500, 4500], [-1000, 5000],
-        [-1000, 7700], [-3000, 7700]
+        [-3800, 4500], [-2600, 4500], [-1000, 4100], [500, 4300], [1400, 3700], [1800, 2800], [1800, 2000],
+        [1500, 4000], [1900, 5200], [2200, 5400], [2700, 6000], [3200, 6500], [3200, 7700], [-3800, 7700]
       ],
       python: [
-        [2500, 3000], [3500, 3500], [4500, 3500], [5000, 4400], [8600, 4400],
-        [8600, 7700], [-1000, 7700], [-1000, 5000], [-500, 4500], [1000, 4500], [1500, 4000]
+        [2800, 1700], [4000, 2000], [4500, 2700], [5500, 2200], [7000, 3200], [8600, 4200],
+        [8600, 7700], [3700, 7700], [3700, 6500], [3200, 6000], [2700, 5400], [2400, 5200], [2000, 4000], [2200, 2000]
       ]
     };
 
@@ -793,20 +791,42 @@ class TerrainGenerator {
     // 6. Secondary Buildings (Distinct stylized types)
     // Note: Main Academy is NOT drawn here; LandmarkManager draws it at (rootX, rootY)!
     
+    // ACADEMY EXCLUSION ZONE: Ensure no component overlaps the central Academy
+    const exclusionRadius = 450;
+    const enforceExclusion = (x, y) => {
+        const dx = x - plazaX;
+        const dy = y - plazaY;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist < exclusionRadius && dist > 0) {
+            const pushFactor = exclusionRadius / dist;
+            return { x: plazaX + dx * pushFactor, y: plazaY + dy * pushFactor };
+        }
+        return { x, y };
+    };
+    
     // Library (North-East wing)
-    this.drawAcademyLibrary(plazaX + 600, plazaY - 150, 16.0);
+    const libPos = enforceExclusion(plazaX + 600, plazaY - 150);
+    this.drawAcademyLibrary(libPos.x, libPos.y, 16.0);
     
     // Temple (North-West wing)
-    this.drawAcademyTemple(plazaX - 300, plazaY - 200, 14.0);
+    const tempPos = enforceExclusion(plazaX - 300, plazaY - 200);
+    this.drawAcademyTemple(tempPos.x, tempPos.y, 14.0);
     
     // Dormitories (West/South-West wing)
-    this.drawAcademyDorm(plazaX - 600, plazaY + 150, 12.0);
-    this.drawAcademyDorm(plazaX - 300, plazaY + 300, 12.0);
+    const dorm1Pos = enforceExclusion(plazaX - 600, plazaY + 150);
+    this.drawAcademyDorm(dorm1Pos.x, dorm1Pos.y, 12.0);
+    const dorm2Pos = enforceExclusion(plazaX - 300, plazaY + 300);
+    this.drawAcademyDorm(dorm2Pos.x, dorm2Pos.y, 12.0);
 
     // 7. Ground Details and Edge Trees
     for (let i = 0; i < 20; i++) {
         const tx = plazaX - 800 + window.rng.next() * 1600;
         const ty = plazaY - 300 + window.rng.next() * 600;
+        
+        // Use the same exclusion zone for random ground props
+        const distToCenter = Math.sqrt((tx - plazaX)**2 + (ty - plazaY)**2);
+        if (distToCenter < exclusionRadius) continue; 
+        
         const tempG = document.createElementNS("http://www.w3.org/2000/svg", "g");
         const ogLayer = this.renderer.getLayer.bind(this.renderer);
         this.renderer.getLayer = () => tempG;
@@ -2885,28 +2905,64 @@ class TerrainGenerator {
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
     g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
     g.style.pointerEvents = "none";
-    // Shadow
+    
+    // Large shadow
     const shadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
-    shadow.setAttribute("cx", 0); shadow.setAttribute("cy", 5);
-    shadow.setAttribute("rx", 35); shadow.setAttribute("ry", 15);
+    shadow.setAttribute("cx", 0); shadow.setAttribute("cy", 8);
+    shadow.setAttribute("rx", 55); shadow.setAttribute("ry", 25);
     shadow.setAttribute("fill", "rgba(0,0,0,0.3)");
-    shadow.setAttribute("filter", "blur(4px)");
+    shadow.setAttribute("filter", "blur(6px)");
     g.appendChild(shadow);
 
-    // Wide base
-    g.appendChild(this.createPoly("-30,0 0,-15 30,0 0,15", "#b2ebf2"));
-    g.appendChild(this.createPoly("-30,0 0,15 0,-10 -30,-25", "#80deea"));
-    g.appendChild(this.createPoly("30,0 0,15 0,-10 30,-25", "#e0f7fa"));
-    
-    // Central tier
-    g.appendChild(this.createPoly("-15,-20 0,-30 15,-20 0,-10", "#4dd0e1"));
-    g.appendChild(this.createPoly("-15,-20 0,-10 0,-35 -15,-45", "#26c6da"));
-    g.appendChild(this.createPoly("15,-20 0,-10 0,-35 15,-45", "#b2ebf2"));
+    // Foundation (Cyan marble base)
+    g.appendChild(this.createPoly("-40,20 0,0 40,20 0,40", "#e0f7fa"));
+    g.appendChild(this.createPoly("-40,20 0,40 0,30 -40,10", "#b2ebf2"));
+    g.appendChild(this.createPoly("40,20 0,40 0,30 40,10", "#80deea"));
 
-    // Roof
-    g.appendChild(this.createPoly("-20,-40 0,-55 20,-40 0,-25", "#00bcd4"));
-    g.appendChild(this.createPoly("-20,-40 0,-25 -2,-32 -22,-47", "#00acc1"));
-    
+    // Staircase (Isometric depth)
+    g.appendChild(this.createPoly("-10,35 0,30 10,35 0,40", "#ffffff"));
+    g.appendChild(this.createPoly("-10,35 0,40 0,43 -10,38", "#e0e0e0"));
+    g.appendChild(this.createPoly("10,35 0,40 0,43 10,38", "#eeeeee"));
+    g.appendChild(this.createPoly("-12,38 0,32 12,38 0,44", "#f5f5f5"));
+    g.appendChild(this.createPoly("-12,38 0,44 0,47 -12,41", "#e0e0e0"));
+    g.appendChild(this.createPoly("12,38 0,44 0,47 12,41", "#eeeeee"));
+
+    // Main Structure (White Marble Walls)
+    g.appendChild(this.createPoly("-30,15 0,-5 30,15 0,35", "#ffffff"));
+    g.appendChild(this.createPoly("-30,15 0,35 0,-10 -30,-30", "#e0e0e0")); // left wall
+    g.appendChild(this.createPoly("30,15 0,35 0,-10 30,-30", "#ffffff")); // right wall
+
+    // Marble Columns (Cyan Accents)
+    for (let i = 0; i < 3; i++) {
+        // Left side columns
+        const px = -20 + i * 8;
+        const py = 25 - i * 4;
+        g.appendChild(this.createPoly(`${px},${py} ${px+2},${py-1} ${px+2},${py-30} ${px},${py-29}`, "#ffffff"));
+        g.appendChild(this.createPoly(`${px+2},${py-1} ${px+4},${py} ${px+4},${py-29} ${px+2},${py-30}`, "#e0e0e0"));
+        g.appendChild(this.createPoly(`${px},${py-29} ${px+2},${py-30} ${px+4},${py-29} ${px+2},${py-28}`, "#00bcd4")); // Cyan capital
+        
+        // Right side columns
+        const px2 = 20 - i * 8;
+        const py2 = 25 - i * 4;
+        g.appendChild(this.createPoly(`${px2},${py2} ${px2-2},${py2-1} ${px2-2},${py2-30} ${px2},${py2-29}`, "#ffffff"));
+        g.appendChild(this.createPoly(`${px2-2},${py2-1} ${px2-4},${py2} ${px2-4},${py2-29} ${px2-2},${py2-30}`, "#f5f5f5"));
+        g.appendChild(this.createPoly(`${px2},${py2-29} ${px2-2},${py2-30} ${px2-4},${py2-29} ${px2-2},${py2-28}`, "#00bcd4")); // Cyan capital
+    }
+
+    // Grand Cyan Roof (Library style, tiered with isometric faces)
+    g.appendChild(this.createPoly("-35,-25 0,-45 35,-25 0,-5", "#00bcd4")); // Bottom tier roof top
+    g.appendChild(this.createPoly("-35,-25 0,-5 0,-12 -35,-32", "#00acc1")); // Left roof face
+    g.appendChild(this.createPoly("35,-25 0,-5 0,-12 35,-32", "#4dd0e1")); // Right roof face
+
+    // Second Tier (Cyan Dome)
+    const dome = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    dome.setAttribute("d", "M -18,-35 A 18 14 0 0 1 18,-35 Z");
+    dome.setAttribute("fill", "#26c6da");
+    g.appendChild(dome);
+
+    // Golden Spire on top
+    g.appendChild(this.createPoly("-2,-49 0,-65 2,-49", "#ffb300"));
+
     this.renderQueue.push({ y: y, element: g });
   }
 
