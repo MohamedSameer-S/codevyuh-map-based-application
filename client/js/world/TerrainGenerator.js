@@ -12,22 +12,20 @@ class TerrainGenerator {
     // Mapped exactly to the winding river networks and natural coastline.
     this.territoryPolygons = {
       logic: [
-        [-3000, -3100], [2500, -3100], [2500, -200], [2700, 600], [2920, 1500],
-        [2000, 1500], [1000, 1000], [600, 400], [0, 0], [-3000, 0]
+        [-3800, -3300], [-1500, -3300], [300, -2800], [1800, -1300], [2300, -500], [2500, -20],
+        [2500, 1300], [1800, 2000], [1400, 2800], [500, 3300], [-1000, 3100], [-2600, 3500], [-3800, 3500]
       ],
       debug: [
-        [2500, -3100], [8600, -3100], [8600, 3500], 
-        [5000, 4400], [4500, 3500], [3500, 3500], [2500, 3000],
-        [3500, 2000], [2700, 600], [2500, -200]
+        [8600, -3700], [-1500, -3700], [300, -3200], [1800, -1700], [2300, -900], [2700, -200], [3100, -20],
+        [3100, 1300], [4000, 1600], [4500, 2300], [5500, 1800], [7000, 2800], [8600, 3800]
       ],
       systems: [
-        [-3000, 0], [0, 0], [600, 400], [1000, 1000], [2000, 1500], [2920, 1500],
-        [2500, 3000], [1500, 4000], [1000, 4500], [-500, 4500], [-1000, 5000],
-        [-1000, 7700], [-3000, 7700]
+        [-3800, 4500], [-2600, 4500], [-1000, 4100], [500, 4300], [1400, 3700], [1800, 2800], [1800, 2000],
+        [1500, 4000], [1900, 5200], [2200, 5400], [2700, 6000], [3200, 6500], [3200, 7700], [-3800, 7700]
       ],
       python: [
-        [2500, 3000], [3500, 3500], [4500, 3500], [5000, 4400], [8600, 4400],
-        [8600, 7700], [-1000, 7700], [-1000, 5000], [-500, 4500], [1000, 4500], [1500, 4000]
+        [2800, 1700], [4000, 2000], [4500, 2700], [5500, 2200], [7000, 3200], [8600, 4200],
+        [8600, 7700], [3700, 7700], [3700, 6500], [3200, 6000], [2700, 5400], [2400, 5200], [2000, 4000], [2200, 2000]
       ]
     };
 
@@ -542,38 +540,42 @@ class TerrainGenerator {
       drawLake(2800, -20, 90, 60, "#00695c", "#26c6da"); // Highland Spring
       drawLake(2800, 1500, 220, 160, "#00695c", "#26c6da"); // Confluence Blending Bay
 
-      // Tributary 1: Originates from elevated terrain behind mountains
+      // North-West River (Formerly Tributary 1): Flows from the central highlands to the NW ocean
       drawOrganicRiver({
-        startWidth: 15, endWidth: 50,
+        startWidth: 120, endWidth: 450,
         baseColor: "#00695c", coreColor: "#26c6da", baseOpacity: 0.75, coreOpacity: 0.9,
         segments: [
-          { path: "M 800,-2500 C 1200,-2200 1600,-1800 2000,-1500" }, // Highland source
-          { path: "M 2000,-1500 C 2200,-1200 2400,-1000 2500,-700" }, // North Bridge crossing
-          { path: "M 2500,-700 C 2600,-400 2700,-200 2800,-20" }
+          { path: "M 2800,-20 C 2700,-200 2600,-400 2500,-700" },
+          { path: "M 2500,-700 C 2400,-1000 2200,-1200 2000,-1500" }, // North Bridge crossing
+          { path: "M 2000,-1500 C 1600,-1800 1200,-2200 800,-2500" },
+          { path: "M 800,-2500 C 400,-2800 0,-3300 -500,-3800" }, // Extended to beach
+          { path: "M -500,-3800 C -1000,-4300 -1500,-4600 -2000,-4800" } // Deep into ocean
         ]
       });
 
-      // Tributary 2: Originates in the south, merges into West River slightly north of the bridge
+      // South-West Branch (Formerly Tributary 2): Flows from the West River down to the South ocean
       drawOrganicRiver({
-        startWidth: 15, endWidth: 70,
+        startWidth: 120, endWidth: 450,
         baseColor: "#00695c", coreColor: "#26c6da", baseOpacity: 0.75, coreOpacity: 0.9,
         segments: [
-          { path: "M 3500,6500 C 3000,6000 2800,5600 2500,5400" }, // South Bridge crossing
-          { path: "M 2500,5400 C 2200,5200 2000,4500 1800,4000" },
-          { path: "M 1800,4000 C 1600,3500 1700,3100 1600,2900" } // Smooth Y-junction shifted north
+          { path: "M 2000,2000 C 2200,2800 2200,3400 1800,4000" }, // Splits far upstream from West River
+          { path: "M 1800,4000 C 2000,4500 2200,5200 2500,5400" },
+          { path: "M 2500,5400 C 2800,5600 3000,6000 3500,6500" }, // South Bridge crossing
+          { path: "M 3500,6500 C 3800,7000 4000,7500 4300,8000" }, // Extended to beach
+          { path: "M 4300,8000 C 4600,8500 4800,9000 5200,9500" }  // Deep into ocean
         ]
       });
 
       // The Great Divide (West River) - The Southern river reaching the ocean
       drawOrganicRiver({
-        startWidth: 50, endWidth: 320,
+        startWidth: 150, endWidth: 500,
         baseColor: "#00695c", coreColor: "#26c6da", baseOpacity: 0.75, coreOpacity: 0.9,
         segments: [
           { path: "M 2800,-20 C 2600,300 2400,500 2600,900" },
           { path: "M 2600,900 C 2800,1200 2900,1300 2800,1500" },
           { path: "M 2800,1500 C 2500,1800 2000,2000 1800,2400" },
-          { path: "M 1800,2400 C 1600,2800 1600,3000 1500,3200" }, // GW Bridge intersection
-          { path: "M 1500,3200 C 1300,3400 1000,3800 500,3800" },
+          { path: "M 1800,2400 C 1600,2800 1500,3000 1400,3250" }, // GW Bridge intersection
+          { path: "M 1400,3250 C 1300,3400 1000,3800 500,3800" },
           { path: "M 500,3800 C 0,3800 -500,3600 -1000,3600" },
           { path: "M -1000,3600 C -1800,3600 -2000,4200 -2600,4000" }, // Gentle meander added before ocean
           { path: "M -2600,4000 C -3200,3800 -3400,3800 -3800,4000" },
@@ -584,7 +586,7 @@ class TerrainGenerator {
 
       // Eastern Basin (East River)
       drawOrganicRiver({
-        startWidth: 80, endWidth: 320,
+        startWidth: 200, endWidth: 500,
         baseColor: "#00695c", coreColor: "#26c6da", baseOpacity: 0.75, coreOpacity: 0.9,
         segments: [
           { path: "M 2800,1500 C 3000,1800 3500,1500 4000,1800" },
@@ -789,20 +791,96 @@ class TerrainGenerator {
     // 6. Secondary Buildings (Distinct stylized types)
     // Note: Main Academy is NOT drawn here; LandmarkManager draws it at (rootX, rootY)!
     
-    // Library (North-East wing)
-    this.drawAcademyLibrary(plazaX + 600, plazaY - 150, 16.0);
-    
-    // Temple (North-West wing)
-    this.drawAcademyTemple(plazaX - 300, plazaY - 200, 14.0);
-    
-    // Dormitories (West/South-West wing)
-    this.drawAcademyDorm(plazaX - 600, plazaY + 150, 12.0);
-    this.drawAcademyDorm(plazaX - 300, plazaY + 300, 12.0);
+    // 4. District Anchors Initialization
+    const logicAnchors = {
+        academy: { x: plazaX, y: plazaY },
+        libraryDistrict: null,
+        templeDistrict: null,
+        dormDistrictA: null,
+        dormDistrictB: null
+    };
 
-    // 7. Ground Details and Edge Trees
-    for (let i = 0; i < 20; i++) {
-        const tx = plazaX - 800 + window.rng.next() * 1600;
-        const ty = plazaY - 300 + window.rng.next() * 600;
+    // LOGIC DOMINION SPATIAL PLACEMENT CONTRACT
+    // -----------------------------------------
+    const dist = (p1, p2) => Math.sqrt((p1.x - p2.x)**2 + (p1.y - p2.y)**2);
+    const obstacles = [];
+
+    // 1. Academy Protected Core (Radius 0-800px)
+    obstacles.push({ x: logicAnchors.academy.x, y: logicAnchors.academy.y, radius: 800 });
+    
+    // 2. Canopies
+    obstacles.push({ x: forest1X, y: forest1Y, radius: 450 });
+    obstacles.push({ x: forest2X, y: forest2Y, radius: 450 });
+    obstacles.push({ x: forest3X, y: forest3Y, radius: 400 });
+
+    // 3. Roads and Rivers
+    obstacles.push({ isLine: true, yLine: logicAnchors.academy.y + 500, thickness: 250 });
+    obstacles.push({ isLine: true, xLine: logicAnchors.academy.x, thickness: 150 });
+    obstacles.push({ isLine: true, yLine: logicAnchors.academy.y, thickness: 100 });
+
+    const findSafePlacement = (minDist, maxDist, prefAngle, rad) => {
+        for (let d = minDist; d <= maxDist; d += 50) {
+            for (let angleOff = 0; angleOff <= Math.PI; angleOff += Math.PI/12) {
+                for (let sign of [1, -1]) {
+                    const angle = prefAngle + (angleOff * sign);
+                    const cand = { 
+                        x: logicAnchors.academy.x + Math.cos(angle) * d, 
+                        y: logicAnchors.academy.y + Math.sin(angle) * d 
+                    };
+                    
+                    let collision = false;
+                    for (let obs of obstacles) {
+                        if (obs.isLine) {
+                            if (obs.yLine !== undefined && Math.abs(cand.y - obs.yLine) < (obs.thickness + rad)) collision = true;
+                            if (obs.xLine !== undefined && Math.abs(cand.x - obs.xLine) < (obs.thickness + rad)) collision = true;
+                        } else {
+                            if (dist(cand, obs) < (obs.radius + rad)) collision = true;
+                        }
+                        if (collision) break;
+                    }
+                    if (!collision) return cand;
+                }
+            }
+        }
+        return { 
+            x: logicAnchors.academy.x + Math.cos(prefAngle)*minDist, 
+            y: logicAnchors.academy.y + Math.sin(prefAngle)*minDist 
+        };
+    };
+
+    // Library District (Secondary Landmark Ring: 1000 - 1400px, pushed to 1180 to clear tower shadow)
+    logicAnchors.libraryDistrict = findSafePlacement(1180, 1400, -Math.PI/8, 250);
+    obstacles.push({ x: logicAnchors.libraryDistrict.x, y: logicAnchors.libraryDistrict.y, radius: 250 });
+    
+    // Temple District (Secondary Landmark Ring: 1100 - 1500px, pushed to 1180 to clear tower shadow)
+    logicAnchors.templeDistrict = findSafePlacement(1180, 1500, -7*Math.PI/8, 200);
+    obstacles.push({ x: logicAnchors.templeDistrict.x, y: logicAnchors.templeDistrict.y, radius: 200 });
+    
+    // Dorm District A (Support Building Ring: 1000 - 1500px, pushed to 1150 to clear tower shadow)
+    logicAnchors.dormDistrictA = findSafePlacement(1150, 1500, -Math.PI/16, 150);
+    obstacles.push({ x: logicAnchors.dormDistrictA.x, y: logicAnchors.dormDistrictA.y, radius: 150 });
+    
+    // Dorm District B (Support Building Ring: 1000 - 1500px, pushed to 1150 to clear tower shadow)
+    logicAnchors.dormDistrictB = findSafePlacement(1150, 1500, -15*Math.PI/16, 150);
+    obstacles.push({ x: logicAnchors.dormDistrictB.x, y: logicAnchors.dormDistrictB.y, radius: 150 });
+
+    // 5. Final Draw Calls (Strictly from District Anchors)
+    this.drawAcademyLibrary(logicAnchors.libraryDistrict.x, logicAnchors.libraryDistrict.y, 16.0);
+    this.drawAcademyTemple(logicAnchors.templeDistrict.x, logicAnchors.templeDistrict.y, 14.0);
+    this.drawAcademyDorm(logicAnchors.dormDistrictA.x, logicAnchors.dormDistrictA.y, 12.0);
+    this.drawAcademyDorm(logicAnchors.dormDistrictB.x, logicAnchors.dormDistrictB.y, 12.0);
+
+
+
+    // 7. Ground Details and Edge Trees (Decoration Ring: 1300px+)
+    for (let i = 0; i < 40; i++) {
+        const tx = plazaX - 1200 + window.rng.next() * 2400;
+        const ty = plazaY - 800 + window.rng.next() * 1600;
+        
+        // Strict 900px exclusion for minor random props to keep the core entirely clean
+        const distToCenter = Math.sqrt((tx - plazaX)**2 + (ty - plazaY)**2);
+        if (distToCenter < 900) continue; 
+        
         const tempG = document.createElementNS("http://www.w3.org/2000/svg", "g");
         const ogLayer = this.renderer.getLayer.bind(this.renderer);
         this.renderer.getLayer = () => tempG;
@@ -1338,6 +1416,7 @@ class TerrainGenerator {
   }
 
   renderAcademyTreeCustom(cx, cy, scale, zIndex) {
+    return;
     const tempGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
     const originalGetLayer = this.renderer.getLayer.bind(this.renderer);
     this.renderer.getLayer = () => tempGroup; 
@@ -1660,7 +1739,7 @@ class TerrainGenerator {
           { path: 'M 150,50 C 300,300 450,700 600,1200' },
           { path: 'M 550,1100 C 700,1600 850,2000 1100,2600' },
           { path: 'M 1050,2500 C 1200,2800 1350,3000 1400,3250' },
-          { path: 'M 1400,3200 C 1250,3800 800,4300 400,4700' },
+          { path: 'M 1400,3250 C 1250,3800 800,4300 400,4700' },
           { path: 'M 450,4650 C 200,4900 0,5050 -200,5200' },
           { path: 'M -200,5200 C -300,5350 -400,5500 -500,5650' }
         ],
@@ -1812,29 +1891,29 @@ class TerrainGenerator {
     // Bridge config maps to visual rendering styles for the SVG bridge geometry
     const bridgeConfig = {
       stone: {
-        width: 320,
-        height: 280, // wide enough to cover the river
+        width: 900,
+        height: 450, // wide enough to cover the river
         baseColor: '#cfd8dc', // Light gray masonry
         accentColor: '#90a4ae', 
         deckColor: '#78909c'
       },
       mechanical: {
-        width: 320,
-        height: 280,
+        width: 900,
+        height: 450,
         baseColor: '#37474f', // Dark metal
         accentColor: '#d32f2f', // Red mechanical accents
         deckColor: '#263238'
       },
       wooden: {
-        width: 320,
-        height: 280,
+        width: 900,
+        height: 450,
         baseColor: '#5d4037', // Natural timber
         accentColor: '#d7ccc8', // Rope railings
         deckColor: '#795548'
       },
       corrupted: {
-        width: 320,
-        height: 280,
+        width: 900,
+        height: 450,
         baseColor: '#424242', // Broken stone
         accentColor: '#9c27b0', // Purple crystal growth
         deckColor: '#212121'
@@ -1875,7 +1954,7 @@ class TerrainGenerator {
 
     const w = config.width;
     const h = config.height;
-    const roadWidth = 260; 
+    const roadWidth = 400; 
 
     // Base foundation (elegant rounded stone)
     const foundation = document.createElementNS("http://www.w3.org/2000/svg", "rect");
@@ -1932,7 +2011,7 @@ class TerrainGenerator {
 
     const w = config.width;
     const h = config.height;
-    const roadWidth = 260;
+    const roadWidth = 400;
 
     // Thick steel deck
     const deck = document.createElementNS("http://www.w3.org/2000/svg", "rect");
@@ -2005,7 +2084,7 @@ class TerrainGenerator {
 
     const w = config.width;
     const h = config.height;
-    const roadWidth = 260;
+    const roadWidth = 400;
 
     // Foundation
     const foundation = document.createElementNS("http://www.w3.org/2000/svg", "rect");
@@ -2066,7 +2145,7 @@ class TerrainGenerator {
 
     const w = config.width;
     const h = config.height;
-    const roadWidth = 260;
+    const roadWidth = 400;
 
     // Broken stone deck (uneven silhouette)
     const deck = document.createElementNS("http://www.w3.org/2000/svg", "path");
@@ -2640,6 +2719,7 @@ class TerrainGenerator {
   }
 
   drawPalmTree(x, y) {
+    return;
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
     g.setAttribute("transform", `translate(${x}, ${y}) scale(2.5)`); // Scaled up
     g.setAttribute("filter", "url(#drop-shadow)");
@@ -2697,6 +2777,7 @@ class TerrainGenerator {
   }
 
   drawTreeGroup(x, y, theme = 'plains') {
+    return;
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
     g.setAttribute("transform", `translate(${x}, ${y}) scale(2.0, 3.3)`); // Scaled up significantly
     g.setAttribute("filter", "url(#drop-shadow)");
@@ -2750,6 +2831,7 @@ class TerrainGenerator {
   }
 
   drawDeadTree(x, y, scale = 5.0) {
+    return;
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
     g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
     g.setAttribute("filter", "url(#drop-shadow)");
@@ -2879,89 +2961,183 @@ class TerrainGenerator {
 
   drawAcademyLibrary(x, y, scale = 1.0) {
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
+    
+    // Controlled landmark-scale transform. Clearly smaller than Academy, larger than dorms.
+    const scaleX = scale * 0.7; 
+    const scaleY = scale * 1.1; 
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scaleX}, ${scaleY})`);
     g.style.pointerEvents = "none";
-    // Shadow
-    const shadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
-    shadow.setAttribute("cx", 0); shadow.setAttribute("cy", 5);
-    shadow.setAttribute("rx", 35); shadow.setAttribute("ry", 15);
-    shadow.setAttribute("fill", "rgba(0,0,0,0.3)");
-    shadow.setAttribute("filter", "blur(4px)");
-    g.appendChild(shadow);
-
-    // Wide base
-    g.appendChild(this.createPoly("-30,0 0,-15 30,0 0,15", "#b2ebf2"));
-    g.appendChild(this.createPoly("-30,0 0,15 0,-10 -30,-25", "#80deea"));
-    g.appendChild(this.createPoly("30,0 0,15 0,-10 30,-25", "#e0f7fa"));
     
-    // Central tier
-    g.appendChild(this.createPoly("-15,-20 0,-30 15,-20 0,-10", "#4dd0e1"));
-    g.appendChild(this.createPoly("-15,-20 0,-10 0,-35 -15,-45", "#26c6da"));
-    g.appendChild(this.createPoly("15,-20 0,-10 0,-35 15,-45", "#b2ebf2"));
+    // 1. Base Clearance Pad (No dark shadow, clean separation)
+    g.appendChild(this.createPoly("-85,27.5 0,-15 85,27.5 0,70", "#f5f5f5")); 
+    g.appendChild(this.createPoly("-85,27.5 0,70 0,73 -85,30.5", "#00bcd4")); 
+    g.appendChild(this.createPoly("85,27.5 0,70 0,73 85,30.5", "#0097a7")); 
 
-    // Roof
-    g.appendChild(this.createPoly("-20,-40 0,-55 20,-40 0,-25", "#00bcd4"));
-    g.appendChild(this.createPoly("-20,-40 0,-25 -2,-32 -22,-47", "#00acc1"));
+    // 2. Wide Rectangular Base (White Marble)
+    g.appendChild(this.createPoly("-70,20 0,0 70,20 0,40", "#ffffff"));
+    g.appendChild(this.createPoly("-70,20 0,40 0,48 -70,28", "#cfd8dc")); 
+    g.appendChild(this.createPoly("70,20 0,40 0,48 70,28", "#b0bec5"));  
+
+    // 3. Clear Front Entrance with Marble Staircase
+    g.appendChild(this.createPoly("-18,41 0,35 18,41 0,47", "#f5f5f5"));
+    g.appendChild(this.createPoly("-18,41 0,47 0,51 -18,45", "#cfd8dc"));
+    g.appendChild(this.createPoly("18,41 0,47 0,51 18,45", "#b0bec5"));
+
+    g.appendChild(this.createPoly("-14,39 0,33 14,39 0,45", "#eeeeee"));
+    g.appendChild(this.createPoly("-14,39 0,45 0,49 -14,43", "#cfd8dc"));
+    g.appendChild(this.createPoly("14,39 0,45 0,49 14,43", "#b0bec5"));
+
+    g.appendChild(this.createPoly("-10,37 0,31 10,37 0,43", "#ffffff"));
+    g.appendChild(this.createPoly("-10,37 0,43 0,47 -10,41", "#cfd8dc"));
+    g.appendChild(this.createPoly("10,37 0,43 0,47 10,41", "#b0bec5"));
+
+    // 4. Rectangular Reading Hall (Stronger Silhouette)
+    g.appendChild(this.createPoly("-60,14 0,-4 60,14 0,32", "#fafafa")); 
+    g.appendChild(this.createPoly("-60,14 0,32 0,-15 -60,-33", "#b0bec5")); 
+    g.appendChild(this.createPoly("0,32 60,14 60,-33 0,-15", "#eceff1")); 
+
+    // 5. Archive Symbol (Glowing Pedestal)
+    g.appendChild(this.createPoly("-6,28 0,26 6,28 0,30", "#455a64")); 
+    g.appendChild(this.createPoly("-6,28 0,30 0,36 -6,34", "#263238")); 
+    g.appendChild(this.createPoly("6,28 0,30 0,36 6,34", "#37474f")); 
+
+    g.appendChild(this.createPoly("-4,25 0,23 4,25 0,27", "#e0f7fa"));
+    const glow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+    glow.setAttribute("cx", 0); glow.setAttribute("cy", 25);
+    glow.setAttribute("rx", 10); glow.setAttribute("ry", 5);
+    glow.setAttribute("fill", "#00e5ff");
+    glow.setAttribute("opacity", "0.85");
+    glow.setAttribute("filter", "blur(2px)");
+    g.appendChild(glow);
+
+    // 6. Visible Columns
+    for(let px = -54; px <= -18; px += 12) {
+        let py = 32 + px * 0.3; 
+        let topY = -15 + Math.abs(px) * 0.3; 
+        g.appendChild(this.createPoly(`${px},${py} ${px+3},${py-1} ${px+3},${topY-1} ${px},${topY}`, "#ffffff"));
+        g.appendChild(this.createPoly(`${px+3},${py-1} ${px+6},${py} ${px+6},${topY} ${px+3},${topY-1}`, "#cfd8dc"));
+        g.appendChild(this.createPoly(`${px},${topY+2} ${px+3},${topY+1} ${px+6},${topY+2} ${px+3},${topY+3}`, "#00bcd4")); 
+    }
+    for(let px = 18; px <= 54; px += 12) {
+        let py = 32 - px * 0.3; 
+        let topY = -15 + Math.abs(px) * 0.3; 
+        g.appendChild(this.createPoly(`${px},${py} ${px-3},${py-1} ${px-3},${topY-1} ${px},${topY}`, "#ffffff"));
+        g.appendChild(this.createPoly(`${px-3},${py-1} ${px-6},${py} ${px-6},${topY} ${px-3},${topY-1}`, "#cfd8dc"));
+        g.appendChild(this.createPoly(`${px},${topY+2} ${px-3},${topY+1} ${px-6},${topY+2} ${px-3},${topY+3}`, "#00bcd4")); 
+    }
+
+    // 7. Gently sloped cyan roof
+    g.appendChild(this.createPoly("-65,-18 0,-33 0,-40 -65,-25", "#00bcd4")); // Left Roof
+    g.appendChild(this.createPoly("-65,-18 0,-33 0,-30 -65,-15", "#00838f")); // Left Edge
     
+    g.appendChild(this.createPoly("0,-33 65,-18 65,-25 0,-40", "#4dd0e1"));  // Right Roof
+    g.appendChild(this.createPoly("0,-33 65,-18 65,-15 0,-30", "#0097a7"));  // Right Edge
+
+    // Flat roof ridge
+    g.appendChild(this.createPoly("-62,-25 0,-40 62,-25 0,-10", "#e0f7fa"));
+
     this.renderQueue.push({ y: y, element: g });
   }
 
   drawAcademyTemple(x, y, scale = 1.0) {
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
+    
+    // Scale up slightly for map zoom visibility (14 * 0.7 = 9.8), distinct from Library
+    const baseScale = scale * 0.7; 
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(${baseScale})`); 
     g.style.pointerEvents = "none";
     
-    // Shadow
-    const shadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
-    shadow.setAttribute("cx", 0); shadow.setAttribute("cy", 5);
-    shadow.setAttribute("rx", 25); shadow.setAttribute("ry", 12);
-    shadow.setAttribute("fill", "rgba(0,0,0,0.3)");
-    shadow.setAttribute("filter", "blur(4px)");
-    g.appendChild(shadow);
+    // 1. Light marble clearance pad
+    g.appendChild(this.createPoly("-55,17.5 0,-10 55,17.5 0,45", "#f5f5f5")); 
+    g.appendChild(this.createPoly("-55,17.5 0,45 0,48 -55,20.5", "#00bcd4")); 
+    g.appendChild(this.createPoly("55,17.5 0,45 0,48 55,20.5", "#0097a7")); 
 
-    // Octagonal/Pillar base (simplified to 3 vertical faces)
-    g.appendChild(this.createPoly("-15,-5 -5,0 5,-5 -5,-10", "#e0f7fa")); // Top of base
-    g.appendChild(this.createPoly("-15,-5 -5,0 -5,-35 -15,-40", "#80deea"));
-    g.appendChild(this.createPoly("5,-5 -5,0 -5,-35 5,-40", "#b2ebf2"));
-    g.appendChild(this.createPoly("5,-5 15,-10 15,-45 5,-40", "#e0f7fa")); // Right side face
+    // 2. Hexagonal Base
+    g.appendChild(this.createPoly("-30,10 0,-5 30,10 30,25 0,40 -30,25", "#ffffff")); 
+    g.appendChild(this.createPoly("-30,25 0,40 0,44 -30,29", "#cfd8dc"));
+    g.appendChild(this.createPoly("30,25 0,40 0,44 30,29", "#b0bec5"));
 
-    // Glowing Dome
+    // 3. Rotunda Curved Walls (Pale cyan to distinguish from Academy's white)
+    g.appendChild(this.createPoly("-25,12 0,-0.5 25,12 25,17 0,29.5 -25,17", "#e0f7fa")); // Inner floor
+    
+    // Left Arc Wall
+    g.appendChild(this.createPoly("-25,17 0,29.5 0,-10 -25,-22.5", "#80deea")); // Left Wall 
+    g.appendChild(this.createPoly("0,29.5 25,17 25,-22.5 0,-10", "#b2ebf2")); // Right Wall
+
+    // 4. Perimeter Columns
+    const rotCols = [
+        {x: -25, y: 17}, {x: -12.5, y: 23.25}, {x: 0, y: 29.5},
+        {x: 12.5, y: 23.25}, {x: 25, y: 17}
+    ];
+    rotCols.forEach(c => {
+        g.appendChild(this.createPoly(`${c.x-2},${c.y} ${c.x+2},${c.y-2} ${c.x+2},${c.y-29} ${c.x-2},${c.y-27}`, "#ffffff"));
+        g.appendChild(this.createPoly(`${c.x+2},${c.y-2} ${c.x+4},${c.y} ${c.x+4},${c.y-27} ${c.x+2},${c.y-29}`, "#cfd8dc"));
+    });
+
+    // 5. Distinct Cyan Dome (Rounder, smaller than Academy)
+    g.appendChild(this.createPoly("-28,-21 0,-35 28,-21 0,-7", "#00bcd4")); // Dome architrave
+    g.appendChild(this.createPoly("-28,-21 0,-7 0,0 -28,-14", "#00838f"));
+    g.appendChild(this.createPoly("28,-21 0,-7 0,0 28,-14", "#0097a7"));
+
     const dome = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    dome.setAttribute("d", "M -18,-38 Q 0,-65 18,-43 Q 0,-25 -18,-38 Z");
-    dome.setAttribute("fill", "#00bcd4");
-    dome.setAttribute("opacity", "0.85");
+    dome.setAttribute("d", "M -25,-19 C -25,-48 25,-48 25,-19 C 15,-5 -15,-5 -25,-19 Z");
+    dome.setAttribute("fill", "#00acc1");
     g.appendChild(dome);
+
+    // 6. Spire
+    g.appendChild(this.createPoly("-2,-42 0,-57 2,-42", "#ffc107"));
+    g.appendChild(this.createPoly("-2,-42 2,-42 0,-37", "#ff8f00"));
 
     this.renderQueue.push({ y: y, element: g });
   }
 
   drawAcademyDorm(x, y, scale = 1.0) {
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
+    
+    // Scale up for visibility (12 * 0.75 = 9.0)
+    const baseScale = scale * 0.75; 
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(${baseScale})`); 
     g.style.pointerEvents = "none";
 
-    // Shadow
-    const shadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
-    shadow.setAttribute("cx", 0); shadow.setAttribute("cy", 5);
-    shadow.setAttribute("rx", 20); shadow.setAttribute("ry", 10);
-    shadow.setAttribute("fill", "rgba(0,0,0,0.3)");
-    shadow.setAttribute("filter", "blur(3px)");
-    g.appendChild(shadow);
+    // 1. Base Clearance Pad (No dark shadow)
+    g.appendChild(this.createPoly("-45,17.5 0,-5 45,17.5 0,40", "#f5f5f5")); 
+    g.appendChild(this.createPoly("-45,17.5 0,40 0,43 -45,20.5", "#00bcd4")); 
+    g.appendChild(this.createPoly("45,17.5 0,40 0,43 45,20.5", "#0097a7")); 
 
-    // Main house
-    g.appendChild(this.createPoly("0,0 -15,-8 -15,-25 0,-17", "#b2ebf2"));
-    g.appendChild(this.createPoly("0,0 15,-8 15,-25 0,-17", "#ffffff"));
-    g.appendChild(this.createPoly("-18,-20 0,-32 18,-20 0,-8", "#00bcd4")); 
+    // --- BLOCK 2 (Rear Long Block, drawn first for Z-sorting) ---
+    g.appendChild(this.createPoly("-10,5 30,-15 40,-10 0,10", "#eceff1")); // Floor
+    g.appendChild(this.createPoly("-10,5 0,10 0,-20 -10,-25", "#b0bec5")); // Left Wall
+    g.appendChild(this.createPoly("0,10 40,-10 40,-35 0,-15", "#cfd8dc")); // Right Wall
+    
+    // Windows Block 2
+    g.appendChild(this.createPoly("10,-5 15,-7.5 15,-15 10,-12.5", "#00bcd4"));
+    g.appendChild(this.createPoly("25,-12.5 30,-15 30,-22.5 25,-20", "#00bcd4"));
+    
+    // Cyan Roof Block 2
+    g.appendChild(this.createPoly("-12,-26 28,-46 42,-39 -2,-19", "#00acc1")); // Roof Top
+    g.appendChild(this.createPoly("-12,-26 -2,-19 -2,-15 -12,-22", "#00838f")); // Edge L
+    g.appendChild(this.createPoly("42,-39 -2,-19 -2,-15 42,-35", "#0097a7")); // Edge R
 
-    // Attached L-wing
-    g.appendChild(this.createPoly("-10,5 -20,0 -20,-15 -10,-10", "#80deea"));
-    g.appendChild(this.createPoly("-10,5 5,-2 5,-17 -10,-10", "#e0f7fa"));
-    g.appendChild(this.createPoly("-22,-12 -8,-20 7,-12 -7,-4", "#00acc1")); 
+    // --- BLOCK 1 (Forward Block, creates L-shape) ---
+    g.appendChild(this.createPoly("-30,15 0,0 10,5 -20,20", "#ffffff")); // Floor
+    g.appendChild(this.createPoly("-30,15 -20,20 -20,-10 -30,-15", "#90a4ae")); // Left Wall
+    g.appendChild(this.createPoly("-20,20 10,5 10,-20 -20,-5", "#eceff1")); // Right Wall
+    
+    // Windows Block 1
+    g.appendChild(this.createPoly("-26,5 -22,7 -22,-3 -26,-5", "#00acc1"));
+    g.appendChild(this.createPoly("-14,11 -10,13 -10,3 -14,1", "#00acc1"));
+    g.appendChild(this.createPoly("-8,14 -4,16 -4,6 -8,4", "#00acc1"));
+
+    // Cyan Roof Block 1
+    g.appendChild(this.createPoly("-32,-16 -2,-31 12,-24 -18,-9", "#4dd0e1")); 
+    g.appendChild(this.createPoly("-32,-16 -18,-9 -18,-5 -32,-12", "#00838f")); 
+    g.appendChild(this.createPoly("12,-24 -18,-9 -18,-5 12,-20", "#0097a7")); 
 
     this.renderQueue.push({ y: y, element: g });
   }
 
   createDeadTreeMass(cx, cy, rx, ry) {
+    return document.createElementNS("http://www.w3.org/2000/svg", "g");
     const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
     group.style.pointerEvents = "none";
     
@@ -3175,6 +3351,7 @@ class TerrainGenerator {
   }
 
   drawAcademyTree(x, y, scale = 3.0) {
+    return;
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
     g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
     g.style.pointerEvents = "none";
