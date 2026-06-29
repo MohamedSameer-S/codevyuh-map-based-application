@@ -1,0 +1,330 @@
+/* ==========================================================================
+   CodeVyuh World Map - Global Styles
+   Combined from world.css, hud.css, and regions.css
+   ========================================================================== */
+
+:root {
+  --ocean-color-deep: #1a4b6b;
+  --ocean-color-shallow: #3b8eb5;
+  --land-base-color: #7b9e59;
+  --text-primary: #ffffff;
+  --text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+  --ui-bg: rgba(20, 25, 35, 0.9);
+  --ui-border: rgba(255, 255, 255, 0.1);
+  --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+}
+
+body, html {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background-color: var(--ocean-color-deep); 
+  font-family: var(--font-family);
+  color: var(--text-primary);
+}
+
+/* ==========================================================================
+   World Container & SVG Styling (from world.css)
+   ========================================================================== */
+
+#world-container {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  cursor: grab;
+  background-color: var(--ocean-color-deep);
+}
+
+#world-container:active {
+  cursor: grabbing;
+}
+
+#world-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+#world-group {
+  transform-origin: 0 0;
+}
+
+#world-group.zooming {
+  transition: transform 0.15s cubic-bezier(0.2, 0, 0.2, 1);
+}
+
+#world-group.animating {
+  transition: transform 1s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.shadow-drop { filter: drop-shadow(0px 10px 10px rgba(0,0,0,0.5)); }
+.mountain-shadow { filter: drop-shadow(-5px 10px 8px rgba(0,0,0,0.6)); }
+.landmark-shadow { filter: drop-shadow(-8px 15px 12px rgba(0,0,0,0.7)); }
+
+.region-plate {
+  transition: filter 0.3s ease, stroke-width 0.3s ease;
+}
+
+/* ==========================================================================
+   Region Interactions in SVG (from regions.css)
+   ========================================================================== */
+
+.region-group {
+  cursor: pointer;
+  pointer-events: bounding-box;
+  transition: transform 280ms cubic-bezier(0.22, 1, 0.36, 1), filter 280ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform, filter;
+}
+
+.region-group.region-hover {
+  transform: scale(1.035);
+  filter: brightness(1.08) drop-shadow(0 8px 14px rgba(0, 0, 0, 0.28));
+}
+
+.region-hitbox {
+  fill: transparent;
+  stroke: transparent;
+  stroke-width: 0;
+  transition: fill 0.3s ease, stroke-width 0.3s ease, stroke 0.3s ease;
+  pointer-events: all;
+}
+
+.region-group.theme-logic:hover .region-hitbox { fill: rgba(0, 255, 204, 0.15); stroke: #00ffcc; stroke-width: 4px; }
+.region-group.theme-debug:hover .region-hitbox { fill: rgba(255, 50, 50, 0.15); stroke: #ff3232; stroke-width: 4px; }
+.region-group.theme-systems:hover .region-hitbox { fill: rgba(50, 150, 255, 0.15); stroke: #3296ff; stroke-width: 4px; }
+.region-group.theme-python:hover .region-hitbox { fill: rgba(255, 200, 50, 0.15); stroke: #ffc832; stroke-width: 4px; }
+
+.landmark-element {
+  transition: transform 280ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+.fog-layer {
+  pointer-events: none;
+  opacity: 0.8;
+  mix-blend-mode: multiply;
+}
+
+/* ==========================================================================
+   HUD & UI Elements (from hud.css)
+   ========================================================================== */
+
+#ui-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.hidden {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  visibility: hidden;
+  transition: opacity 220ms ease, visibility 220ms ease !important;
+}
+
+/* Tooltip */
+#tooltip {
+  position: absolute;
+  background: var(--ui-bg);
+  border: 1px solid var(--ui-border);
+  padding: 12px 16px;
+  border-radius: 8px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  transform: translate(-50%, -100%) translateY(0) scale(1);
+  margin-top: -15px;
+  transition: opacity 220ms ease, transform 220ms cubic-bezier(0.22, 1, 0.36, 1), visibility 220ms ease;
+  will-change: transform, opacity;
+  z-index: 100;
+  min-width: 150px;
+  text-align: center;
+}
+
+#tooltip.hidden {
+  transform: translate(-50%, -100%) translateY(8px) scale(0.96);
+}
+
+#tooltip h3 {
+  margin: 0 0 5px 0;
+  font-size: 1.1rem;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+}
+
+#tooltip-progress {
+  font-size: 0.9rem;
+  color: #aaa;
+  margin-bottom: 5px;
+}
+
+.tooltip-hint {
+  font-size: 0.8rem;
+  color: #00ffcc;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Region View Overlay */
+#region-view {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  transition: opacity 250ms ease-out, visibility 250ms ease-out;
+  will-change: opacity;
+  opacity: 1;
+  visibility: visible;
+  z-index: 200;
+}
+
+.region-view-content {
+  background: var(--ui-bg);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  padding: 40px;
+  width: 90%;
+  max-width: 600px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+  text-align: left;
+  transform: translateY(0) scale(1);
+  transition: transform 250ms ease-out;
+  will-change: transform;
+}
+
+#region-view.hidden .region-view-content {
+  transform: translateY(12px) scale(0.94);
+}
+
+#region-view-title {
+  font-size: 2.5rem;
+  margin-bottom: 10px;
+  background: linear-gradient(90deg, #00ffcc, #00bfff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+#region-view-progress {
+  font-size: 1.2rem;
+  color: #ccc;
+  margin-bottom: 30px;
+}
+
+.region-task-placeholder {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 30px;
+}
+
+.region-task-placeholder h3 {
+  margin-bottom: 15px;
+  color: #fff;
+}
+
+.region-task-placeholder ul {
+  list-style: none;
+  padding: 0;
+}
+
+.region-task-placeholder li {
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  color: #bbb;
+}
+
+.region-actions {
+  display: flex;
+  gap: 15px;
+}
+
+button {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.primary-btn {
+  background: linear-gradient(90deg, #00ffcc, #00bfff);
+  color: #000;
+  box-shadow: 0 4px 10px rgba(0, 255, 204, 0.3);
+}
+
+.primary-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(0, 255, 204, 0.5);
+}
+
+.secondary-btn {
+  background: transparent;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.secondary-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Toast Notification */
+.toast {
+  position: absolute;
+  top: 15%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 350px;
+  text-align: center;
+  background: linear-gradient(180deg, rgba(30, 0, 0, 0.9), rgba(15, 0, 0, 0.95));
+  border: 2px solid #ff3c3c;
+  border-top: 4px solid #ff3c3c;
+  box-shadow: 0 10px 25px rgba(255, 0, 0, 0.5), inset 0 0 15px rgba(255, 60, 60, 0.3);
+  padding: 15px 20px;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 1.1rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  pointer-events: none;
+  z-index: 500;
+  opacity: 0;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+}
+
+.toast.show {
+  opacity: 1 !important;
+  transform: translateX(-50%) translateY(0);
+}
+
+.toast p {
+  margin: 0;
+  padding: 0;
+}
