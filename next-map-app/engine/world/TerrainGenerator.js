@@ -676,45 +676,11 @@ export default class TerrainGenerator {
     patchLayer.appendChild(patchShadow);
     this.renderQueue.push({ y: zBasePatch, element: patchLayer });
 
-    // 2. Natural River Meander (Multi-segment Bezier)
-    const riverY = rootY + 600;
-    const startX = rootX - 2500;
-    const startY = riverY - 300;
-    const endX = rootX + 2500;
-    const endY = riverY + 100;
-    
-    const riverGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    
-    // Smooth snaking river curves using bezier paths
-    const makeRiverPath = (width) => `
-      M ${startX}, ${startY - width/2}
-      C ${rootX - 1000}, ${riverY - 800} ${rootX}, ${riverY + 600} ${rootX + 1500}, ${endY - width/4}
-      C ${endX}, ${endY - width/6} ${endX}, ${endY + width/6} ${rootX + 1500}, ${endY + width/4}
-      C ${rootX}, ${riverY + 1200} ${rootX - 1000}, ${riverY - 200} ${startX}, ${startY + width/2}
-      Z
-    `;
-    
-    const riverBanks = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    riverBanks.setAttribute("d", makeRiverPath(500));
-    riverBanks.setAttribute("fill", "#006064");
-    
-    const riverWater = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    riverWater.setAttribute("d", makeRiverPath(380));
-    riverWater.setAttribute("fill", "#00bcd4");
-    
-    const riverHigh = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    riverHigh.setAttribute("d", makeRiverPath(180));
-    riverHigh.setAttribute("fill", "#80deea");
 
-    riverGroup.appendChild(riverBanks);
-    riverGroup.appendChild(riverWater);
-    riverGroup.appendChild(riverHigh);
-    this.renderQueue.push({ y: zRiver, element: riverGroup });
 
-    // 3. Roads & Bridge
+    // 3. Roads
     const bridgeX = rootX - 800;
-    const bridgeY = riverY - 50; 
-    
+    const bridgeY = rootY + 550; // Previously riverY - 50
     const plazaX = rootX;
     const plazaY = rootY; 
     
@@ -742,36 +708,9 @@ export default class TerrainGenerator {
     roadGroup.appendChild(stoneRoad);
     this.renderQueue.push({ y: zRoads, element: roadGroup });
 
-    // The bridge object
-    const bridgeObj = this.createVerticalSliceBridge(bridgeX, bridgeY, -30);
-    bridgeObj.setAttribute("transform", `translate(${bridgeX}, ${bridgeY}) rotate(-30) scale(3.5)`);
-    this.renderQueue.push({ y: bridgeY, element: bridgeObj });
 
-    // 4. Organic Plaza (Intersecting Diamonds)
-    const plazaGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    
-    const drawDiamond = (cx, cy, rw, rh, thick) => {
-      plazaGroup.appendChild(this.createPoly(`${cx},${cy + rh} ${cx + rw},${cy} ${cx + rw},${cy + thick} ${cx},${cy + rh + thick}`, "#90a4ae"));
-      plazaGroup.appendChild(this.createPoly(`${cx},${cy + rh} ${cx - rw},${cy} ${cx - rw},${cy + thick} ${cx},${cy + rh + thick}`, "#b0bec5"));
-      plazaGroup.appendChild(this.createPoly(`${cx},${cy - rh} ${cx + rw},${cy} ${cx},${cy + rh} ${cx - rw},${cy}`, "#eceff1"));
-    };
 
-    // Shadow for entire plaza group
-    const plazaShadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
-    plazaShadow.setAttribute("cx", plazaX); plazaShadow.setAttribute("cy", plazaY + 150);
-    plazaShadow.setAttribute("rx", 1400); plazaShadow.setAttribute("ry", 700);
-    plazaShadow.setAttribute("fill", "rgba(0,0,0,0.3)");
-    plazaShadow.setAttribute("filter", "blur(20px)");
-    plazaGroup.appendChild(plazaShadow);
-
-    // North wing
-    drawDiamond(plazaX + 300, plazaY - 200, 700, 350, 100);
-    // West wing
-    drawDiamond(plazaX - 400, plazaY + 200, 800, 400, 120);
-    // Main central plaza
-    drawDiamond(plazaX, plazaY, 1000, 500, 150);
-    
-    this.renderQueue.push({ y: zPlaza, element: plazaGroup });
+    // 4. Old Organic Plaza removed for Checkpoint 3A Campus Integration
 
     // 5. Canopy Masses (Radius 600-800)
     const forest1X = rootX - 1600;
@@ -801,69 +740,102 @@ export default class TerrainGenerator {
         dormDistrictB: null
     };
 
-    // LOGIC DOMINION SPATIAL PLACEMENT CONTRACT
+    // LOGIC DOMINION INDEPENDENT CAMPUS ANCHORS
     // -----------------------------------------
-    const dist = (p1, p2) => Math.sqrt((p1.x - p2.x)**2 + (p1.y - p2.y)**2);
-    const obstacles = [];
+    // These coordinates form the layout of the university campus and are independent
+    // of the Academy center, ensuring proper breathing space and architectural separation.
 
-    // 1. Academy Protected Core (Radius 0-800px)
-    obstacles.push({ x: logicAnchors.academy.x, y: logicAnchors.academy.y, radius: 800 });
+    // Library District (North-West Campus Zone)
+    logicAnchors.libraryDistrict = { x: -1218, y: -1484 };
     
-    // 2. Canopies
-    obstacles.push({ x: forest1X, y: forest1Y, radius: 450 });
-    obstacles.push({ x: forest2X, y: forest2Y, radius: 450 });
-    obstacles.push({ x: forest3X, y: forest3Y, radius: 400 });
+    // Temple District (South-East Campus Zone)
+    logicAnchors.templeDistrict = { x: 478, y: 212 };
+    
+    // Dorm District A (South-West Campus Zone)
+    logicAnchors.dormDistrictA = { x: -858, y: 181 };
+    
+    // Dorm District B (South-East Campus Zone)
+    logicAnchors.dormDistrictB = { x: 1145, y: 341 };
 
-    // 3. Roads and Rivers
-    obstacles.push({ isLine: true, yLine: logicAnchors.academy.y + 500, thickness: 250 });
-    obstacles.push({ isLine: true, xLine: logicAnchors.academy.x, thickness: 150 });
-    obstacles.push({ isLine: true, yLine: logicAnchors.academy.y, thickness: 100 });
+    // [NEW] Campus Ground Integration (Checkpoint 3A)
+    const drawWalkway = (p1, p2, width) => {
+        const pathGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        const accent = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        accent.setAttribute("d", `M ${p1.x},${p1.y} L ${p2.x},${p2.y}`);
+        accent.setAttribute("stroke", "#00e5ff"); 
+        accent.setAttribute("stroke-width", width + 20);
+        accent.setAttribute("stroke-linecap", "round");
+        accent.setAttribute("fill", "none");
+        pathGroup.appendChild(accent);
 
-    const findSafePlacement = (minDist, maxDist, prefAngle, rad) => {
-        for (let d = minDist; d <= maxDist; d += 50) {
-            for (let angleOff = 0; angleOff <= Math.PI; angleOff += Math.PI/12) {
-                for (let sign of [1, -1]) {
-                    const angle = prefAngle + (angleOff * sign);
-                    const cand = { 
-                        x: logicAnchors.academy.x + Math.cos(angle) * d, 
-                        y: logicAnchors.academy.y + Math.sin(angle) * d 
-                    };
-                    
-                    let collision = false;
-                    for (let obs of obstacles) {
-                        if (obs.isLine) {
-                            if (obs.yLine !== undefined && Math.abs(cand.y - obs.yLine) < (obs.thickness + rad)) collision = true;
-                            if (obs.xLine !== undefined && Math.abs(cand.x - obs.xLine) < (obs.thickness + rad)) collision = true;
-                        } else {
-                            if (dist(cand, obs) < (obs.radius + rad)) collision = true;
-                        }
-                        if (collision) break;
-                    }
-                    if (!collision) return cand;
-                }
-            }
-        }
-        return { 
-            x: logicAnchors.academy.x + Math.cos(prefAngle)*minDist, 
-            y: logicAnchors.academy.y + Math.sin(prefAngle)*minDist 
-        };
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        line.setAttribute("d", `M ${p1.x},${p1.y} L ${p2.x},${p2.y}`);
+        line.setAttribute("stroke", "#f8f9fa"); 
+        line.setAttribute("stroke-width", width);
+        line.setAttribute("stroke-linecap", "round");
+        pathGroup.appendChild(line);
+
+        const sortY = Math.min(p1.y, p2.y) - 50; 
+        this.renderQueue.push({ y: sortY, element: pathGroup });
     };
 
-    // Library District (Secondary Landmark Ring: 1000 - 1400px, pushed to 1180 to clear tower shadow)
-    logicAnchors.libraryDistrict = findSafePlacement(1180, 1400, -Math.PI/8, 250);
-    obstacles.push({ x: logicAnchors.libraryDistrict.x, y: logicAnchors.libraryDistrict.y, radius: 250 });
-    
-    // Temple District (Secondary Landmark Ring: 1100 - 1500px, pushed to 1180 to clear tower shadow)
-    logicAnchors.templeDistrict = findSafePlacement(1180, 1500, -7*Math.PI/8, 200);
-    obstacles.push({ x: logicAnchors.templeDistrict.x, y: logicAnchors.templeDistrict.y, radius: 200 });
-    
-    // Dorm District A (Support Building Ring: 1000 - 1500px, pushed to 1150 to clear tower shadow)
-    logicAnchors.dormDistrictA = findSafePlacement(1150, 1500, -Math.PI/16, 150);
-    obstacles.push({ x: logicAnchors.dormDistrictA.x, y: logicAnchors.dormDistrictA.y, radius: 150 });
-    
-    // Dorm District B (Support Building Ring: 1000 - 1500px, pushed to 1150 to clear tower shadow)
-    logicAnchors.dormDistrictB = findSafePlacement(1150, 1500, -15*Math.PI/16, 150);
-    obstacles.push({ x: logicAnchors.dormDistrictB.x, y: logicAnchors.dormDistrictB.y, radius: 150 });
+    const drawPlatform = (cx, cy, rw, rh, type="secondary") => {
+        const platGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        const topColor = type === "main" ? "#ffffff" : "#f8f9fa";
+        const leftColor = type === "main" ? "#b2ebf2" : "#ced4da";
+        const rightColor = type === "main" ? "#80deea" : "#adb5bd";
+        const accentColor = "#00e5ff"; 
+
+        const shadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+        shadow.setAttribute("cx", cx); shadow.setAttribute("cy", cy + rh - 10);
+        shadow.setAttribute("rx", rw * 1.05); shadow.setAttribute("ry", rh * 1.05);
+        shadow.setAttribute("fill", "rgba(0,0,0,0.20)");
+        shadow.setAttribute("filter", "blur(15px)");
+        platGroup.appendChild(shadow);
+
+        const thick = type === "main" ? 120 : (type === "library" ? 80 : 40);
+
+        platGroup.appendChild(this.createPoly(`${cx},${cy + rh} ${cx - rw},${cy} ${cx - rw},${cy + thick} ${cx},${cy + rh + thick}`, leftColor));
+        platGroup.appendChild(this.createPoly(`${cx},${cy + rh} ${cx + rw},${cy} ${cx + rw},${cy + thick} ${cx},${cy + rh + thick}`, rightColor));
+        platGroup.appendChild(this.createPoly(`${cx},${cy - rh} ${cx + rw},${cy} ${cx},${cy + rh} ${cx - rw},${cy}`, topColor));
+        
+        if (type === "main" || type === "library") {
+            const gridLines = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            let d = "";
+            for(let i=1; i<4; i++) {
+                let p = i / 4;
+                d += `M ${cx - rw + rw*p},${cy - rh*p} L ${cx + rw*p},${cy + rh - rh*p} `;
+                d += `M ${cx - rw*p},${cy + rh - rh*p} L ${cx + rw - rw*p},${cy - rh*p} `;
+            }
+            gridLines.setAttribute("d", d);
+            gridLines.setAttribute("stroke", "rgba(0, 229, 255, 0.25)");
+            gridLines.setAttribute("stroke-width", "4");
+            platGroup.appendChild(gridLines);
+        }
+
+        const trim = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+        trim.setAttribute("points", `${cx},${cy - rh} ${cx + rw},${cy} ${cx},${cy + rh} ${cx - rw},${cy}`);
+        trim.setAttribute("fill", "none");
+        trim.setAttribute("stroke", accentColor);
+        trim.setAttribute("stroke-width", type === "main" ? "12" : "8");
+        platGroup.appendChild(trim);
+
+        this.renderQueue.push({ y: cy - 10, element: platGroup });
+    };
+
+    drawWalkway(logicAnchors.academy, logicAnchors.libraryDistrict, 180);
+    drawWalkway(logicAnchors.academy, logicAnchors.templeDistrict, 140);
+    drawWalkway(logicAnchors.academy, logicAnchors.dormDistrictA, 100);
+    drawWalkway(logicAnchors.academy, logicAnchors.dormDistrictB, 100);
+
+    drawPlatform(logicAnchors.academy.x + 300, logicAnchors.academy.y - 200, 700, 350, "main");
+    drawPlatform(logicAnchors.academy.x - 400, logicAnchors.academy.y + 200, 800, 400, "main");
+    drawPlatform(logicAnchors.academy.x, logicAnchors.academy.y, 1000, 500, "main");
+
+    drawPlatform(logicAnchors.libraryDistrict.x, logicAnchors.libraryDistrict.y, 500, 250, "library");
+    drawPlatform(logicAnchors.templeDistrict.x, logicAnchors.templeDistrict.y, 400, 200, "secondary");
+    drawPlatform(logicAnchors.dormDistrictA.x, logicAnchors.dormDistrictA.y, 300, 150, "secondary");
+    drawPlatform(logicAnchors.dormDistrictB.x, logicAnchors.dormDistrictB.y, 300, 150, "secondary");
 
     // 5. Final Draw Calls (Strictly from District Anchors)
     this.drawAcademyLibrary(logicAnchors.libraryDistrict.x, logicAnchors.libraryDistrict.y, 16.0);
