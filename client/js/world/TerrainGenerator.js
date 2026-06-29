@@ -791,41 +791,95 @@ class TerrainGenerator {
     // 6. Secondary Buildings (Distinct stylized types)
     // Note: Main Academy is NOT drawn here; LandmarkManager draws it at (rootX, rootY)!
     
-    // ACADEMY EXCLUSION ZONE: Ensure no component overlaps the central Academy
-    const exclusionRadius = 450;
-    const enforceExclusion = (x, y) => {
-        const dx = x - plazaX;
-        const dy = y - plazaY;
-        const dist = Math.sqrt(dx*dx + dy*dy);
-        if (dist < exclusionRadius && dist > 0) {
-            const pushFactor = exclusionRadius / dist;
-            return { x: plazaX + dx * pushFactor, y: plazaY + dy * pushFactor };
-        }
-        return { x, y };
+    // 4. District Anchors Initialization
+    const logicAnchors = {
+        academy: { x: plazaX, y: plazaY },
+        libraryDistrict: null,
+        templeDistrict: null,
+        dormDistrictA: null,
+        dormDistrictB: null
     };
-    
-    // Library (North-East wing, visually promoted and separated by ~1188px)
-    const libPos = enforceExclusion(plazaX + 1100, plazaY - 450);
-    this.drawAcademyLibrary(libPos.x, libPos.y, 16.0);
-    
-    // Temple (North-West gap between Academy towers and Canopy 1, ~1130px separation radius)
-    const tempPos = enforceExclusion(plazaX - 800, plazaY - 800);
-    this.drawAcademyTemple(tempPos.x, tempPos.y, 14.0);
-    
-    // Dormitories (East gap & West gap, precisely clear of all landmarks and canopies)
-    const dorm1Pos = enforceExclusion(plazaX + 950, plazaY - 300);
-    this.drawAcademyDorm(dorm1Pos.x, dorm1Pos.y, 12.0);
-    const dorm2Pos = enforceExclusion(plazaX - 1050, plazaY - 150);
-    this.drawAcademyDorm(dorm2Pos.x, dorm2Pos.y, 12.0);
 
-    // 7. Ground Details and Edge Trees
-    for (let i = 0; i < 20; i++) {
-        const tx = plazaX - 800 + window.rng.next() * 1600;
-        const ty = plazaY - 300 + window.rng.next() * 600;
+    // LOGIC DOMINION SPATIAL PLACEMENT CONTRACT
+    // -----------------------------------------
+    const dist = (p1, p2) => Math.sqrt((p1.x - p2.x)**2 + (p1.y - p2.y)**2);
+    const obstacles = [];
+
+    // 1. Academy Protected Core (Radius 0-800px)
+    obstacles.push({ x: logicAnchors.academy.x, y: logicAnchors.academy.y, radius: 800 });
+    
+    // 2. Canopies
+    obstacles.push({ x: forest1X, y: forest1Y, radius: 450 });
+    obstacles.push({ x: forest2X, y: forest2Y, radius: 450 });
+    obstacles.push({ x: forest3X, y: forest3Y, radius: 400 });
+
+    // 3. Roads and Rivers
+    obstacles.push({ isLine: true, yLine: logicAnchors.academy.y + 500, thickness: 250 });
+    obstacles.push({ isLine: true, xLine: logicAnchors.academy.x, thickness: 150 });
+    obstacles.push({ isLine: true, yLine: logicAnchors.academy.y, thickness: 100 });
+
+    const findSafePlacement = (minDist, maxDist, prefAngle, rad) => {
+        for (let d = minDist; d <= maxDist; d += 50) {
+            for (let angleOff = 0; angleOff <= Math.PI; angleOff += Math.PI/12) {
+                for (let sign of [1, -1]) {
+                    const angle = prefAngle + (angleOff * sign);
+                    const cand = { 
+                        x: logicAnchors.academy.x + Math.cos(angle) * d, 
+                        y: logicAnchors.academy.y + Math.sin(angle) * d 
+                    };
+                    
+                    let collision = false;
+                    for (let obs of obstacles) {
+                        if (obs.isLine) {
+                            if (obs.yLine !== undefined && Math.abs(cand.y - obs.yLine) < (obs.thickness + rad)) collision = true;
+                            if (obs.xLine !== undefined && Math.abs(cand.x - obs.xLine) < (obs.thickness + rad)) collision = true;
+                        } else {
+                            if (dist(cand, obs) < (obs.radius + rad)) collision = true;
+                        }
+                        if (collision) break;
+                    }
+                    if (!collision) return cand;
+                }
+            }
+        }
+        return { 
+            x: logicAnchors.academy.x + Math.cos(prefAngle)*minDist, 
+            y: logicAnchors.academy.y + Math.sin(prefAngle)*minDist 
+        };
+    };
+
+    // Library District (Secondary Landmark Ring: 1000 - 1400px, pushed to 1180 to clear tower shadow)
+    logicAnchors.libraryDistrict = findSafePlacement(1180, 1400, -Math.PI/8, 250);
+    obstacles.push({ x: logicAnchors.libraryDistrict.x, y: logicAnchors.libraryDistrict.y, radius: 250 });
+    
+    // Temple District (Secondary Landmark Ring: 1100 - 1500px, pushed to 1180 to clear tower shadow)
+    logicAnchors.templeDistrict = findSafePlacement(1180, 1500, -7*Math.PI/8, 200);
+    obstacles.push({ x: logicAnchors.templeDistrict.x, y: logicAnchors.templeDistrict.y, radius: 200 });
+    
+    // Dorm District A (Support Building Ring: 1000 - 1500px, pushed to 1150 to clear tower shadow)
+    logicAnchors.dormDistrictA = findSafePlacement(1150, 1500, -Math.PI/16, 150);
+    obstacles.push({ x: logicAnchors.dormDistrictA.x, y: logicAnchors.dormDistrictA.y, radius: 150 });
+    
+    // Dorm District B (Support Building Ring: 1000 - 1500px, pushed to 1150 to clear tower shadow)
+    logicAnchors.dormDistrictB = findSafePlacement(1150, 1500, -15*Math.PI/16, 150);
+    obstacles.push({ x: logicAnchors.dormDistrictB.x, y: logicAnchors.dormDistrictB.y, radius: 150 });
+
+    // 5. Final Draw Calls (Strictly from District Anchors)
+    this.drawAcademyLibrary(logicAnchors.libraryDistrict.x, logicAnchors.libraryDistrict.y, 16.0);
+    this.drawAcademyTemple(logicAnchors.templeDistrict.x, logicAnchors.templeDistrict.y, 14.0);
+    this.drawAcademyDorm(logicAnchors.dormDistrictA.x, logicAnchors.dormDistrictA.y, 12.0);
+    this.drawAcademyDorm(logicAnchors.dormDistrictB.x, logicAnchors.dormDistrictB.y, 12.0);
+
+
+
+    // 7. Ground Details and Edge Trees (Decoration Ring: 1300px+)
+    for (let i = 0; i < 40; i++) {
+        const tx = plazaX - 1200 + window.rng.next() * 2400;
+        const ty = plazaY - 800 + window.rng.next() * 1600;
         
-        // Use the same exclusion zone for random ground props
+        // Strict 900px exclusion for minor random props to keep the core entirely clean
         const distToCenter = Math.sqrt((tx - plazaX)**2 + (ty - plazaY)**2);
-        if (distToCenter < exclusionRadius) continue; 
+        if (distToCenter < 900) continue; 
         
         const tempG = document.createElementNS("http://www.w3.org/2000/svg", "g");
         const ogLayer = this.renderer.getLayer.bind(this.renderer);
@@ -2987,106 +3041,98 @@ class TerrainGenerator {
 
   drawAcademyTemple(x, y, scale = 1.0) {
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    // Scale down moderately (e.g. 14 * 0.5 = 7.0) to maintain hierarchy (Academy > Library > Temple)
-    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale * 0.5})`); 
+    
+    // Scale up slightly for map zoom visibility (14 * 0.7 = 9.8), distinct from Library
+    const baseScale = scale * 0.7; 
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(${baseScale})`); 
     g.style.pointerEvents = "none";
     
-    // 1. Base Clearance Pad (Replaces dark shadow, prevents blending with grass)
-    g.appendChild(this.createPoly("-50,17.5 0,-7.5 50,17.5 0,42.5", "#f5f5f5")); // Pale stone pad
-    g.appendChild(this.createPoly("-50,17.5 0,42.5 0,44.5 -50,19.5", "#00bcd4")); // Cyan edge accent left
-    g.appendChild(this.createPoly("50,17.5 0,42.5 0,44.5 50,19.5", "#0097a7")); // Cyan edge accent right
+    // 1. Light marble clearance pad
+    g.appendChild(this.createPoly("-55,17.5 0,-10 55,17.5 0,45", "#f5f5f5")); 
+    g.appendChild(this.createPoly("-55,17.5 0,45 0,48 -55,20.5", "#00bcd4")); 
+    g.appendChild(this.createPoly("55,17.5 0,45 0,48 55,20.5", "#0097a7")); 
 
-    // 2. Square Base Steps (White Marble)
-    g.appendChild(this.createPoly("-35,17.5 0,0 35,17.5 0,35", "#ffffff")); 
-    g.appendChild(this.createPoly("-35,17.5 0,35 0,40 -35,22.5", "#cfd8dc")); 
-    g.appendChild(this.createPoly("35,17.5 0,35 0,40 35,22.5", "#b0bec5")); 
+    // 2. Hexagonal Base
+    g.appendChild(this.createPoly("-30,10 0,-5 30,10 30,25 0,40 -30,25", "#ffffff")); 
+    g.appendChild(this.createPoly("-30,25 0,40 0,44 -30,29", "#cfd8dc"));
+    g.appendChild(this.createPoly("30,25 0,40 0,44 30,29", "#b0bec5"));
 
-    g.appendChild(this.createPoly("-28,14 0,0 28,14 0,28", "#f5f5f5")); 
-    g.appendChild(this.createPoly("-28,14 0,28 0,32 -28,18", "#cfd8dc")); 
-    g.appendChild(this.createPoly("28,14 0,28 0,32 28,18", "#b0bec5")); 
+    // 3. Rotunda Curved Walls (Pale cyan to distinguish from Academy's white)
+    g.appendChild(this.createPoly("-25,12 0,-0.5 25,12 25,17 0,29.5 -25,17", "#e0f7fa")); // Inner floor
+    
+    // Left Arc Wall
+    g.appendChild(this.createPoly("-25,17 0,29.5 0,-10 -25,-22.5", "#80deea")); // Left Wall 
+    g.appendChild(this.createPoly("0,29.5 25,17 25,-22.5 0,-10", "#b2ebf2")); // Right Wall
 
-    // 3. Inner Temple Walls (Stronger Shading)
-    g.appendChild(this.createPoly("-18,9 0,0 18,9 0,18", "#fafafa")); 
-    g.appendChild(this.createPoly("-18,9 0,18 0,-17 -18,-26", "#b0bec5")); // Stronger grey-blue left
-    g.appendChild(this.createPoly("0,18 18,9 18,-26 0,-17", "#eceff1")); // Light grey right
-
-    // 4. Columns around the perimeter (perfectly reaching the architrave)
-    const cols = [
-        {x: -25, y: 12.5}, {x: -12.5, y: 18.75}, {x: 0, y: 25}, 
-        {x: 12.5, y: 18.75}, {x: 25, y: 12.5}
+    // 4. Perimeter Columns
+    const rotCols = [
+        {x: -25, y: 17}, {x: -12.5, y: 23.25}, {x: 0, y: 29.5},
+        {x: 12.5, y: 23.25}, {x: 25, y: 17}
     ];
-    cols.forEach(c => {
-        const topY = c.x <= 0 ? 5 + c.x * 0.5 : 5 - c.x * 0.5;
-        g.appendChild(this.createPoly(`${c.x-2},${c.y-1} ${c.x},${c.y} ${c.x},${topY} ${c.x-2},${topY-1}`, "#ffffff"));
-        g.appendChild(this.createPoly(`${c.x},${c.y} ${c.x+2},${c.y-1} ${c.x+2},${topY-1} ${c.x},${topY}`, "#90a4ae")); // Stronger column shade
-        g.appendChild(this.createPoly(`${c.x-2},${topY-1} ${c.x},${topY} ${c.x+2},${topY-1} ${c.x},${topY-2}`, "#00bcd4"));
+    rotCols.forEach(c => {
+        g.appendChild(this.createPoly(`${c.x-2},${c.y} ${c.x+2},${c.y-2} ${c.x+2},${c.y-29} ${c.x-2},${c.y-27}`, "#ffffff"));
+        g.appendChild(this.createPoly(`${c.x+2},${c.y-2} ${c.x+4},${c.y} ${c.x+4},${c.y-27} ${c.x+2},${c.y-29}`, "#cfd8dc"));
     });
 
-    // 4. Roof Architrave (Cyan Base)
-    g.appendChild(this.createPoly("-30,-15 0,-30 30,-15 0,0", "#00bcd4")); 
-    g.appendChild(this.createPoly("-30,-15 0,0 0,5 -30,-10", "#00838f")); 
-    g.appendChild(this.createPoly("30,-15 0,0 0,5 30,-10", "#0097a7")); 
+    // 5. Distinct Cyan Dome (Rounder, smaller than Academy)
+    g.appendChild(this.createPoly("-28,-21 0,-35 28,-21 0,-7", "#00bcd4")); // Dome architrave
+    g.appendChild(this.createPoly("-28,-21 0,-7 0,0 -28,-14", "#00838f"));
+    g.appendChild(this.createPoly("28,-21 0,-7 0,0 28,-14", "#0097a7"));
 
-    // 5. Cyan Dome
     const dome = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    dome.setAttribute("d", "M -26,-13 C -26,-40 26,-40 26,-13 Z");
+    dome.setAttribute("d", "M -25,-19 C -25,-48 25,-48 25,-19 C 15,-5 -15,-5 -25,-19 Z");
     dome.setAttribute("fill", "#00acc1");
     g.appendChild(dome);
 
-    // 6. Gold Spire
-    g.appendChild(this.createPoly("-2.5,-35 0,-50 2.5,-35", "#ffc107"));
-    g.appendChild(this.createPoly("-2.5,-35 2.5,-35 0,-30", "#ff8f00"));
+    // 6. Spire
+    g.appendChild(this.createPoly("-2,-42 0,-57 2,-42", "#ffc107"));
+    g.appendChild(this.createPoly("-2,-42 2,-42 0,-37", "#ff8f00"));
 
     this.renderQueue.push({ y: y, element: g });
   }
 
   drawAcademyDorm(x, y, scale = 1.0) {
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    // Scale down strongly (e.g. 12 * 0.6 = 7.2) for compact tertiary residential blocks
-    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale * 0.6})`); 
+    
+    // Scale up for visibility (12 * 0.75 = 9.0)
+    const baseScale = scale * 0.75; 
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(${baseScale})`); 
     g.style.pointerEvents = "none";
 
     // 1. Base Clearance Pad (No dark shadow)
-    g.appendChild(this.createPoly("-55,17.5 -10,-5 40,20 -5,42.5", "#f5f5f5")); 
-    g.appendChild(this.createPoly("-55,17.5 -5,42.5 -5,44.5 -55,19.5", "#00bcd4")); 
-    g.appendChild(this.createPoly("40,20 -5,42.5 -5,44.5 40,22.5", "#0097a7")); 
+    g.appendChild(this.createPoly("-45,17.5 0,-5 45,17.5 0,40", "#f5f5f5")); 
+    g.appendChild(this.createPoly("-45,17.5 0,40 0,43 -45,20.5", "#00bcd4")); 
+    g.appendChild(this.createPoly("45,17.5 0,40 0,43 45,20.5", "#0097a7")); 
 
-    // --- BLOCK 2 (Rear Left Wing, drawn first for Z-sorting) ---
-    g.appendChild(this.createPoly("-45,-2.5 -25,7.5 -5,-2.5 -25,-12.5", "#f5f5f5"));
-    g.appendChild(this.createPoly("-45,-2.5 -25,7.5 -25,11.5 -45,1.5", "#cfd8dc"));
-    g.appendChild(this.createPoly("-25,7.5 -5,-2.5 -5,1.5 -25,11.5", "#b0bec5"));
-    
-    g.appendChild(this.createPoly("-42,-4 -25,4.5 -25,-20.5 -42,-29", "#90a4ae")); // Stronger Left Wall
-    g.appendChild(this.createPoly("-25,4.5 -8,-4 -8,-29 -25,-20.5", "#cfd8dc")); // Stronger Right Wall
+    // --- BLOCK 2 (Rear Long Block, drawn first for Z-sorting) ---
+    g.appendChild(this.createPoly("-10,5 30,-15 40,-10 0,10", "#eceff1")); // Floor
+    g.appendChild(this.createPoly("-10,5 0,10 0,-20 -10,-25", "#b0bec5")); // Left Wall
+    g.appendChild(this.createPoly("0,10 40,-10 40,-35 0,-15", "#cfd8dc")); // Right Wall
     
     // Windows Block 2
-    g.appendChild(this.createPoly("-36,-10 -32,-8 -32,-14 -36,-16", "#00bcd4"));
-    g.appendChild(this.createPoly("-20,-2 -16,-4 -16,-10 -20,-8", "#00bcd4"));
+    g.appendChild(this.createPoly("10,-5 15,-7.5 15,-15 10,-12.5", "#00bcd4"));
+    g.appendChild(this.createPoly("25,-12.5 30,-15 30,-22.5 25,-20", "#00bcd4"));
     
-    // Pyramid Roof Block 2
-    g.appendChild(this.createPoly("-45,-29 -25,-19 -25,-45", "#00838f")); 
-    g.appendChild(this.createPoly("-25,-19 -5,-29 -25,-45", "#0097a7")); 
-    
-    // --- BLOCK 1 (Main Front Building) ---
-    g.appendChild(this.createPoly("-25,12.5 0,25 25,12.5 0,0", "#ffffff"));
-    g.appendChild(this.createPoly("-25,12.5 0,25 0,30 -25,17.5", "#cfd8dc"));
-    g.appendChild(this.createPoly("25,12.5 0,25 0,30 25,17.5", "#b0bec5"));
-    
-    g.appendChild(this.createPoly("-22,11 0,22 0,-8 -22,-19", "#90a4ae")); // Stronger Left Wall
-    g.appendChild(this.createPoly("0,22 22,11 22,-19 0,-8", "#cfd8dc")); // Stronger Right Wall
+    // Cyan Roof Block 2
+    g.appendChild(this.createPoly("-12,-26 28,-46 42,-39 -2,-19", "#00acc1")); // Roof Top
+    g.appendChild(this.createPoly("-12,-26 -2,-19 -2,-15 -12,-22", "#00838f")); // Edge L
+    g.appendChild(this.createPoly("42,-39 -2,-19 -2,-15 42,-35", "#0097a7")); // Edge R
+
+    // --- BLOCK 1 (Forward Block, creates L-shape) ---
+    g.appendChild(this.createPoly("-30,15 0,0 10,5 -20,20", "#ffffff")); // Floor
+    g.appendChild(this.createPoly("-30,15 -20,20 -20,-10 -30,-15", "#90a4ae")); // Left Wall
+    g.appendChild(this.createPoly("-20,20 10,5 10,-20 -20,-5", "#eceff1")); // Right Wall
     
     // Windows Block 1
-    g.appendChild(this.createPoly("-16,8 -10,11 -10,3 -16,0", "#00acc1"));
-    g.appendChild(this.createPoly("10,11 16,8 16,0 10,3", "#00acc1"));
-    
-    // Entry door and path
-    g.appendChild(this.createPoly("2,21 8,18 8,10 2,13", "#37474f"));
-    g.appendChild(this.createPoly("2,21 8,18 18,23 12,26", "#e0e0e0"));
-    
-    // Pyramid Roof Block 1
-    g.appendChild(this.createPoly("-25,-19 0,-6.5 0,-40", "#00bcd4")); 
-    g.appendChild(this.createPoly("0,-6.5 25,-19 0,-40", "#4dd0e1")); 
-    
+    g.appendChild(this.createPoly("-26,5 -22,7 -22,-3 -26,-5", "#00acc1"));
+    g.appendChild(this.createPoly("-14,11 -10,13 -10,3 -14,1", "#00acc1"));
+    g.appendChild(this.createPoly("-8,14 -4,16 -4,6 -8,4", "#00acc1"));
+
+    // Cyan Roof Block 1
+    g.appendChild(this.createPoly("-32,-16 -2,-31 12,-24 -18,-9", "#4dd0e1")); 
+    g.appendChild(this.createPoly("-32,-16 -18,-9 -18,-5 -32,-12", "#00838f")); 
+    g.appendChild(this.createPoly("12,-24 -18,-9 -18,-5 12,-20", "#0097a7")); 
+
     this.renderQueue.push({ y: y, element: g });
   }
 
