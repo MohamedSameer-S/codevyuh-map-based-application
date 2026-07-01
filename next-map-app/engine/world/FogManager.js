@@ -45,9 +45,12 @@ export default class FogManager {
         const scaleMultiplier = region.cloudScale || 1.0;
         const targetRadius = (Math.max(region.width, region.height) / 1.8) * scaleMultiplier;
         
+        const offX = region.cloudOffsetX || 0;
+        const offY = region.cloudOffsetY || 0;
+        
         const coreBlob = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
-        coreBlob.setAttribute("cx", region.x);
-        coreBlob.setAttribute("cy", region.y);
+        coreBlob.setAttribute("cx", region.x + offX);
+        coreBlob.setAttribute("cy", region.y + offY);
         coreBlob.setAttribute("rx", targetRadius * 0.9);
         coreBlob.setAttribute("ry", targetRadius * 0.6);
         coreBlob.setAttribute("fill", "#ffffff");
@@ -61,8 +64,8 @@ export default class FogManager {
           const angle = Math.random() * Math.PI * 2;
           const dist = (0.3 + Math.random() * 0.8) * targetRadius;
           
-          const cx = region.x + Math.cos(angle) * dist;
-          const cy = region.y + Math.sin(angle) * dist * 0.65; 
+          const cx = region.x + offX + Math.cos(angle) * dist;
+          const cy = region.y + offY + Math.sin(angle) * dist * 0.65; 
           
           const r = 100 + Math.random() * 150;
           
