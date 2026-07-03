@@ -1,4 +1,4 @@
-class SVGRenderer {
+export default class SVGRenderer {
   constructor(container, width, height) {
     this.container = container;
     this.width = width;
@@ -139,4 +139,3 @@ class SVGRenderer {
   }
 }
 
-window.SVGRenderer = SVGRenderer;

@@ -1,13 +1,15 @@
-window.prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+if (typeof window !== 'undefined') {
+  window.prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-window.CAMERA_ANIMATION = {
-  introDuration: window.prefersReducedMotion ? 0 : 800,
-  zoomDuration: window.prefersReducedMotion ? 0 : 250,
-  panDamping: 0.35, 
-  clampDuration: window.prefersReducedMotion ? 0 : 220,
-  enableIntroAnimation: !window.prefersReducedMotion,
-  introDelay: window.prefersReducedMotion ? 0 : 150
-};
+  window.CAMERA_ANIMATION = {
+    introDuration: window.prefersReducedMotion ? 0 : 800,
+    zoomDuration: window.prefersReducedMotion ? 0 : 250,
+    panDamping: 0.35, 
+    clampDuration: window.prefersReducedMotion ? 0 : 220,
+    enableIntroAnimation: !window.prefersReducedMotion,
+    introDelay: window.prefersReducedMotion ? 0 : 150
+  };
+}
 
 function lerp(start, end, amount) {
   return start + (end - start) * amount;
@@ -17,7 +19,7 @@ function easeOutExpo(t) {
   return t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
 }
 
-class CameraController {
+export default class CameraController {
   constructor(svg, worldGroup, container) {
     this.svg = svg;
     this.worldGroup = worldGroup;
@@ -576,4 +578,3 @@ class CameraController {
   }
 }
 
-window.CameraController = CameraController;
