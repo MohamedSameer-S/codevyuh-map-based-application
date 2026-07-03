@@ -849,7 +849,7 @@ class TerrainGenerator {
     };
 
     // Library District (Secondary Landmark Ring: 1000 - 1400px, pushed to 1180 to clear tower shadow)
-    logicAnchors.libraryDistrict = findSafePlacement(1180, 1400, -Math.PI/8, 250);
+    logicAnchors.libraryDistrict = findSafePlacement(1180, 1400, -3*Math.PI/4, 250);
     obstacles.push({ x: logicAnchors.libraryDistrict.x, y: logicAnchors.libraryDistrict.y, radius: 250 });
     
     // Temple District (Secondary Landmark Ring: 1100 - 1500px, pushed to 1180 to clear tower shadow)

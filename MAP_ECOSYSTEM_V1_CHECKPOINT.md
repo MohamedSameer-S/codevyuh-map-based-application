@@ -3,7 +3,55 @@
 This document serves as the official V1 checkpoint for the CodeVyuh Map Visual project following the successful implementation of the four core ecosystems, and outlines the safety protocols developed after the Phase 4K rollback.
 
 ## 1. Current Approved Map State
-The map is currently in a stable **Ecosystem V1 State**. The default full-map viewport is fully functional, camera behaviors are normal, labels are clearly visible, and the locking cloud system functions as expected. 
+The map is currently in a stable **Ecosystem V1 State**. The default full-map viewport is fully functional, camera behaviors are normal, labels are clearly visible, and the locking cloud system functions as expected. Checkpoint 1B Library Existence Verification
+
+Do NOT modify code.
+
+Do NOT implement new features.
+
+Do NOT redesign anything.
+
+Only verify whether the Library is actually present in the current map.
+
+Check and report:
+
+1. Is drawAcademyLibrary() being called?
+2. How many Library instances are rendered?
+3. What are the Library coordinates?
+4. What is the Academy coordinate?
+5. What is the distance between Academy and Library?
+6. Is the Library outside the Academy Exclusion Zone?
+7. Is the Library inserted into the renderQueue?
+8. Is the Library inserted into the final SVG DOM?
+9. Why is the Library not visually recognizable from the current full-map view?
+
+Do not change the map.
+
+Only provide verification.Checkpoint 1B Library Existence Verification
+
+Do NOT modify code.
+
+Do NOT implement new features.
+
+Do NOT redesign anything.
+
+Only verify whether the Library is actually present in the current map.
+
+Check and report:
+
+1. Is drawAcademyLibrary() being called?
+2. How many Library instances are rendered?
+3. What are the Library coordinates?
+4. What is the Academy coordinate?
+5. What is the distance between Academy and Library?
+6. Is the Library outside the Academy Exclusion Zone?
+7. Is the Library inserted into the renderQueue?
+8. Is the Library inserted into the final SVG DOM?
+9. Why is the Library not visually recognizable from the current full-map view?
+
+Do not change the map.
+
+Only provide verification.
 
 All four core ecosystems have been successfully transformed from scattered procedural icons into fully authored, massive vertical slices:
 *   **Logic Dominion V1** (Soft grassy plains, structured tech campus)
