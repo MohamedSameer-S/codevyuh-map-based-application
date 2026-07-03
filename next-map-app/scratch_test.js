@@ -58,4 +58,4 @@ if(dormB) obstacles.push({name: 'DormB', x: dormB.x, y: dormB.y, radius: 150});
 console.log('Library: ', lib, ' Dist: ', lib ? Math.round(dist(lib, logicAnchors.academy)) : 'null');
 console.log('Temple: ', temple, ' Dist: ', temple ? Math.round(dist(temple, logicAnchors.academy)) : 'null');
 console.log('DormA: ', dormA, ' Dist: ', dormA ? Math.round(dist(dormA, logicAnchors.academy)) : 'null');
-console.log('DormB: ', dormB, ' Dist: ', dormB ? Math.round(dist(dormB, logicAnchors.academy)) : 'null');
+console.log('DormB: ', dormB, ' DOnepist: ', dormB ? Math.round(dist(dormB, logicAnchors.academy)) : 'null');
