@@ -1,5 +1,18 @@
-import CodeVyuhRegions from '../config/regions.config';
-export default class TerrainGenerator {
+
+  const document = { 
+    createElementNS: (ns, t) => {
+      return { 
+        setAttribute: () => {}, 
+        appendChild: () => {}, 
+        style: {} 
+      };
+    } 
+  };
+  const window = { rng: { next: () => 0.5 } };
+  const CodeVyuhRegions = [];
+  
+  
+class TerrainGenerator {
   constructor(renderer, bounds, centerX, centerY) {
     this.renderer = renderer;
     this.width = renderer.width;
@@ -116,11 +129,11 @@ export default class TerrainGenerator {
 
     // 7. Water Network & Regional Separation
     this.generateWaterNetwork();
-
+    
     // 8. Roads
     this.generateAuthoredRoads(); // Phase 4M-D: Authored Road Network
     this.generateAuthoredBridges(); // Phase 6A: Bridge Generation
-
+    
     // 9. Ecology (Unified generation with Z-Sorting)
     this.renderQueue = renderQueue || [];
     console.log("Generating ecology overlay...");
@@ -131,7 +144,7 @@ export default class TerrainGenerator {
     this.generateEnvironmentDetails(rx * 1.8, ry * 1.8);
 
     console.log("Map generation complete.");
-
+    
     // If we own the queue, render it immediately. Otherwise defer to WorldEngine.
     if (!renderQueue) {
       this.renderQueue.sort((a, b) => a.y - b.y);
@@ -144,15 +157,6 @@ export default class TerrainGenerator {
   isValidEnvironmentPoint(x, y, radius) {
     // Check civilization landmarks
     if (this.isCollision(x, y, radius)) return false;
-
-    // Check logic secondary buildings (Temple, Library, Dorm)
-    if (this.logicCampusAnchors) {
-      const lca = this.logicCampusAnchors;
-      const checkDist = (pt, r) => pt && Math.sqrt((pt.x - x) ** 2 + (pt.y - y) ** 2) < r + radius;
-      if (checkDist(lca.library, 400)) return false;
-      if (checkDist(lca.temple, 350)) return false;
-      if (checkDist(lca.dormA, 250)) return false;
-    }
 
     // Check roads and rivers (infrastructure)
     if (this.infrastructurePoints) {
@@ -180,13 +184,13 @@ export default class TerrainGenerator {
     const step = 200;
     for (let x = this.playableBounds.minX; x < this.playableBounds.maxX; x += step) {
       for (let y = this.playableBounds.minY; y < this.playableBounds.maxY; y += step) {
-
+        
         const jitterX = x + (window.rng.next() * 150 - 75);
         const jitterY = y + (window.rng.next() * 150 - 75);
 
         const dx = jitterX - this.centerX;
         const dy = jitterY - this.centerY;
-        const normalizedDist = (dx * dx) / (islandRx * islandRx) + (dy * dy) / (islandRy * islandRy);
+        const normalizedDist = (dx*dx)/(islandRx*islandRx) + (dy*dy)/(islandRy*islandRy);
         if (normalizedDist > 0.8) continue;
 
         if (!this.isValidEnvironmentPoint(jitterX, jitterY, 80)) continue;
@@ -200,36 +204,33 @@ export default class TerrainGenerator {
 
         const r = window.rng.next();
         if (biome === 'logic') {
-          if (r < 0.25) this.drawTreeGroup(jitterX, jitterY, 'logic');
-          else if (r < 0.45) this.drawAcademyTree(jitterX, jitterY, 4.0);
-          else if (r < 0.65) this.drawBush(jitterX, jitterY, 'logic');
-          else if (r < 0.8) this.drawFlowerPatch(jitterX, jitterY, 4.0);
-          else if (r < 0.9) this.drawStoneTile(jitterX, jitterY, 3.5);
-          else this.drawGrassPatch(jitterX, jitterY, 4.5);
+           if (r < 0.25) this.drawTreeGroup(jitterX, jitterY, 'logic');
+           else if (r < 0.45) this.drawAcademyTree(jitterX, jitterY, 4.0);
+           else if (r < 0.65) this.drawBush(jitterX, jitterY, 'logic');
+           else if (r < 0.8) this.drawFlowerPatch(jitterX, jitterY, 4.0);
+           else if (r < 0.9) this.drawStoneTile(jitterX, jitterY, 3.5);
+           else this.drawGrassPatch(jitterX, jitterY, 4.5);
         } else if (biome === 'debug') {
-          const dxD = jitterX - 6076;
-          const dyD = jitterY - (-742);
-          if (dxD * dxD + (dyD * 2) * (dyD * 2) < 1800 * 1800) continue;
-          if (r < 0.25) this.drawDeadTree(jitterX, jitterY, 5.0);
-          else if (r < 0.5) this.drawCorruptCrystal(jitterX, jitterY, 4.0);
-          else if (r < 0.7) this.drawGroundCrack(jitterX, jitterY, 4.5);
-          else if (r < 0.85) this.drawBurnedRock(jitterX, jitterY, 4.0);
-          else this.drawDeadTree(jitterX, jitterY, 3.5);
+           if (r < 0.25) this.drawDeadTree(jitterX, jitterY, 5.0);
+           else if (r < 0.5) this.drawCorruptCrystal(jitterX, jitterY, 4.0);
+           else if (r < 0.7) this.drawGroundCrack(jitterX, jitterY, 4.5);
+           else if (r < 0.85) this.drawBurnedRock(jitterX, jitterY, 4.0);
+           else this.drawDeadTree(jitterX, jitterY, 3.5);
         } else if (biome === 'systems') {
-          if (r < 0.2) this.drawRockPile(jitterX, jitterY, 4.0);
-          else if (r < 0.4) this.drawScrapMetal(jitterX, jitterY, 4.5);
-          else if (r < 0.6) this.drawStorageCrate(jitterX, jitterY, 4.0);
-          else if (r < 0.8) this.drawSmallGear(jitterX, jitterY, 4.5);
-          else this.drawPipe(jitterX - 30, jitterY - 30, jitterX + 30, jitterY + 30);
+           if (r < 0.2) this.drawRockPile(jitterX, jitterY, 4.0);
+           else if (r < 0.4) this.drawScrapMetal(jitterX, jitterY, 4.5);
+           else if (r < 0.6) this.drawStorageCrate(jitterX, jitterY, 4.0);
+           else if (r < 0.8) this.drawSmallGear(jitterX, jitterY, 4.5);
+           else this.drawPipe(jitterX - 30, jitterY - 30, jitterX + 30, jitterY + 30);
         } else if (biome === 'python') {
-          if (r < 0.25) this.drawJungleBush(jitterX, jitterY, 5.5);
-          else if (r < 0.5) this.drawPalmTree(jitterX, jitterY);
-          else if (r < 0.7) this.drawVine(jitterX, jitterY, 4.5);
-          else if (r < 0.85) this.drawAncientRuin(jitterX, jitterY, 5.0);
-          else this.drawRockPile(jitterX, jitterY, 4.5);
+           if (r < 0.25) this.drawJungleBush(jitterX, jitterY, 5.5);
+           else if (r < 0.5) this.drawPalmTree(jitterX, jitterY);
+           else if (r < 0.7) this.drawVine(jitterX, jitterY, 4.5);
+           else if (r < 0.85) this.drawAncientRuin(jitterX, jitterY, 5.0);
+           else this.drawRockPile(jitterX, jitterY, 4.5);
         } else {
-          if (r < 0.6) this.drawTreeGroup(jitterX, jitterY, 'plains');
-          else this.drawGrassPatch(jitterX, jitterY, 4.0);
+           if (r < 0.6) this.drawTreeGroup(jitterX, jitterY, 'plains');
+           else this.drawGrassPatch(jitterX, jitterY, 4.0);
         }
       }
     }
@@ -247,19 +248,19 @@ export default class TerrainGenerator {
     const shelf = document.createElementNS("http://www.w3.org/2000/svg", "path");
     shelf.setAttribute("d", shelfPath);
     shelf.setAttribute("fill", "#235a7a");
-
+    
     const coastalPath = this.generateIslandPath(this.centerX, this.centerY, rx * 2.4, ry * 2.4, 0.35);
     const coastal = document.createElementNS("http://www.w3.org/2000/svg", "path");
     coastal.setAttribute("d", coastalPath);
     coastal.setAttribute("fill", "#2c7299");
-
+    
     this.renderer.getLayer('ocean').appendChild(shelf);
     this.renderer.getLayer('ocean').appendChild(coastal);
   }
 
   drawShoreline(baseLayerPath) {
     const layer = this.renderer.getLayer('landmass');
-
+    
     // 1. Coastline Depth/Shadow (Behind everything)
     const depthShadow = document.createElementNS("http://www.w3.org/2000/svg", "path");
     depthShadow.setAttribute("d", baseLayerPath);
@@ -297,7 +298,7 @@ export default class TerrainGenerator {
     const beach = document.createElementNS("http://www.w3.org/2000/svg", "path");
     beach.setAttribute("d", baseLayerPath);
     beach.setAttribute("fill", "#eecfa1"); // Sand
-    beach.setAttribute("stroke", "#4dd0e1");
+    beach.setAttribute("stroke", "#4dd0e1"); 
     beach.setAttribute("stroke-width", "24");
     beach.setAttribute("stroke-linejoin", "round");
     beach.setAttribute("stroke-linecap", "round");
@@ -345,13 +346,13 @@ export default class TerrainGenerator {
       const zoneRx = rx * 1.2;
       const zoneRy = ry * 1.2;
       const pathData = this.generateIslandPath(zone.cx, zone.cy, zoneRx, zoneRy, 0.45);
-
+      
       const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
       path.setAttribute("d", pathData);
       path.setAttribute("fill", zone.grad);
       // Using multiply blend mode enhances the organic integration with the base green
-      path.style.mixBlendMode = "multiply";
-
+      path.style.mixBlendMode = "multiply"; 
+      
       zoneGroup.appendChild(path);
     });
 
@@ -367,16 +368,16 @@ export default class TerrainGenerator {
       const dist = window.rng.next() * rx * 1.8;
       const cx = this.centerX + Math.cos(angle) * dist;
       const cy = this.centerY + Math.sin(angle) * dist * 0.8;
-
+      
       const prx = 150 + window.rng.next() * 350;
       const pry = 100 + window.rng.next() * 250;
-
+      
       const patchPath = this.generateIslandPath(cx, cy, prx, pry, 0.4);
       const patch = document.createElementNS("http://www.w3.org/2000/svg", "path");
       patch.setAttribute("d", patchPath);
       patch.setAttribute("fill", colors[Math.floor(window.rng.next() * colors.length)]);
       patch.setAttribute("opacity", "0.7");
-
+      
       this.renderer.getLayer('landmass').appendChild(patch);
     }
   }
@@ -385,8 +386,8 @@ export default class TerrainGenerator {
   drawBiomeHalos() {
     const haloGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
     haloGroup.setAttribute("id", "biome-halos");
-    haloGroup.style.mixBlendMode = "overlay";
-
+    haloGroup.style.mixBlendMode = "overlay"; 
+    
     this.regionsConfig.forEach(r => {
       const theme = r.theme || 'plains';
       const halo = document.createElementNS("http://www.w3.org/2000/svg", "circle");
@@ -408,13 +409,13 @@ export default class TerrainGenerator {
       let noise = Math.sin(angle * 5) * 0.3 + Math.cos(angle * 8) * 0.2 + Math.sin(angle * 13) * 0.1;
       // Random jitter
       noise += (window.rng.next() * 0.2 - 0.1);
-
+      
       const radX = rx * (1 + noise * roughness);
       const radY = ry * (1 + noise * roughness);
-
+      
       const px = cx + Math.cos(angle) * radX;
       const py = cy + Math.sin(angle) * radY;
-
+      
       if (i === 0) {
         path += `M ${px},${py} `;
       } else {
@@ -475,7 +476,7 @@ export default class TerrainGenerator {
       const v2 = document.createElementNS("http://www.w3.org/2000/svg", "path");
       v2.setAttribute("d", "M -50,15 Q 0,25 50,15");
       v2.setAttribute("stroke", "#33691e"); v2.setAttribute("stroke-width", "6"); v2.setAttribute("fill", "none");
-      for (let i = -40; i <= 40; i += 15) {
+      for(let i=-40; i<=40; i+=15) {
         const plank = document.createElementNS("http://www.w3.org/2000/svg", "line");
         plank.setAttribute("x1", i); plank.setAttribute("y1", "-12"); plank.setAttribute("x2", i); plank.setAttribute("y2", "12");
         plank.setAttribute("stroke", "#795548"); plank.setAttribute("stroke-width", "6");
@@ -483,7 +484,7 @@ export default class TerrainGenerator {
       }
       group.appendChild(v1); group.appendChild(v2);
     }
-
+    
     group.setAttribute("filter", "url(#drop-shadow)");
     this.renderer.getLayer('roads').appendChild(group);
   }
@@ -525,7 +526,7 @@ export default class TerrainGenerator {
       riverCore.setAttribute("fill", riverConfig.coreColor);
       riverCore.setAttribute("stroke", "none");
       riverCore.setAttribute("opacity", riverConfig.coreOpacity);
-
+      
       this.renderer.getLayer('rivers').appendChild(riverBase);
       this.renderer.getLayer('rivers').appendChild(riverCore);
     };
@@ -536,14 +537,14 @@ export default class TerrainGenerator {
       lakeSvg.setAttribute("d", lakePath);
       lakeSvg.setAttribute("fill", baseColor);
       lakeSvg.setAttribute("opacity", "0.75");
-
+      
       const corePath = this.generateIslandPath(cx, cy, rx * 0.6, ry * 0.6, 0.3);
       const coreSvg = document.createElementNS("http://www.w3.org/2000/svg", "path");
       coreSvg.setAttribute("d", corePath);
       coreSvg.setAttribute("fill", coreColor);
       coreSvg.setAttribute("opacity", "0.9");
       coreSvg.setAttribute("filter", "drop-shadow(inset 0px 5px 10px rgba(0,0,0,0.3))");
-
+      
       this.renderer.getLayer('rivers').appendChild(lakeSvg);
       this.renderer.getLayer('rivers').appendChild(coreSvg);
     };
@@ -633,7 +634,7 @@ export default class TerrainGenerator {
 
     const gridGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
     gridGroup.setAttribute("clip-path", "url(#landmass-clip)");
-
+    
     // Draw grid lines
     const step = 100;
     // Draw vertical lines spanning the bounds
@@ -668,7 +669,7 @@ export default class TerrainGenerator {
     // LOGIC DOMINION SPATIAL PLACEMENT CONTRACT
     // -----------------------------------------
     // Hero landmark positions must be computed from the Academy anchor using fixed relative offsets.
-
+    
     // Library: Behind and slightly to the right (Target: 450-600). Using 600.
     // dx = 346, dy = -490 => dist = 599.8
     const libraryX = academyX + 346;
@@ -713,20 +714,61 @@ export default class TerrainGenerator {
     const zRiver = rootY - 1400;
     const zRoads = rootY - 1300;
     const zPlaza = rootY - 100;
+    
+    // 1. Terrain Base Patch (Soft blur for better blending)
+    const patchLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    const patchShadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+    patchShadow.setAttribute("cx", rootX); patchShadow.setAttribute("cy", rootY + 200);
+    patchShadow.setAttribute("rx", 2400); patchShadow.setAttribute("ry", 1200);
+    patchShadow.setAttribute("fill", "#64ffda"); // Soft cyan-green
+    patchShadow.setAttribute("opacity", "0.15");
+    patchShadow.setAttribute("filter", "blur(50px)");
+    patchShadow.style.mixBlendMode = "multiply";
+    patchLayer.appendChild(patchShadow);
+    this.renderQueue.push({ y: zBasePatch, element: patchLayer });
 
-    // 1. Terrain Base Patch
-    // (Removed per user request)
+    // 2. Natural River Meander (Multi-segment Bezier)
+    const riverY = rootY + 600;
+    const startX = rootX - 2500;
+    const startY = riverY - 300;
+    const endX = rootX + 2500;
+    const endY = riverY + 100;
+    
+    const riverGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    
+    // Smooth snaking river curves using bezier paths
+    const makeRiverPath = (width) => `
+      M ${startX}, ${startY - width/2}
+      C ${rootX - 1000}, ${riverY - 800} ${rootX}, ${riverY + 600} ${rootX + 1500}, ${endY - width/4}
+      C ${endX}, ${endY - width/6} ${endX}, ${endY + width/6} ${rootX + 1500}, ${endY + width/4}
+      C ${rootX}, ${riverY + 1200} ${rootX - 1000}, ${riverY - 200} ${startX}, ${startY + width/2}
+      Z
+    `;
+    
+    const riverBanks = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    riverBanks.setAttribute("d", makeRiverPath(500));
+    riverBanks.setAttribute("fill", "#006064");
+    
+    const riverWater = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    riverWater.setAttribute("d", makeRiverPath(380));
+    riverWater.setAttribute("fill", "#00bcd4");
+    
+    const riverHigh = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    riverHigh.setAttribute("d", makeRiverPath(180));
+    riverHigh.setAttribute("fill", "#80deea");
 
+    riverGroup.appendChild(riverBanks);
+    riverGroup.appendChild(riverWater);
+    riverGroup.appendChild(riverHigh);
+    this.renderQueue.push({ y: zRiver, element: riverGroup });
 
-
-
-    // 3. Roads
+    // 3. Roads & Bridge
     const bridgeX = rootX - 800;
-    const bridgeY = rootY + 550; // Previously riverY - 50
+    const bridgeY = riverY - 50; 
+    
     const plazaX = rootX;
-    const plazaY = rootY;
-
-    /* Removed per user request:
+    const plazaY = rootY; 
+    
     const roadGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
     const dRoad = `
       M ${bridgeX - 1200}, ${bridgeY + 300}
@@ -750,500 +792,147 @@ export default class TerrainGenerator {
     roadGroup.appendChild(dirtRoad);
     roadGroup.appendChild(stoneRoad);
     this.renderQueue.push({ y: zRoads, element: roadGroup });
-    */
 
+    // The bridge object
+    const bridgeObj = this.createVerticalSliceBridge(bridgeX, bridgeY, -30);
+    bridgeObj.setAttribute("transform", `translate(${bridgeX}, ${bridgeY}) rotate(-30) scale(3.5)`);
+    this.renderQueue.push({ y: bridgeY, element: bridgeObj });
 
+    // 4. Organic Plaza (Intersecting Diamonds)
+    const plazaGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    
+    const drawDiamond = (cx, cy, rw, rh, thick) => {
+      plazaGroup.appendChild(this.createPoly(`${cx},${cy + rh} ${cx + rw},${cy} ${cx + rw},${cy + thick} ${cx},${cy + rh + thick}`, "#90a4ae"));
+      plazaGroup.appendChild(this.createPoly(`${cx},${cy + rh} ${cx - rw},${cy} ${cx - rw},${cy + thick} ${cx},${cy + rh + thick}`, "#b0bec5"));
+      plazaGroup.appendChild(this.createPoly(`${cx},${cy - rh} ${cx + rw},${cy} ${cx},${cy + rh} ${cx - rw},${cy}`, "#eceff1"));
+    };
 
-    // 4. Old Organic Plaza removed for Checkpoint 3A Campus Integration
+    // Shadow for entire plaza group
+    const plazaShadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+    plazaShadow.setAttribute("cx", plazaX); plazaShadow.setAttribute("cy", plazaY + 150);
+    plazaShadow.setAttribute("rx", 1400); plazaShadow.setAttribute("ry", 700);
+    plazaShadow.setAttribute("fill", "rgba(0,0,0,0.3)");
+    plazaShadow.setAttribute("filter", "blur(20px)");
+    plazaGroup.appendChild(plazaShadow);
 
-    // 5. Canopy Masses
-    // (Removed per user request)
+    // North wing
+    drawDiamond(plazaX + 300, plazaY - 200, 700, 350, 100);
+    // West wing
+    drawDiamond(plazaX - 400, plazaY + 200, 800, 400, 120);
+    // Main central plaza
+    drawDiamond(plazaX, plazaY, 1000, 500, 150);
+    
+    this.renderQueue.push({ y: zPlaza, element: plazaGroup });
+
+    // 5. Canopy Masses (Radius 600-800)
+    const forest1X = rootX - 1600;
+    const forest1Y = rootY - 600;
+    const canopy1 = this.createVerticalSliceCanopy(forest1X, forest1Y, 800, 500);
+    this.renderQueue.push({ y: forest1Y + 200, element: canopy1 });
+
+    const forest2X = rootX + 1500;
+    const forest2Y = rootY + 300;
+    const canopy2 = this.createVerticalSliceCanopy(forest2X, forest2Y, 700, 450);
+    this.renderQueue.push({ y: forest2Y + 200, element: canopy2 });
+
+    const forest3X = rootX + 800;
+    const forest3Y = rootY - 900;
+    const canopy3 = this.createVerticalSliceCanopy(forest3X, forest3Y, 600, 400);
+    this.renderQueue.push({ y: forest3Y + 200, element: canopy3 });
 
     // 6. Secondary Buildings (Distinct stylized types)
     // Note: Main Academy is NOT drawn here; LandmarkManager draws it at (rootX, rootY)!
+    
+    // 4. District Anchors Initialization (Sprint 3A - Unified Campus Generator)
+    const campusLayout = this.generateLogicDominionCampus(plazaX, plazaY);
 
-    // 4. Logic Dominion Fixed Campus Zone Anchors (Checkpoint 4E.4 Final Spacing)
-    const logicCampusAnchors = {
-      academy: { x: plazaX, y: plazaY },
-      // Library Zone: Moved to the old Logic Dominion label area (lower-right foreground)
-      library: { x: plazaX + 230, y: plazaY + 2300 },
-      // Temple Zone: far lower-right / south-east (Massively pushed out)
-      temple: { x: plazaX + 1800, y: plazaY + 1300 },
-      // Dorm Zone A: far lower-left / south-west (Massively pushed out)
-      dormA: { x: plazaX - 1500, y: plazaY + 1950 },
-      // Dorm Zone B: far right / east side (Massively pushed out)
-      dormB: { x: plazaX + 2200, y: plazaY + 700 }
-    };
-    this.logicCampusAnchors = logicCampusAnchors;
+    // 5. Final Draw Calls (Sprint 3C.5 - HERO RENDERER SYNCHRONIZATION)
+    // SVGs are now rendered strictly from the layout engine's source of truth.
+    try {
+        this.drawAcademyLibrary(campusLayout.grandLibrary);
+        this.drawAcademyTemple(campusLayout.monumentPlaza); 
+        this.drawAcademyDorm(campusLayout.fountainPlaza); 
+    } catch(err) {
+        const errGroup = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        errGroup.setAttribute("x", rootX);
+        errGroup.setAttribute("y", rootY - 500);
+        errGroup.setAttribute("fill", "red");
+        errGroup.setAttribute("font-size", "100px");
+        errGroup.textContent = "ERR: " + err.message;
+        this.renderQueue.push({ y: rootY + 9999, element: errGroup });
+    }
 
-    // [NEW] Campus Marble Walkway Network (Checkpoint 4C)
-    // Fixed explicit render layer ensuring it renders above roads/rivers but below buildings
-    const zWalkways = rootY - 1200;
+    const debugGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
 
-    const drawWalkway = (p1, p2, width) => {
-      const pathGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-
-      // Outer thin cyan accent border
-      const border = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      border.setAttribute("d", `M ${p1.x},${p1.y} L ${p2.x},${p2.y}`);
-      border.setAttribute("stroke", "#00cfe8"); // Visible cyan outline
-      border.setAttribute("stroke-width", width + 24);
-      border.setAttribute("stroke-linecap", "square");
-      border.setAttribute("fill", "none");
-      pathGroup.appendChild(border);
-
-      // Light grey side edge for geometric depth
-      const edge = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      edge.setAttribute("d", `M ${p1.x},${p1.y} L ${p2.x},${p2.y}`);
-      edge.setAttribute("stroke", "#b7edf2"); // Light cyan edge
-      edge.setAttribute("stroke-width", width + 12);
-      edge.setAttribute("stroke-linecap", "square");
-      edge.setAttribute("fill", "none");
-      pathGroup.appendChild(edge);
-
-      // White marble / pale stone walkway base
-      const base = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      base.setAttribute("d", `M ${p1.x},${p1.y} L ${p2.x},${p2.y}`);
-      base.setAttribute("stroke", "#f8ffff"); // Pale marble path fill
-      base.setAttribute("stroke-width", width);
-      base.setAttribute("stroke-linecap", "square");
-      base.setAttribute("fill", "none");
-      pathGroup.appendChild(base);
-
-      // Subtle internal tile lines on walkways (dashed cyan lines)
-      const tiles = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      tiles.setAttribute("d", `M ${p1.x},${p1.y} L ${p2.x},${p2.y}`);
-      tiles.setAttribute("stroke", "#d5edf0");
-      tiles.setAttribute("stroke-width", width - 20);
-      tiles.setAttribute("stroke-linecap", "square");
-      tiles.setAttribute("stroke-dasharray", "20, 40");
-      tiles.setAttribute("fill", "none");
-      pathGroup.appendChild(tiles);
-
-      this.renderQueue.push({ y: zWalkways, element: pathGroup });
+    const drawLine = (p1, p2) => {
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        line.setAttribute("x1", p1.x); line.setAttribute("y1", p1.y);
+        line.setAttribute("x2", p2.x); line.setAttribute("y2", p2.y);
+        line.setAttribute("stroke", "#ff0044");
+        line.setAttribute("stroke-width", "5");
+        line.setAttribute("stroke-dasharray", "15,15");
+        debugGroup.appendChild(line);
     };
 
-    const drawCurvedWalkway = (p1, p2, cp, width) => {
-      const pathGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    const drawMarker = (point, label) => {
+        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        circle.setAttribute("cx", point.x); circle.setAttribute("cy", point.y);
+        circle.setAttribute("r", "25");
+        circle.setAttribute("fill", "#00ffcc");
+        circle.setAttribute("stroke", "#000");
+        circle.setAttribute("stroke-width", "5");
+        debugGroup.appendChild(circle);
 
-      // Outer thin cyan accent border
-      const border = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      border.setAttribute("d", `M ${p1.x},${p1.y} Q ${cp.x},${cp.y} ${p2.x},${p2.y}`);
-      border.setAttribute("stroke", "#00cfe8");
-      border.setAttribute("stroke-width", width + 24);
-      border.setAttribute("stroke-linecap", "square");
-      border.setAttribute("fill", "none");
-      pathGroup.appendChild(border);
-
-      // Light grey side edge for geometric depth
-      const edge = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      edge.setAttribute("d", `M ${p1.x},${p1.y} Q ${cp.x},${cp.y} ${p2.x},${p2.y}`);
-      edge.setAttribute("stroke", "#b7edf2");
-      edge.setAttribute("stroke-width", width + 12);
-      edge.setAttribute("stroke-linecap", "square");
-      edge.setAttribute("fill", "none");
-      pathGroup.appendChild(edge);
-
-      // White marble / pale stone walkway base
-      const base = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      base.setAttribute("d", `M ${p1.x},${p1.y} Q ${cp.x},${cp.y} ${p2.x},${p2.y}`);
-      base.setAttribute("stroke", "#f8ffff");
-      base.setAttribute("stroke-width", width);
-      base.setAttribute("stroke-linecap", "square");
-      base.setAttribute("fill", "none");
-      pathGroup.appendChild(base);
-
-      // Subtle internal tile lines on walkways (dashed cyan lines)
-      const tiles = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      tiles.setAttribute("d", `M ${p1.x},${p1.y} Q ${cp.x},${cp.y} ${p2.x},${p2.y}`);
-      tiles.setAttribute("stroke", "#d5edf0");
-      tiles.setAttribute("stroke-width", width - 20);
-      tiles.setAttribute("stroke-linecap", "square");
-      tiles.setAttribute("stroke-dasharray", "20, 40");
-      tiles.setAttribute("fill", "none");
-      pathGroup.appendChild(tiles);
-
-      this.renderQueue.push({ y: zWalkways, element: pathGroup });
+        const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        text.setAttribute("x", point.x); text.setAttribute("y", point.y - 40);
+        text.setAttribute("fill", "#fff");
+        text.setAttribute("font-size", "45px");
+        text.setAttribute("font-family", "monospace");
+        text.setAttribute("font-weight", "bold");
+        text.setAttribute("text-anchor", "middle");
+        text.setAttribute("filter", "drop-shadow(2px 4px 4px rgba(0,0,0,0.8))");
+        text.textContent = `${label} (${point.x.toFixed(0)}, ${point.y.toFixed(0)})`;
+        debugGroup.appendChild(text);
     };
 
-    const drawCleanPad = (cx, cy, rw, rh) => {
-      const padGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    // Connection Lines
+    drawLine(campusLayout.academy, campusLayout.grandLibrary);
+    drawLine(campusLayout.academy, campusLayout.fountainPlaza);
+    drawLine(campusLayout.academy, campusLayout.monumentPlaza);
 
-      // Cyan border
-      const trim = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-      trim.setAttribute("points", `${cx},${cy - rh - 12} ${cx + rw + 12},${cy} ${cx},${cy + rh + 12} ${cx - rw - 12},${cy}`);
-      trim.setAttribute("fill", "#00cfe8");
-      padGroup.appendChild(trim);
+    // Markers
+    drawMarker(campusLayout.academy, "Academy");
+    drawMarker(campusLayout.grandLibrary, "Library");
+    drawMarker(campusLayout.fountainPlaza, "Fountain");
+    drawMarker(campusLayout.monumentPlaza, "Monument");
 
-      // Light grey/blue side edge
-      const edge = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-      edge.setAttribute("points", `${cx},${cy - rh - 6} ${cx + rw + 6},${cy} ${cx},${cy + rh + 6} ${cx - rw - 6},${cy}`);
-      edge.setAttribute("fill", "#b7edf2");
-      padGroup.appendChild(edge);
-
-      // Marble surface
-      const top = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-      top.setAttribute("points", `${cx},${cy - rh} ${cx + rw},${cy} ${cx},${cy + rh} ${cx - rw},${cy}`);
-      top.setAttribute("fill", "#f8ffff");
-      padGroup.appendChild(top);
-
-      // 3-5 simple tile divider lines inside the plaza
-      const grid = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      let d = "";
-      for (let i = 1; i < 4; i++) { // 3 dividers each way
-        let p = i / 4;
-        d += `M ${cx - rw + rw * p},${cy - rh * p} L ${cx + rw * p},${cy + rh - rh * p} `;
-        d += `M ${cx - rw * p},${cy + rh - rh * p} L ${cx + rw - rw * p},${cy - rh * p} `;
-      }
-      grid.setAttribute("d", d);
-      grid.setAttribute("stroke", "#d5edf0");
-      grid.setAttribute("stroke-width", "4");
-      padGroup.appendChild(grid);
-
-      this.renderQueue.push({ y: zWalkways + 10, element: padGroup });
-    };
-
-    // Central junction point (front of Academy)
-    const centralJunction = { x: logicCampusAnchors.academy.x, y: logicCampusAnchors.academy.y + 400 };
-
-    // High Contrast Walkway specifically for Academy-to-Library to ensure visibility
-    const drawHighContrastWalkway = (p1, p2, width) => {
-      const pathGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-
-      const border = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      border.setAttribute("d", `M ${p1.x},${p1.y} L ${p2.x},${p2.y}`);
-      border.setAttribute("stroke", "#00cfe8");
-      border.setAttribute("stroke-width", width + 32); // 16px outer stroke
-      border.setAttribute("stroke-linecap", "square");
-      border.setAttribute("fill", "none");
-      pathGroup.appendChild(border);
-
-      const edge = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      edge.setAttribute("d", `M ${p1.x},${p1.y} L ${p2.x},${p2.y}`);
-      edge.setAttribute("stroke", "#b7edf2");
-      edge.setAttribute("stroke-width", width + 16); // 8px edge
-      edge.setAttribute("stroke-linecap", "square");
-      edge.setAttribute("fill", "none");
-      pathGroup.appendChild(edge);
-
-      const base = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      base.setAttribute("d", `M ${p1.x},${p1.y} L ${p2.x},${p2.y}`);
-      base.setAttribute("stroke", "#f8ffff");
-      base.setAttribute("stroke-width", width);
-      base.setAttribute("stroke-linecap", "square");
-      base.setAttribute("fill", "none");
-      pathGroup.appendChild(base);
-
-      const tiles = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      tiles.setAttribute("d", `M ${p1.x},${p1.y} L ${p2.x},${p2.y}`);
-      tiles.setAttribute("stroke", "#cceff2");
-      tiles.setAttribute("stroke-width", width - 20);
-      tiles.setAttribute("stroke-linecap", "square");
-      const dist = Math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2);
-      tiles.setAttribute("stroke-dasharray", `6, ${dist / 4}`); // 4-5 dividers
-      tiles.setAttribute("fill", "none");
-      pathGroup.appendChild(tiles);
-
-      this.renderQueue.push({ y: zWalkways + 1, element: pathGroup });
-    };
-
-    // Draw connecting marble walkways (Increased widths for visible campus connections)
-    // 2-segment pathway from Academy front/right base to Library front/left base
-    const libPathStart = { x: logicCampusAnchors.academy.x + 220, y: logicCampusAnchors.academy.y + 520 };
-    const libPathJunction = { x: logicCampusAnchors.academy.x + 200, y: logicCampusAnchors.academy.y + 1400 };
-    const libPathEnd = { x: logicCampusAnchors.library.x + 20, y: logicCampusAnchors.library.y - 220 };
-
-    drawHighContrastWalkway(libPathStart, libPathJunction, 300);
-    drawHighContrastWalkway(libPathJunction, libPathEnd, 300);
-    drawCleanPad(libPathJunction.x, libPathJunction.y, 180, 90); // clean junction corner smoothing
-
-    drawWalkway(centralJunction, logicCampusAnchors.temple, 400);
-    drawCurvedWalkway(logicCampusAnchors.temple, { x: 2390, y: -380 }, { x: 2100, y: 1000 }, 200); // Curved path to nearest grey bridge (adjusted)
-    drawWalkway(centralJunction, logicCampusAnchors.dormA, 300);
-    drawWalkway(centralJunction, logicCampusAnchors.academy, 500);
-
-    // Draw clean geometric pads for each building anchor (Increased scale)
-    drawCleanPad(centralJunction.x, centralJunction.y, 500, 250);
-    drawCleanPad(logicCampusAnchors.academy.x, logicCampusAnchors.academy.y, 700, 350);
-    drawCleanPad(logicCampusAnchors.library.x, logicCampusAnchors.library.y, 600, 300);
-    drawCleanPad(logicCampusAnchors.temple.x, logicCampusAnchors.temple.y, 500, 250);
-    drawCleanPad(logicCampusAnchors.dormA.x, logicCampusAnchors.dormA.y, 400, 200);
-
-    // [NEW] Curated Campus Boundary Greenery (Checkpoint 4D)
-    const drawHedge = (cx, cy, radius) => {
-      const hedgeGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-
-      const shadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
-      shadow.setAttribute("cx", cx); shadow.setAttribute("cy", cy + radius * 0.2);
-      shadow.setAttribute("rx", radius * 1.1); shadow.setAttribute("ry", radius * 0.6);
-      shadow.setAttribute("fill", "rgba(0,0,0,0.15)");
-      hedgeGroup.appendChild(shadow);
-
-      const body = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
-      body.setAttribute("cx", cx); body.setAttribute("cy", cy);
-      body.setAttribute("rx", radius); body.setAttribute("ry", radius * 0.7);
-      body.setAttribute("fill", "#2e7d32"); // Curated dark green
-      hedgeGroup.appendChild(body);
-
-      const highlight = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
-      highlight.setAttribute("cx", cx); highlight.setAttribute("cy", cy - radius * 0.25);
-      highlight.setAttribute("rx", radius * 0.8); highlight.setAttribute("ry", radius * 0.5);
-      highlight.setAttribute("fill", "#4caf50"); // Trimmed bright green top
-      hedgeGroup.appendChild(highlight);
-
-      this.renderQueue.push({ y: cy + radius, element: hedgeGroup });
-    };
-
-    const drawGardenPatch = (cx, cy, rw, rh) => {
-      const patchGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-
-      const trim = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-      trim.setAttribute("points", `${cx},${cy - rh - 4} ${cx + rw + 4},${cy} ${cx},${cy + rh + 4} ${cx - rw - 4},${cy}`);
-      trim.setAttribute("fill", "#15d4e8"); // Match campus outline
-      patchGroup.appendChild(trim);
-
-      const grass = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-      grass.setAttribute("points", `${cx},${cy - rh} ${cx + rw},${cy} ${cx},${cy + rh} ${cx - rw},${cy}`);
-      grass.setAttribute("fill", "#a5d6a7"); // Soft academic garden green
-      patchGroup.appendChild(grass);
-
-      this.renderQueue.push({ y: zWalkways + 5, element: patchGroup });
-    };
-
-    // 1. Small green garden patches around empty campus edges
-    drawGardenPatch(logicCampusAnchors.academy.x - 350, logicCampusAnchors.academy.y + 300, 120, 60);
-    drawGardenPatch(logicCampusAnchors.academy.x + 350, logicCampusAnchors.academy.y + 300, 120, 60);
-
-    // 2. Small trimmed hedge clusters around the outer edges of the campus (10 clusters)
-    // Left boundary hedges
-    drawHedge(centralJunction.x - 450, centralJunction.y, 55);
-    drawHedge(centralJunction.x - 530, centralJunction.y - 40, 45);
-    drawHedge(centralJunction.x - 600, centralJunction.y - 90, 35);
-    drawHedge(logicCampusAnchors.library.x - 250, logicCampusAnchors.library.y + 150, 50);
-    drawHedge(logicCampusAnchors.dormA.x - 200, logicCampusAnchors.dormA.y + 100, 45);
-
-    // Right boundary hedges
-    drawHedge(centralJunction.x + 450, centralJunction.y, 55);
-    drawHedge(centralJunction.x + 530, centralJunction.y - 40, 45);
-    drawHedge(centralJunction.x + 600, centralJunction.y - 90, 35);
-    drawHedge(logicCampusAnchors.temple.x + 200, logicCampusAnchors.temple.y + 120, 50);
-
-    // 3. A few small academy trees near the campus boundary (5 trees, scaled up for visibility)
-    this.renderAcademyTreeCustom(logicCampusAnchors.academy.x - 700, logicCampusAnchors.academy.y + 250, 16.0, logicCampusAnchors.academy.y + 250);
-    this.renderAcademyTreeCustom(logicCampusAnchors.academy.x + 700, logicCampusAnchors.academy.y + 250, 16.0, logicCampusAnchors.academy.y + 250);
-    this.renderAcademyTreeCustom(logicCampusAnchors.library.x - 420, logicCampusAnchors.library.y + 180, 14.0, logicCampusAnchors.library.y + 180);
-    this.renderAcademyTreeCustom(logicCampusAnchors.temple.x + 380, logicCampusAnchors.temple.y + 150, 14.0, logicCampusAnchors.temple.y + 150);
-    this.renderAcademyTreeCustom(centralJunction.x, centralJunction.y + 350, 18.0, centralJunction.y + 350);
-
-    // [NEW] Hard Visibility Identity Markers (Checkpoint 4H.1)
-    const drawMediumCyanArchive = (cx, cy) => {
-      const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
-      group.setAttribute("transform", `translate(${cx}, ${cy}) scale(3.0)`);
-
-      const base = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-      base.setAttribute("points", `0,0 50,25 0,50 -50,25`);
-      base.setAttribute("fill", "#b7edf2");
-      base.setAttribute("stroke", "#00cfe8");
-      base.setAttribute("stroke-width", "3");
-      group.appendChild(base);
-
-      const book = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-      book.setAttribute("points", `0,-80 70,-48 0,-16 -70,-48`);
-      book.setAttribute("fill", "#ffffff");
-      book.setAttribute("stroke", "#00cfe8");
-      book.setAttribute("stroke-width", "8");
-      group.appendChild(book);
-
-      this.renderQueue.push({ y: cy, element: group });
-    };
-
-    const drawMediumKnowledgePillar = (cx, cy) => {
-      const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
-      group.setAttribute("transform", `translate(${cx}, ${cy}) scale(4.5)`);
-      const base = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-      base.setAttribute("points", `0,0 60,32 0,64 -60,32`);
-      base.setAttribute("fill", "#b7edf2");
-      base.setAttribute("stroke", "#00cfe8");
-      base.setAttribute("stroke-width", "3");
-      group.appendChild(base);
-      const pillar = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-      pillar.setAttribute("points", `-40,-80 40,-80 40,40 -40,40`);
-      pillar.setAttribute("fill", "#f8ffff");
-      pillar.setAttribute("stroke", "#00cfe8");
-      pillar.setAttribute("stroke-width", "4");
-      group.appendChild(pillar);
-      const top = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-      top.setAttribute("points", `0,-120 60,-88 0,-56 -60,-88`);
-      top.setAttribute("fill", "#00cfe8");
-      top.setAttribute("stroke", "#ffffff");
-      top.setAttribute("stroke-width", "5");
-      group.appendChild(top);
-      this.renderQueue.push({ y: cy, element: group });
-    };
-
-    const drawMediumCrystalLamp = (cx, cy) => {
-      const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
-      group.setAttribute("transform", `translate(${cx}, ${cy}) scale(4.5)`);
-      const post = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      post.setAttribute("x1", "0"); post.setAttribute("y1", "0"); post.setAttribute("x2", "0"); post.setAttribute("y2", "-120");
-      post.setAttribute("stroke", "#b7edf2"); post.setAttribute("stroke-width", "20");
-      group.appendChild(post);
-      const crystal = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-      crystal.setAttribute("points", `0,-180 35,-120 0,-60 -35,-120`);
-      crystal.setAttribute("fill", "#00cfe8");
-      crystal.setAttribute("stroke", "#ffffff");
-      crystal.setAttribute("stroke-width", "8");
-      group.appendChild(crystal);
-      this.renderQueue.push({ y: cy, element: group });
-    };
-
-    const drawMediumArchivePedestal = (cx, cy) => {
-      const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
-      group.setAttribute("transform", `translate(${cx}, ${cy}) scale(4.5)`);
-      const base = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-      base.setAttribute("points", `0,0 80,40 0,80 -80,40`);
-      base.setAttribute("fill", "#b7edf2");
-      base.setAttribute("stroke", "#00cfe8");
-      base.setAttribute("stroke-width", "3");
-      group.appendChild(base);
-      const top = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-      top.setAttribute("points", `0,-30 70,5 0,40 -70,5`);
-      top.setAttribute("fill", "#ffffff");
-      top.setAttribute("stroke", "#00cfe8");
-      top.setAttribute("stroke-width", "6");
-      group.appendChild(top);
-      this.renderQueue.push({ y: cy, element: group });
-    };
-
-    // 4. Draw Exactly 4 Visible Markers
-
-    // 1 medium cyan book symbol near the main connector path (moved out of Academy pad)
-    drawMediumCyanArchive(centralJunction.x - 850, centralJunction.y - 150);
-
-    // 1 medium marble knowledge pillar near the Library side
-    drawMediumKnowledgePillar(logicCampusAnchors.library.x + 500, logicCampusAnchors.library.y + 300);
-
-    // 1 medium cyan crystal lamp near the Academy side
-    drawMediumCrystalLamp(logicCampusAnchors.academy.x + 600, logicCampusAnchors.academy.y + 150);
-
-    // 5. Final Draw Calls (Strictly from District Anchors)
-    this.drawAcademyLibrary(logicCampusAnchors.library.x, logicCampusAnchors.library.y, 16.0);
-    this.drawAcademyTemple(logicCampusAnchors.temple.x, logicCampusAnchors.temple.y, 14.0);
-    this.drawAcademyDorm(logicCampusAnchors.dormA.x, logicCampusAnchors.dormA.y, 12.0);
-
+    // Force debug overlay to draw on top
+    this.renderQueue.push({ y: plazaY + 9999, element: debugGroup });
 
 
     // 7. Ground Details and Edge Trees (Decoration Ring: 1300px+)
+    for (let i = 0; i < 40; i++) {
+        const tx = plazaX - 1200 + window.rng.next() * 2400;
+        const ty = plazaY - 800 + window.rng.next() * 1600;
+        
+        // Strict 900px exclusion for minor random props to keep the core entirely clean
+        const distToCenter = Math.sqrt((tx - plazaX)**2 + (ty - plazaY)**2);
+        if (distToCenter < 900) continue; 
+        
+        const tempG = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        const ogLayer = this.renderer.getLayer.bind(this.renderer);
+        this.renderer.getLayer = () => tempG;
+        this.drawStoneTile(tx, ty, 8.0 + window.rng.next() * 4);
+        this.renderer.getLayer = ogLayer;
+        const finalTile = tempG.firstChild;
+        if(finalTile) this.renderQueue.push({ y: ty, element: finalTile });
+    }
+
     // Edge framing trees (Large, Scale 18)
-    this.renderAcademyTreeCustom(rootX - 1600 + 600, rootY - 600 + 300, 18.0, rootY - 600 + 300);
-    this.renderAcademyTreeCustom(rootX - 1600 - 600, rootY - 600 + 200, 18.0, rootY - 600 + 200);
-    this.renderAcademyTreeCustom(rootX + 1500 - 500, rootY + 300 + 350, 18.0, rootY + 300 + 350);
+    this.renderAcademyTreeCustom(forest1X + 600, forest1Y + 300, 18.0, forest1Y + 300);
+    this.renderAcademyTreeCustom(forest1X - 600, forest1Y + 200, 18.0, forest1Y + 200);
+    this.renderAcademyTreeCustom(forest2X - 500, forest2Y + 350, 18.0, forest2Y + 350);
     this.renderAcademyTreeCustom(plazaX, plazaY + 700, 20.0, plazaY + 700); // Front focal tree
-
-    // =========================================================================
-    // [NEW] Checkpoint 5A - Logic Dominion Terrain & Campus Environment Upgrade
-    // =========================================================================
-
-    const drawCampusRock = (cx, cy) => {
-      const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
-      group.setAttribute("transform", `translate(${cx}, ${cy}) scale(2.0)`);
-      const rock = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-      rock.setAttribute("points", "-15,5 0,-15 20,0 5,15");
-      rock.setAttribute("fill", "#e0e0e0"); // pale stone
-      rock.setAttribute("stroke", "#bdbdbd");
-      rock.setAttribute("stroke-width", "2");
-      group.appendChild(rock);
-      this.renderQueue.push({ y: cy, element: group });
-    };
-
-    const drawSmallTreeCluster = (cx, cy) => {
-      // Render 4 small trees (scale 10 to 14 -> 60px to 84px width each)
-      // This ensures the cluster doesn't exceed 250px total width
-      this.renderAcademyTreeCustom(cx, cy, 14.0, cy);
-      this.renderAcademyTreeCustom(cx + 40, cy + 30, 11.0, cy + 30);
-      this.renderAcademyTreeCustom(cx - 50, cy + 40, 12.0, cy + 40);
-      this.renderAcademyTreeCustom(cx + 10, cy + 60, 10.0, cy + 60);
-    };
-
-    // 1. Add small curated tree clusters around outer Logic Dominion campus boundary
-    // Removed all large blobs/patches to keep campus clean and buildings readable
-    const smallTreeClusterLocs = [
-      { x: plazaX - 1800, y: plazaY - 200 }, { x: plazaX + 2400, y: plazaY - 300 },
-      { x: plazaX - 1000, y: plazaY - 1400 }, { x: plazaX + 1500, y: plazaY - 1200 },
-      { x: plazaX - 1800, y: plazaY + 800 }, { x: plazaX + 1000, y: plazaY + 1600 },
-      { x: plazaX - 700, y: plazaY - 400 }, { x: plazaX - 1100, y: plazaY - 600 },
-      { x: plazaX + 800, y: plazaY + 500 }, { x: plazaX + 1200, y: plazaY + 800 },
-      { x: plazaX - 800, y: plazaY + 700 }, { x: plazaX - 1200, y: plazaY + 1000 },
-      { x: plazaX + 1000, y: plazaY + 200 }, { x: plazaX + 1600, y: plazaY + 400 }
-    ];
-    smallTreeClusterLocs.forEach(loc => {
-      drawSmallTreeCluster(loc.x, loc.y);
-    });
-
-    // 2. Add 5 small pale stone rock clusters in empty terrain areas
-    const rockClusterLocs = [
-      { x: plazaX - 900, y: plazaY - 1200 }, { x: plazaX + 1400, y: plazaY - 800 },
-      { x: plazaX - 1600, y: plazaY + 300 }, { x: plazaX + 1800, y: plazaY - 100 },
-      { x: plazaX - 400, y: plazaY + 1300 }
-    ];
-    rockClusterLocs.forEach(loc => {
-      drawCampusRock(loc.x, loc.y);
-      drawCampusRock(loc.x + 30, loc.y + 15);
-      drawCampusRock(loc.x - 20, loc.y + 10);
-    });
-
-    // =========================================================================
-    // [NEW] Checkpoint 5B - Logic Dominion Outer Forest Belt
-    // =========================================================================
-
-    const drawOuterForestCluster = (cx, cy) => {
-      // 4 small trees per cluster. Canopy width 70 to 110px -> scales 12.0 to 18.0
-      this.renderAcademyTreeCustom(cx, cy, 18.0, cy);
-      this.renderAcademyTreeCustom(cx + 60, cy + 30, 15.0, cy + 30);
-      this.renderAcademyTreeCustom(cx - 70, cy + 50, 16.0, cy + 50);
-      this.renderAcademyTreeCustom(cx + 30, cy + 80, 14.0, cy + 80);
-    };
-
-    const drawGrassDetail = (cx, cy) => {
-      const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
-      group.setAttribute("transform", `translate(${cx}, ${cy})`);
-      const blade = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      blade.setAttribute("d", "M -10,0 Q -15,-20 -25,-30 M 0,0 Q 5,-25 10,-35 M 10,0 Q 20,-15 30,-25");
-      blade.setAttribute("stroke", "#7b9e59");
-      blade.setAttribute("stroke-width", "3");
-      blade.setAttribute("fill", "none");
-      blade.setAttribute("opacity", "0.7");
-      group.appendChild(blade);
-      this.renderQueue.push({ y: rootY - 1400, element: group });
-    };
-
-    // Add 9 curated tree clusters to the outer left, upper-left, and lower-left bounds
-    const outerForestLocs = [
-      // Upper-Left
-      { x: plazaX - 1500, y: plazaY - 1600 },
-      { x: plazaX - 2100, y: plazaY - 1200 },
-      { x: plazaX - 2400, y: plazaY - 700 },
-      // Left
-      { x: plazaX - 2600, y: plazaY - 200 },
-      { x: plazaX - 2500, y: plazaY + 400 },
-      { x: plazaX - 2200, y: plazaY + 900 },
-      // Lower-Left
-      { x: plazaX - 1800, y: plazaY + 1400 },
-      { x: plazaX - 2000, y: plazaY + 1800 },
-      { x: plazaX - 1400, y: plazaY + 2000 }
-    ];
-
-    outerForestLocs.forEach((loc, index) => {
-      drawOuterForestCluster(loc.x, loc.y);
-      drawGrassDetail(loc.x - 40, loc.y + 20);
-      drawGrassDetail(loc.x + 60, loc.y - 10);
-      // Add stones near 4 clusters
-      if (index % 2 === 0 && index < 8) {
-        drawCampusRock(loc.x + 100, loc.y + 40);
-        drawCampusRock(loc.x - 90, loc.y + 10);
-      }
-    });
-
   }
 
   renderDebugWastelandVerticalSlice(bounds) {
@@ -1256,40 +945,85 @@ export default class TerrainGenerator {
     const zScar = rootY - 1400;
     const zRoads = rootY - 1300;
     const zFoundation = rootY - 100;
-
-    // 1. Cracked Dark Terrain Base (Purple Ground Effects)
+    
+    // 1. Cracked Dark Terrain Base (Radius 1600px)
+    // Deep purple/grey blend to visually poison the grass
     const patchLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
     const patchShadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
-    patchShadow.setAttribute("cx", rootX); patchShadow.setAttribute("cy", rootY + 600);
-    patchShadow.setAttribute("rx", 1900); patchShadow.setAttribute("ry", 1000);
-    patchShadow.setAttribute("fill", "#311b92");
+    patchShadow.setAttribute("cx", rootX); patchShadow.setAttribute("cy", rootY + 200);
+    patchShadow.setAttribute("rx", 1600); patchShadow.setAttribute("ry", 800);
+    patchShadow.setAttribute("fill", "#311b92"); // Deep purple
     patchShadow.setAttribute("opacity", "0.25");
     patchShadow.setAttribute("filter", "blur(40px)");
     patchShadow.style.mixBlendMode = "multiply";
     patchLayer.appendChild(patchShadow);
     this.renderQueue.push({ y: zBasePatch, element: patchLayer });
 
-    // 2. Corruption Fissures (Removed per user request)
+    // 2. Corruption Fissures (Radiating outwards like cracked glass)
+    const scarGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    
+    // Crack helper
+    const drawFissure = (dPath, widthOuter, widthInner) => {
+      const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      const rim = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      rim.setAttribute("d", dPath);
+      rim.setAttribute("fill", "none");
+      rim.setAttribute("stroke", "#1a1a1a");
+      rim.setAttribute("stroke-width", widthOuter);
+      rim.setAttribute("stroke-linejoin", "miter");
+      
+      const mid = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      mid.setAttribute("d", dPath);
+      mid.setAttribute("fill", "none");
+      mid.setAttribute("stroke", "#311b92");
+      mid.setAttribute("stroke-width", widthInner);
+      mid.setAttribute("stroke-linejoin", "miter");
+      
+      const core = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      core.setAttribute("d", dPath);
+      core.setAttribute("fill", "none");
+      core.setAttribute("stroke", "#e91e63");
+      core.setAttribute("stroke-width", "40"); // thin neon core
+      core.setAttribute("stroke-linejoin", "miter");
+      core.setAttribute("filter", "blur(4px)");
+      
+      g.appendChild(rim); g.appendChild(mid); g.appendChild(core);
+      return g;
+    };
+
+    // West crack
+    const dWest = `M ${rootX},${rootY} L ${rootX - 500},${rootY + 100} L ${rootX - 900},${rootY - 150} L ${rootX - 1400},${rootY + 50}`;
+    scarGroup.appendChild(drawFissure(dWest, 250, 100));
+
+    // South crack
+    const dSouth = `M ${rootX},${rootY} L ${rootX + 200},${rootY + 600} L ${rootX - 100},${rootY + 1000} L ${rootX + 300},${rootY + 1300}`;
+    scarGroup.appendChild(drawFissure(dSouth, 200, 80));
+
+    // East crack
+    const dEast = `M ${rootX},${rootY} L ${rootX + 600},${rootY - 100} L ${rootX + 1100},${rootY + 200} L ${rootX + 1500},${rootY - 50}`;
+    scarGroup.appendChild(drawFissure(dEast, 180, 70));
+
+    this.renderQueue.push({ y: zScar, element: scarGroup });
 
     // 3. Broken Roads (Entering from the West/Logic Bridge)
     const roadX = rootX - 1600;
     const roadY = rootY - 100;
     const roadGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-
+    
     const dRoad = `
       M ${roadX}, ${roadY}
       L ${rootX - 1000}, ${rootY + 100}
       L ${rootX - 500}, ${rootY + 50}
       L ${rootX - 200}, ${rootY + 300}
     `;
-
+    
     const dirtRoad = document.createElementNS("http://www.w3.org/2000/svg", "path");
     dirtRoad.setAttribute("d", dRoad);
     dirtRoad.setAttribute("fill", "none");
     dirtRoad.setAttribute("stroke", "#3e2723"); // Dark dirt
     dirtRoad.setAttribute("stroke-width", "120");
     dirtRoad.setAttribute("stroke-linecap", "square"); // sharp cracked breaks
-
+    
     const brokenPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
     brokenPath.setAttribute("d", dRoad);
     brokenPath.setAttribute("fill", "none");
@@ -1297,7 +1031,7 @@ export default class TerrainGenerator {
     brokenPath.setAttribute("stroke-width", "60");
     brokenPath.setAttribute("stroke-linecap", "square");
     brokenPath.setAttribute("stroke-dasharray", "80, 40"); // Gives a broken, shattered look
-
+    
     roadGroup.appendChild(dirtRoad);
     roadGroup.appendChild(brokenPath);
     this.renderQueue.push({ y: zRoads, element: roadGroup });
@@ -1306,7 +1040,7 @@ export default class TerrainGenerator {
     const foundationGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
     const plazaX = rootX;
     const plazaY = rootY;
-
+    
     const foundationShadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
     foundationShadow.setAttribute("cx", plazaX); foundationShadow.setAttribute("cy", plazaY + 100);
     foundationShadow.setAttribute("rx", 800); foundationShadow.setAttribute("ry", 400);
@@ -1317,304 +1051,42 @@ export default class TerrainGenerator {
     const rw = 700; // Total width 1400
     const rh = 350;
     const thick = 80;
-
+    
     // Jagged ruined foundation
     foundationGroup.appendChild(this.createPoly(`${plazaX},${plazaY + rh} ${plazaX + rw},${plazaY} ${plazaX + rw - 100},${plazaY + thick} ${plazaX},${plazaY + rh + thick}`, "#1a1a1a"));
     foundationGroup.appendChild(this.createPoly(`${plazaX},${plazaY + rh} ${plazaX - rw},${plazaY} ${plazaX - rw + 150},${plazaY + thick} ${plazaX},${plazaY + rh + thick}`, "#333333"));
     foundationGroup.appendChild(this.createPoly(`${plazaX},${plazaY - rh} ${plazaX + rw},${plazaY} ${plazaX},${plazaY + rh} ${plazaX - rw},${plazaY}`, "#424242"));
-
+    
     this.renderQueue.push({ y: zFoundation, element: foundationGroup });
 
-    // 5. Procedural Spawn Rings
-    const numObjects = 80;
-    for (let i = 0; i < numObjects; i++) {
-      // Deterministic random for consistent layout
-      const r1 = window.rng ? window.rng.next() : Math.random();
-      const r2 = window.rng ? window.rng.next() : Math.random();
-      const r3 = window.rng ? window.rng.next() : Math.random();
+    // 5. Dead Tree Masses (Radius ~400px)
+    const deadForest1X = rootX - 1000;
+    const deadForest1Y = rootY - 400;
+    const deadForest1 = this.createDeadTreeMass(deadForest1X, deadForest1Y, 400, 250);
+    this.renderQueue.push({ y: deadForest1Y + 100, element: deadForest1 });
 
-      const angle = r1 * Math.PI * 2;
+    const deadForest2X = rootX + 900;
+    const deadForest2Y = rootY + 200;
+    const deadForest2 = this.createDeadTreeMass(deadForest2X, deadForest2Y, 450, 280);
+    this.renderQueue.push({ y: deadForest2Y + 100, element: deadForest2 });
 
-      // Sprint 1: Hero Exclusion Zone
-      // Inner Ring (0 - 1400): Empty
-      // Middle Ring (1400 - 1800): Reserved for future placement
-      // Outer & Edge Rings (1800 - 2800): Redistributed props
-      const radius = 1800 + (r2 * 1000);
-
-      const tx = rootX + Math.cos(angle) * radius;
-      const ty = rootY + Math.sin(angle) * radius * 0.5;
-
-      // Ensure components only spawn inside the Debug Wasteland polygon
-      if (this.territoryPolygons && this.territoryPolygons.debug) {
-        if (!this.isPointInPolygon(tx, ty, this.territoryPolygons.debug)) {
-          continue;
-        }
-      }
-
-      // Ensure components do not spawn in the ocean, off the island, or on roads
-      if (!this.isValidEnvironmentPoint(tx, ty, 80)) {
-        continue;
-      }
-
-      // Strictly enforce the global island boundaries to prevent beach/ocean clipping
-      const dxIsland = tx - this.centerX;
-      const dyIsland = ty - this.centerY;
-      const globalRx = (this.bounds.maxX - this.bounds.minX) / 2 * 1.15 * 1.8;
-      const globalRy = (this.bounds.maxY - this.bounds.minY) / 2 * 1.15 * 1.8;
-      const normalizedDist = (dxIsland * dxIsland) / (globalRx * globalRx) + (dyIsland * dyIsland) / (globalRy * globalRy);
-      if (normalizedDist > 0.75) {
-        continue;
-      }
-
-      if (radius < 2300) {
-        // Outer Ring: dead trees, bushes, crystal fields, debris, corruption patches
-        if (r3 < 0.25) {
-          const forest = this.createDeadTreeMass(tx, ty, 60 + r1 * 40, 30 + r2 * 20);
-          this.renderQueue.push({ y: ty + 10, element: forest });
-        } else if (r3 < 0.5) {
-          this.drawCorruptedCrystalCluster(tx, ty, 2.0 + r1 * 2.0);
-        } else if (r3 < 0.75) {
-          this.drawRuinedBuilding(tx, ty, 2.5 + r2 * 2.0);
-        } else {
-          this.drawGroundCrack(tx, ty, 4.0 + r1 * 2.0);
-        }
-      } else {
-        // Edge Ring: mountains, cliffs, giant crystal formations
-        let scaleMultiplier = (ty > rootY) ? 0.6 : 1.0;
-
-        if (r3 < 0.4) {
-          this.drawCorruptedCrystalCluster(tx, ty, (5.0 + r1 * 3.0) * scaleMultiplier);
-        } else if (r3 < 0.7) {
-          this.drawRuinedBuilding(tx, ty, (6.0 + r2 * 3.0) * scaleMultiplier);
-        } else {
-          this.drawCorruptCrystal(tx, ty, (4.5 + r1 * 3.0) * scaleMultiplier);
-        }
-      }
-    }
-
-    // Sprint 2: Corrupted Architecture
-    // 1. Broken Watch Towers (2) - Hardcoded relative to fortress based on user explicit request
-    const towerConfigs = [
-      { angle: Math.PI * 1.15, radius: 2100, offsetY: 0, active: true }, // Top-Left (Pushed much further left and back to clear the region label)
-      { angle: Math.PI * 0.65, radius: 2100, offsetY: 120, active: true }, // Bottom-Left (Nudged 120px straight down to definitively clear the road)
-      { angle: 0, radius: 0, offsetY: 0, active: false },
-      { angle: 0, radius: 0, offsetY: 0, active: false }
-    ];
-
-    for (let i = 0; i < 4; i++) {
-      // ALWAYS consume exactly 3 random numbers per iteration (12 total) to preserve Sprint 1 outer ring determinism!
-      const r1 = window.rng ? window.rng.next() : Math.random();
-      const r2 = window.rng ? window.rng.next() : Math.random();
-      const r3 = window.rng ? window.rng.next() : Math.random();
-
-      const config = towerConfigs[i];
-      if (!config.active) continue;
-
-      // Minimal jitter to ensure they hit the exact requested spots
-      const angle = config.angle + (r1 * 0.05);
-      const radius = config.radius + (r2 * 100);
-      const tx = rootX + Math.cos(angle) * radius;
-      const ty = rootY + Math.sin(angle) * radius * 0.5 + config.offsetY;
-      // Reduced base scale to 8.5 so they don't overpower the fortress or block UI
-      const scale = 8.5 + (r3 * 1.5);
-      const rotation = 0;
-
-      // Collision checks completely REMOVED for these two specific towers to GUARANTEE they spawn exactly where you requested.
-      this.drawDebugWatchTower(tx, ty, scale, rotation);
-    }
-
-    // 2. Corrupted Obelisks (2-4)
-    const numObelisks = 2 + Math.floor((window.rng ? window.rng.next() : Math.random()) * 3);
-    for (let i = 0; i < numObelisks; i++) {
-      const angle = (window.rng ? window.rng.next() : Math.random()) * Math.PI * 2;
-      const radius = 1450 + ((window.rng ? window.rng.next() : Math.random()) * 300);
-      const tx = rootX + Math.cos(angle) * radius;
-      const ty = rootY + Math.sin(angle) * radius * 0.5;
-      const scale = 4.0 + ((window.rng ? window.rng.next() : Math.random()) * 2.0);
-      const rotation = ((window.rng ? window.rng.next() : Math.random()) - 0.5) * 15;
-
-      if (this.territoryPolygons && this.territoryPolygons.debug && !this.isPointInPolygon(tx, ty, this.territoryPolygons.debug)) continue;
-      if (!this.isValidEnvironmentPoint(tx, ty, 100)) continue;
-
-      // Strict global island check to prevent clipping onto the beach/ocean
-      const dxIsland = tx - this.centerX;
-      const dyIsland = ty - this.centerY;
-      const globalRx = (this.bounds.maxX - this.bounds.minX) / 2 * 1.15 * 1.8;
-      const globalRy = (this.bounds.maxY - this.bounds.minY) / 2 * 1.15 * 1.8;
-      const normalizedDist = (dxIsland * dxIsland) / (globalRx * globalRx) + (dyIsland * dyIsland) / (globalRy * globalRy);
-      if (normalizedDist > 0.65) continue;
-
-      this.drawDebugObelisk(tx, ty, scale, rotation);
-    }
-
-    // 3. Giant Crystal Pillars (5) - Evenly spaced with types
-    const numGiantCrystals = 5;
-    const crystalAngleOffset = (window.rng ? window.rng.next() : Math.random()) * Math.PI;
-    for (let i = 0; i < numGiantCrystals; i++) {
-      const angle = crystalAngleOffset + (i * (Math.PI * 2) / numGiantCrystals) + ((window.rng ? window.rng.next() : Math.random()) * 0.6 - 0.3);
-      const radius = 1450 + ((window.rng ? window.rng.next() : Math.random()) * 300);
-      const tx = rootX + Math.cos(angle) * radius;
-      const ty = rootY + Math.sin(angle) * radius * 0.5;
-      const scale = 5.0 + ((window.rng ? window.rng.next() : Math.random()) * 4.0);
-      const rotation = ((window.rng ? window.rng.next() : Math.random()) - 0.5) * 5;
-      const type = 1 + Math.floor((window.rng ? window.rng.next() : Math.random()) * 3);
-
-      // Ensure Giant Crystals don't spawn on top of or too close to the Broken Towers
-      let normAngle = angle % (Math.PI * 2);
-      if (normAngle < 0) normAngle += Math.PI * 2;
-
-      const distToTower1 = Math.min(Math.abs(normAngle - Math.PI * 1.15), Math.PI * 2 - Math.abs(normAngle - Math.PI * 1.15));
-      const distToTower2 = Math.min(Math.abs(normAngle - Math.PI * 0.65), Math.PI * 2 - Math.abs(normAngle - Math.PI * 0.65));
-
-      // If angle is within 0.25 radians of either tower, abort spawning this crystal
-      if (distToTower1 < 0.25 || distToTower2 < 0.25) continue;
-
-      if (this.territoryPolygons && this.territoryPolygons.debug && !this.isPointInPolygon(tx, ty, this.territoryPolygons.debug)) continue;
-      if (!this.isValidEnvironmentPoint(tx, ty, 100)) continue;
-
-      // Strict global island check to prevent clipping onto the beach/ocean
-      const dxIsland = tx - this.centerX;
-      const dyIsland = ty - this.centerY;
-      const globalRx = (this.bounds.maxX - this.bounds.minX) / 2 * 1.15 * 1.8;
-      const globalRy = (this.bounds.maxY - this.bounds.minY) / 2 * 1.15 * 1.8;
-      const normalizedDist = (dxIsland * dxIsland) / (globalRx * globalRx) + (dyIsland * dyIsland) / (globalRy * globalRy);
-      if (normalizedDist > 0.65) continue;
-
-      const scaleMultiplier = (ty > rootY) ? 0.6 : 1.0;
-      this.drawDebugGiantCrystal(tx, ty, scale * scaleMultiplier, rotation, type);
-    }
-
-    // Sprint 3A: Debug Wasteland Ground Ecology
-    // Ecological foundation: Corruption patches, dead trees, cracks, scatter. No ruins!
-    const sprint3Items = 800; // Massively increased loop count for density
-    for (let i = 0; i < sprint3Items; i++) {
-      // ALWAYS consume exactly 5 RNG calls per iteration to strictly preserve global deterministic state for subsequent biomes!
-      const r1 = window.rng ? window.rng.next() : Math.random();
-      const r2 = window.rng ? window.rng.next() : Math.random();
-      const r3 = window.rng ? window.rng.next() : Math.random();
-      const r4 = window.rng ? window.rng.next() : Math.random();
-      const r5 = window.rng ? window.rng.next() : Math.random();
-
-      // Target generation specifically within a 4000x4000 box around the fortress to guarantee high hit rate in the biome polygon
-      const tx = rootX + (r1 - 0.5) * 4000;
-      const ty = rootY + (r2 - 0.5) * 3500;
-
-      // Hero exclusion zone (keep immediate fortress clear)
-      const dx = tx - rootX;
-      const dy = ty - rootY;
-      const distFromFortress = Math.sqrt(dx * dx + dy * dy);
-      if (distFromFortress < 1300) continue;
-
-      if (this.territoryPolygons && this.territoryPolygons.debug && !this.isPointInPolygon(tx, ty, this.territoryPolygons.debug)) continue;
-      if (!this.isValidEnvironmentPoint(tx, ty, 50)) continue;
-
-      const dxIsland = tx - this.centerX;
-      const dyIsland = ty - this.centerY;
-      const globalRx = (this.bounds.maxX - this.bounds.minX) / 2 * 1.15 * 1.8;
-      const globalRy = (this.bounds.maxY - this.bounds.minY) / 2 * 1.15 * 1.8;
-      const normalizedDist = (dxIsland * dxIsland) / (globalRx * globalRx) + (dyIsland * dyIsland) / (globalRy * globalRy);
-      if (normalizedDist > 0.65) continue;
-
-      const itemType = Math.floor(r3 * 4); // 0 to 3 (No Ruins)
-      const rotation = r4 * 360;
-
-      switch (itemType) {
-        case 0: // Corruption patches (massive scale to hit 20-30% coverage)
-          this.drawDebugGroundPatch(tx, ty, 3.0 + (r5 * 5.0), rotation, Math.floor(r5 * 3));
-          break;
-        case 1: // Dead Trees
-          this.drawDebugDeadTree(tx, ty, 0.8 + (r5 * 1.5), rotation);
-          break;
-        case 2: // Ground Cracks
-          this.drawDebugGroundCrack(tx, ty, 1.5 + (r5 * 2.0), rotation);
-          break;
-        case 3: // Scatter debris
-          this.drawDebugScatter(tx, ty, Math.floor(r5 * 3) + 1);
-          break;
-      }
-    }
-
-    // Sprint 3C: Final Ruins Polish (Fallen Civilization)
-    // Preserve deterministic state from previous Sprint 3B (156 RNG calls)
-    for (let i = 0; i < 156; i++) {
-      if (window.rng) window.rng.next();
-    }
-
-    // Site 1: Upper-Left Ruin Site (Collapsed Gateway)
-    // Tucked safely behind the top-left broken tower, far from the bridge
-    const s1X = rootX - 1800;
-    const s1Y = rootY - 850;
-    // Blend with corruption
-    this.drawDebugGroundPatch(s1X, s1Y, 7.0, 0, 1); // Purple stain
-    this.drawDebugGroundCrack(s1X, s1Y, 5.0, 15);
-    // Cohesive architectural cluster
-    this.drawDebugRuinsExtended(s1X, s1Y, 5.5, 0, 4); // Collapsed Gateway
-    this.drawDebugRuinsExtended(s1X - 80, s1Y + 30, 5.0, 15, 0); // Broken wall
-    this.drawDebugRuinsExtended(s1X + 90, s1Y + 20, 4.0, -25, 1); // Fallen pillar
-    this.drawDebugRuinsExtended(s1X - 40, s1Y + 60, 6.0, 0, 3); // Cracked foundation
-    this.drawDebugRuinsExtended(s1X + 50, s1Y + 50, 4.0, 0, 2); // Rubble pile
-
-    // Site 2: Lower-Left Ruin Site (Stone Walls & Pillars)
-    // Placed deep in the lower-left grassy field, far from the road
-    const s2X = rootX - 1800;
-    const s2Y = rootY + 850;
-    // Blend with corruption
-    this.drawDebugGroundPatch(s2X, s2Y, 6.5, 0, 1); // Purple stain
-    this.drawDebugGroundCrack(s2X, s2Y, 4.5, -30);
-    // Cohesive architectural cluster
-    this.drawDebugRuinsExtended(s2X, s2Y - 20, 5.5, 0, 0); // Broken wall
-    this.drawDebugRuinsExtended(s2X + 60, s2Y + 10, 4.5, 45, 1); // Fallen pillar
-    this.drawDebugRuinsExtended(s2X - 50, s2Y + 40, 5.5, 0, 3); // Cracked foundation
-    this.drawDebugRuinsExtended(s2X + 30, s2Y + 50, 4.5, 0, 2); // Rubble pile
-
-    // Subtle Road Damage (cracks and small rubble next to the main pathway)
-    this.drawDebugGroundCrack(rootX - 1600, rootY + 30, 4.0, 25);
-    this.drawDebugRuinsExtended(rootX - 1600, rootY - 40, 2.5, 0, 2); // Small rubble beside road
-
-    this.drawDebugGroundCrack(rootX - 2600, rootY + 60, 5.0, -15);
-    this.drawDebugRuinsExtended(rootX - 2600, rootY + 120, 2.5, 45, 1); // Small pillar beside road
-
-    // Final Polish Filler Spaces
-    // 1. Far Left (Upper-Left empty field near river - Image 2)
-    // Base: rootX - 2600, rootY - 1000 (Perfect placement)
-    const farLeftSpots = [
-      { x: rootX - 2600, y: rootY - 1000 },
-      { x: rootX - 2700, y: rootY - 950 },
-      { x: rootX - 2500, y: rootY - 1050 },
-      { x: rootX - 2800, y: rootY - 1100 },
-      { x: rootX - 2400, y: rootY - 900 },
-      { x: rootX - 2650, y: rootY - 1150 },
-      { x: rootX - 2550, y: rootY - 850 },
-      { x: rootX - 2900, y: rootY - 1000 }
-    ];
-
-    farLeftSpots.forEach(spot => {
-      this.drawDebugCrystalCluster(spot.x, spot.y, 2.0);
-      this.drawDebugCrystalCluster(spot.x + 30, spot.y + 20, 1.5);
-      this.drawDebugCrystalCluster(spot.x - 20, spot.y + 30, 1.7);
-    });
-    // Drop a tiny watch tower right in the middle of this far-left cluster
-    this.drawDebugWatchTower(rootX - 2600, rootY - 1000, 3.5, 0);
-
-    // 2. Bottom Right (near coast/road curve - Image 3)
-    // Base: rootX + 1400, rootY + 1100 (Perfect placement)
-    const bottomRightSpots = [
-      { x: rootX + 1400, y: rootY + 1100 },
-      { x: rootX + 1500, y: rootY + 1150 },
-      { x: rootX + 1300, y: rootY + 1050 },
-      { x: rootX + 1600, y: rootY + 1200 },
-      { x: rootX + 1200, y: rootY + 1000 },
-      { x: rootX + 1450, y: rootY + 1000 },
-      { x: rootX + 1350, y: rootY + 1200 }
-    ];
-
-    bottomRightSpots.forEach(spot => {
-      this.drawDebugCrystalCluster(spot.x, spot.y, 2.0);
-      this.drawDebugCrystalCluster(spot.x - 30, spot.y + 20, 1.5);
-      this.drawDebugCrystalCluster(spot.x + 25, spot.y - 15, 1.7);
-    });
-    // Add one tiny watch tower to anchor it
-    this.drawDebugWatchTower(rootX + 1400, rootY + 1100, 3.5, 0);
+    // 6. Grouped Crystal Fields (Distributed to Perimeter)
+    // NW Field
+    this.drawCorruptedCrystalCluster(rootX - 500, rootY - 200, 14.0);
+    this.drawCorruptedCrystalCluster(rootX - 600, rootY - 300, 18.0);
+    // East Field
+    this.drawCorruptedCrystalCluster(rootX + 650, rootY + 100, 16.0);
+    this.drawCorruptedCrystalCluster(rootX + 800, rootY + 250, 18.0);
+    this.drawCorruptedCrystalCluster(rootX + 950, rootY + 150, 14.0);
+    // South Field
+    this.drawCorruptedCrystalCluster(rootX - 100, rootY + 450, 15.0);
+    this.drawCorruptedCrystalCluster(rootX + 150, rootY + 550, 20.0); // Hero crystal peeking out
+    
+    // 7. Small Ruined Buildings (Scale 10 to 14)
+    // Note: Main Tower is drawn by LandmarkManager at (rootX, rootY)
+    this.drawRuinedBuilding(plazaX + 300, plazaY - 100, 14.0);
+    this.drawRuinedBuilding(plazaX - 250, plazaY - 150, 12.0);
+    this.drawRuinedBuilding(plazaX - 400, plazaY + 150, 10.0);
   }
 
   renderSystemsRepublicVerticalSlice(bounds) {
@@ -1627,10 +1099,10 @@ export default class TerrainGenerator {
     const zRoads = rootY - 1400;
     const zPipes = rootY - 1300;
     const zFoundation = rootY - 100;
-
+    
     // 1. Industrial Base Platform
     const foundationGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-
+    
     // Isometric Metal Octagon Base
     // Scaled to a massive 1000px radius to perfectly frame the 1700px wide fog-of-war lock cloud!
     const rL = 1000; // long radius
@@ -1638,7 +1110,7 @@ export default class TerrainGenerator {
     const rhL = 500; // long height
     const rhS = 250; // short height
     const thick = 60;
-
+    
     // Octagon Top Face (#78909c)
     const baseOct = `
       ${rootX - rS},${rootY - rhL} 
@@ -1656,7 +1128,7 @@ export default class TerrainGenerator {
     const edge1 = `${rootX + rL},${rootY + rhS} ${rootX + rS},${rootY + rhL} ${rootX + rS},${rootY + rhL + thick} ${rootX + rL},${rootY + rhS + thick}`;
     const edge2 = `${rootX + rS},${rootY + rhL} ${rootX - rS},${rootY + rhL} ${rootX - rS},${rootY + rhL + thick} ${rootX + rS},${rootY + rhL + thick}`;
     const edge3 = `${rootX - rS},${rootY + rhL} ${rootX - rL},${rootY + rhS} ${rootX - rL},${rootY + rhS + thick} ${rootX - rS},${rootY + rhL + thick}`;
-
+    
     foundationGroup.appendChild(this.createPoly(edge1, "#37474f"));
     foundationGroup.appendChild(this.createPoly(edge2, "#455a64"));
     foundationGroup.appendChild(this.createPoly(edge3, "#263238"));
@@ -1682,14 +1154,14 @@ export default class TerrainGenerator {
     steelRoad.setAttribute("stroke", "#455a64"); // Dark metal
     steelRoad.setAttribute("stroke-width", "120");
     steelRoad.setAttribute("stroke-linejoin", "bevel");
-
+    
     const railLine = document.createElementNS("http://www.w3.org/2000/svg", "path");
     railLine.setAttribute("d", dRoad);
     railLine.setAttribute("fill", "none");
     railLine.setAttribute("stroke", "#ffb300"); // caution yellow/amber stripe
     railLine.setAttribute("stroke-width", "10");
     railLine.setAttribute("stroke-dasharray", "40, 20");
-
+    
     roadGroup.appendChild(steelRoad);
     roadGroup.appendChild(railLine);
     this.renderQueue.push({ y: zRoads, element: roadGroup });
@@ -1697,7 +1169,7 @@ export default class TerrainGenerator {
     // 3. Structured Pipe Network
     // Bridging from the central safe zone all the way out to ±1000px bounds
     const pipeGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-
+    
     const makePipe = (x1, y1, x2, y2, width) => {
       const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
       const pipe = document.createElementNS("http://www.w3.org/2000/svg", "line");
@@ -1706,7 +1178,7 @@ export default class TerrainGenerator {
       pipe.setAttribute("stroke", "#102027");
       pipe.setAttribute("stroke-width", width);
       pipe.setAttribute("stroke-linecap", "round");
-
+      
       const highlight = document.createElementNS("http://www.w3.org/2000/svg", "line");
       highlight.setAttribute("x1", x1); highlight.setAttribute("y1", y1);
       highlight.setAttribute("x2", x2); highlight.setAttribute("y2", y2);
@@ -1718,8 +1190,8 @@ export default class TerrainGenerator {
       const joint = document.createElementNS("http://www.w3.org/2000/svg", "circle");
       joint.setAttribute("cx", x2); joint.setAttribute("cy", y2);
       joint.setAttribute("r", width * 0.4);
-      joint.setAttribute("fill", "#ff9800");
-
+      joint.setAttribute("fill", "#ff9800"); 
+      
       g.appendChild(pipe);
       g.appendChild(highlight);
       g.appendChild(joint);
@@ -1728,10 +1200,10 @@ export default class TerrainGenerator {
 
     // Right Pipe (Eastwards to Tanks)
     pipeGroup.appendChild(makePipe(rootX + 400, rootY + 200, rootX + 1000, rootY + 500, 120));
-
+    
     // Left Pipe (Westwards to Gears)
     pipeGroup.appendChild(makePipe(rootX - 400, rootY + 200, rootX - 1000, rootY + 500, 120));
-
+    
     // South Pipe (Down to Energy Core)
     pipeGroup.appendChild(makePipe(rootX, rootY + 400, rootX, rootY + 800, 120));
 
@@ -1739,16 +1211,16 @@ export default class TerrainGenerator {
 
     // 4. Perimeter Machinery Clusters
     // Hugging the massive cloud tightly at ±1000px limits to ensure perfect visibility
-
+    
     // East Sector (Cooling & Tanks)
     this.drawSystemsCoolingTower(rootX + 1000, rootY + 100, 24.0);
     this.drawSystemsTank(rootX + 1150, rootY + 200, 24.0);
     this.drawSystemsTank(rootX + 850, rootY + 250, 20.0);
-
+    
     // West Sector (Gear Yards)
     this.drawSystemsGearCluster(rootX - 1000, rootY + 200, 24.0);
     this.drawSystemsGearCluster(rootX - 1200, rootY + 300, 20.0);
-
+    
     // South Sector (Energy Core - Hero piece)
     this.drawSystemsEnergyCore(rootX, rootY + 800, 28.0);
   }
@@ -1763,17 +1235,17 @@ export default class TerrainGenerator {
     const zWater = rootY - 1400;
     const zRoads = rootY - 1300;
     const zFoundation = rootY - 100;
-
+    
     // 1. Ancient Mossy Stone Foundation
     const foundationGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-
+    
     // Isometric Stone Base (1000px radius to perfectly frame the temple)
     const rL = 1000; // long radius
     const rS = 500;  // short radius
     const rhL = 500; // long height
     const rhS = 250; // short height
     const thick = 80;
-
+    
     // Base Face (Mossy grey-green)
     const baseOct = `
       ${rootX - rS},${rootY - rhL} 
@@ -1791,7 +1263,7 @@ export default class TerrainGenerator {
     const edge1 = `${rootX + rL},${rootY + rhS} ${rootX + rS},${rootY + rhL} ${rootX + rS},${rootY + rhL + thick} ${rootX + rL},${rootY + rhS + thick}`;
     const edge2 = `${rootX + rS},${rootY + rhL} ${rootX - rS},${rootY + rhL} ${rootX - rS},${rootY + rhL + thick} ${rootX + rS},${rootY + rhL + thick}`;
     const edge3 = `${rootX - rS},${rootY + rhL} ${rootX - rL},${rootY + rhS} ${rootX - rL},${rootY + rhS + thick} ${rootX - rS},${rootY + rhL + thick}`;
-
+    
     foundationGroup.appendChild(this.createPoly(edge1, "#37474f"));
     foundationGroup.appendChild(this.createPoly(edge2, "#263238"));
     foundationGroup.appendChild(this.createPoly(edge3, "#1c313a"));
@@ -1817,14 +1289,14 @@ export default class TerrainGenerator {
     streamBase.setAttribute("stroke", "#004d40"); // dark teal bank
     streamBase.setAttribute("stroke-width", "160");
     streamBase.setAttribute("stroke-linecap", "round");
-
+    
     const streamWater = document.createElementNS("http://www.w3.org/2000/svg", "path");
     streamWater.setAttribute("d", dStream);
     streamWater.setAttribute("fill", "none");
     streamWater.setAttribute("stroke", "#00897b"); // bright cyan/teal water
     streamWater.setAttribute("stroke-width", "100");
     streamWater.setAttribute("stroke-linecap", "round");
-
+    
     const streamHighlight = document.createElementNS("http://www.w3.org/2000/svg", "path");
     streamHighlight.setAttribute("d", dStream);
     streamHighlight.setAttribute("fill", "none");
@@ -1832,7 +1304,7 @@ export default class TerrainGenerator {
     streamHighlight.setAttribute("stroke-width", "20");
     streamHighlight.setAttribute("stroke-dasharray", "80, 40");
     streamHighlight.setAttribute("stroke-linecap", "round");
-
+    
     streamGroup.appendChild(streamBase);
     streamGroup.appendChild(streamWater);
     streamGroup.appendChild(streamHighlight);
@@ -1852,14 +1324,14 @@ export default class TerrainGenerator {
     stonePath.setAttribute("stroke", "#78909c");
     stonePath.setAttribute("stroke-width", "80");
     stonePath.setAttribute("stroke-linejoin", "round");
-
+    
     const pathMoss = document.createElementNS("http://www.w3.org/2000/svg", "path");
     pathMoss.setAttribute("d", dPath);
     pathMoss.setAttribute("fill", "none");
     pathMoss.setAttribute("stroke", "#1b5e20");
     pathMoss.setAttribute("stroke-width", "20");
     pathMoss.setAttribute("stroke-dasharray", "30, 50");
-
+    
     pathGroup.appendChild(stonePath);
     pathGroup.appendChild(pathMoss);
     this.renderQueue.push({ y: zRoads, element: pathGroup });
@@ -1870,7 +1342,7 @@ export default class TerrainGenerator {
     const canopy2 = this.createVerticalSliceCanopy(rootX + 850, rootY - 50, 550, 350);  // East massive
     const canopy3 = this.createVerticalSliceCanopy(rootX - 500, rootY - 500, 450, 250); // NW fill
     const canopy4 = this.createVerticalSliceCanopy(rootX + 500, rootY + 600, 400, 250); // SE corner near water
-
+    
     this.renderQueue.push({ y: rootY - 100, element: canopy1 });
     this.renderQueue.push({ y: rootY - 50, element: canopy2 });
     this.renderQueue.push({ y: rootY - 500, element: canopy3 });
@@ -1892,7 +1364,7 @@ export default class TerrainGenerator {
   createVerticalSliceCanopy(cx, cy, rx, ry) {
     const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
     group.style.pointerEvents = "none";
-
+    
     // Drop shadow base
     const shadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
     shadow.setAttribute("cx", cx); shadow.setAttribute("cy", cy);
@@ -1919,24 +1391,24 @@ export default class TerrainGenerator {
         const radY = layer.ry * (1 + blobFactor);
         const px = cx + Math.cos(angle) * radX;
         const py = cy + layer.dy + Math.sin(angle) * radY;
-
+        
         if (i === 0) path += `M ${px},${py} `;
         else {
-          const prevAngle = ((i - 0.5) / steps) * Math.PI * 2;
-          const pBlob = Math.sin(prevAngle * 6) * 0.2;
-          const ctrlX = cx + Math.cos(prevAngle) * (layer.rx * (1 + pBlob)) * 1.15;
-          const ctrlY = cy + layer.dy + Math.sin(prevAngle) * (layer.ry * (1 + pBlob)) * 1.15;
-          path += `Q ${ctrlX},${ctrlY} ${px},${py} `;
+           const prevAngle = ((i - 0.5) / steps) * Math.PI * 2;
+           const pBlob = Math.sin(prevAngle * 6) * 0.2;
+           const ctrlX = cx + Math.cos(prevAngle) * (layer.rx * (1 + pBlob)) * 1.15;
+           const ctrlY = cy + layer.dy + Math.sin(prevAngle) * (layer.ry * (1 + pBlob)) * 1.15;
+           path += `Q ${ctrlX},${ctrlY} ${px},${py} `;
         }
       }
       path += "Z";
-
+      
       const svgPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
       svgPath.setAttribute("d", path);
       svgPath.setAttribute("fill", layer.fill);
       group.appendChild(svgPath);
     });
-
+    
     return group;
   }
 
@@ -1968,11 +1440,11 @@ export default class TerrainGenerator {
     const tempGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
     const originalGetLayer = this.renderer.getLayer.bind(this.renderer);
     this.renderer.getLayer = () => tempGroup; // intercept draw
-
+    
     this.drawAcademyHouse(cx, cy, scale);
-
+    
     this.renderer.getLayer = originalGetLayer; // restore
-
+    
     const finalGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
     finalGroup.style.pointerEvents = "none";
     while (tempGroup.firstChild) {
@@ -1985,12 +1457,12 @@ export default class TerrainGenerator {
     return;
     const tempGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
     const originalGetLayer = this.renderer.getLayer.bind(this.renderer);
-    this.renderer.getLayer = () => tempGroup;
-
+    this.renderer.getLayer = () => tempGroup; 
+    
     this.drawAcademyTree(cx, cy, scale);
-
+    
     this.renderer.getLayer = originalGetLayer;
-
+    
     const finalGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
     finalGroup.style.pointerEvents = "none";
     while (tempGroup.firstChild) {
@@ -2018,17 +1490,17 @@ export default class TerrainGenerator {
         points.push({ x: currentX, y: currentY });
       } else if (type === 'C' || type === 'c') {
         const p0 = { x: currentX, y: currentY };
-        const p1 = {
-          x: type === 'C' ? args[0] : currentX + args[0],
-          y: type === 'C' ? args[1] : currentY + args[1]
+        const p1 = { 
+          x: type === 'C' ? args[0] : currentX + args[0], 
+          y: type === 'C' ? args[1] : currentY + args[1] 
         };
-        const p2 = {
-          x: type === 'C' ? args[2] : currentX + args[2],
-          y: type === 'C' ? args[3] : currentY + args[3]
+        const p2 = { 
+          x: type === 'C' ? args[2] : currentX + args[2], 
+          y: type === 'C' ? args[3] : currentY + args[3] 
         };
-        const p3 = {
-          x: type === 'C' ? args[4] : currentX + args[4],
-          y: type === 'C' ? args[5] : currentY + args[5]
+        const p3 = { 
+          x: type === 'C' ? args[4] : currentX + args[4], 
+          y: type === 'C' ? args[5] : currentY + args[5] 
         };
 
         for (let i = 1; i <= resolution; i++) {
@@ -2041,10 +1513,10 @@ export default class TerrainGenerator {
 
           const x = u3 * p0.x + u2t * p1.x + ut2 * p2.x + t3 * p3.x;
           const y = u3 * p0.y + u2t * p1.y + ut2 * p2.y + t3 * p3.y;
-
+          
           points.push({ x, y });
         }
-
+        
         currentX = p3.x;
         currentY = p3.y;
       }
@@ -2110,24 +1582,24 @@ export default class TerrainGenerator {
     for (let i = 0; i < total; i++) {
       const p = points[i];
       const n = normals[i];
-
+      
       let currentWidth = width / 2;
 
       // Apply tapering
       if (taperConfig.riverMode) {
         const lastP = points[total - 1];
         const distFromEnd = Math.hypot(p.x - lastP.x, p.y - lastP.y);
-
+        
         let flare = 0;
         if (distFromEnd < 120) {
           // Exponential flare for the last 120 units to create a natural fan shape
           flare = Math.pow((120 - distFromEnd) / 120, 2);
         }
-
+        
         const t = i / (total - 1);
         // Linear growth for the river body, up to 1.5x startWidth
-        const linearWidth = taperConfig.startWidth + (taperConfig.startWidth * 0.5) * t;
-
+        const linearWidth = taperConfig.startWidth + (taperConfig.startWidth * 0.5) * t; 
+        
         // Final width is linear body + flare to the endWidth
         currentWidth = linearWidth + (taperConfig.endWidth - linearWidth) * flare;
       } else if (taperConfig.wilderness) {
@@ -2153,7 +1625,7 @@ export default class TerrainGenerator {
         x: p.x + n.nx * currentWidth,
         y: p.y + n.ny * currentWidth
       });
-
+      
       rightPoints.push({
         x: p.x - n.nx * currentWidth,
         y: p.y - n.ny * currentWidth
@@ -2208,13 +1680,13 @@ export default class TerrainGenerator {
         filter.innerHTML = html;
         this.renderer.defs.appendChild(filter);
       };
-
+      
       createFilter('road-weathering-filter', `
         <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="3" result="noise" />
         <feDisplacementMap in="SourceGraphic" in2="noise" scale="3" xChannelSelector="R" yChannelSelector="G" result="displaced" />
         <feGaussianBlur in="displaced" stdDeviation="2.5" result="blurred" />
       `);
-
+      
       createFilter('road-core-filter', `
         <feTurbulence type="fractalNoise" baseFrequency="0.06" numOctaves="2" result="noise" />
         <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.5" xChannelSelector="R" yChannelSelector="G" result="displaced" />
@@ -2261,7 +1733,7 @@ export default class TerrainGenerator {
 
       // 3. Generate exactly ONE continuous base polygon
       const basePolygon = this.buildRoadPolygon(allPoints, baseWidth, { wilderness: 0.4 }, 2);
-
+      
       // 4. Generate exactly ONE continuous core polygon
       const corePolygon = this.buildRoadPolygon(allPoints, coreWidth, { wilderness: 0.4 }, 1);
 
@@ -2281,7 +1753,7 @@ export default class TerrainGenerator {
 
       group.appendChild(baseGroup);
       group.appendChild(coreGroup);
-
+      
       this.renderer.getLayer('roads').appendChild(group);
 
       if (roadData.bridgeAnchors) {
@@ -2293,9 +1765,9 @@ export default class TerrainGenerator {
       {
         id: 'great-western-trade-route',
         type: 'main-trade-route',
-        baseColor: '#4A2F1B',
-        coreColor: '#E8D2A8',
-        baseOpacity: 0.75,
+        baseColor: '#4A2F1B', 
+        coreColor: '#E8D2A8', 
+        baseOpacity: 0.75, 
         coreOpacity: 1.0,
         baseWidth: 260,
         coreWidth: 140,
@@ -2314,9 +1786,9 @@ export default class TerrainGenerator {
       {
         id: 'northern-trade-route',
         type: 'main-trade-route',
-        baseColor: '#4A2F1B',
-        coreColor: '#E8D2A8',
-        baseOpacity: 0.75,
+        baseColor: '#4A2F1B', 
+        coreColor: '#E8D2A8', 
+        baseOpacity: 0.75, 
         coreOpacity: 1.0,
         baseWidth: 260,
         coreWidth: 140,
@@ -2330,9 +1802,9 @@ export default class TerrainGenerator {
       {
         id: 'southern-trade-route',
         type: 'main-trade-route',
-        baseColor: '#4A2F1B',
-        coreColor: '#E8D2A8',
-        baseOpacity: 0.75,
+        baseColor: '#4A2F1B', 
+        coreColor: '#E8D2A8', 
+        baseOpacity: 0.75, 
         coreOpacity: 1.0,
         baseWidth: 260,
         coreWidth: 140,
@@ -2346,9 +1818,9 @@ export default class TerrainGenerator {
       {
         id: 'eastern-trade-route',
         type: 'main-trade-route',
-        baseColor: '#4A2F1B',
-        coreColor: '#E8D2A8',
-        baseOpacity: 0.75,
+        baseColor: '#4A2F1B', 
+        coreColor: '#E8D2A8', 
+        baseOpacity: 0.75, 
         coreOpacity: 1.0,
         baseWidth: 260,
         coreWidth: 140,
@@ -2363,6 +1835,27 @@ export default class TerrainGenerator {
     roadsConfig.forEach(road => drawRoad(road));
 
     const internalRoads = [
+      // Logic Dominion (Elegant, gentle curves)
+      {
+        id: 'logic-campus-path',
+        type: 'internal-road',
+        baseColor: '#4A2F1B', coreColor: '#E8D2A8', baseOpacity: 0.75, coreOpacity: 1.0,
+        baseWidth: 160, coreWidth: 80,
+        segments: [
+          { path: 'M -550,-1000 C -700,-1100 -800,-1300 -1000,-1400' },
+          { path: 'M -1000,-1400 C -1200,-1500 -1300,-1500 -1400,-1300' }
+        ]
+      },
+      {
+        id: 'logic-garden-path',
+        type: 'internal-road',
+        baseColor: '#4A2F1B', coreColor: '#E8D2A8', baseOpacity: 0.75, coreOpacity: 1.0,
+        baseWidth: 120, coreWidth: 60,
+        segments: [
+          { path: 'M -550,-1000 C -800,-800 -1000,-600 -1200,-700' }
+        ]
+      },
+
       // Systems Republic (Engineered, sharper angles)
       {
         id: 'systems-factory-line',
@@ -2439,7 +1932,7 @@ export default class TerrainGenerator {
         width: 900,
         height: 450, // wide enough to cover the river
         baseColor: '#cfd8dc', // Light gray masonry
-        accentColor: '#90a4ae',
+        accentColor: '#90a4ae', 
         deckColor: '#78909c'
       },
       mechanical: {
@@ -2468,7 +1961,7 @@ export default class TerrainGenerator {
     this.authoredBridgeAnchors.forEach(anchor => {
       const config = bridgeConfig[anchor.type] || bridgeConfig['stone'];
       let bridgeGroup;
-
+      
       switch (anchor.type) {
         case 'mechanical':
           bridgeGroup = this.drawMechanicalBridge(anchor, config);
@@ -2499,12 +1992,12 @@ export default class TerrainGenerator {
 
     const w = config.width;
     const h = config.height;
-    const roadWidth = 400;
+    const roadWidth = 400; 
 
     // Base foundation (elegant rounded stone)
     const foundation = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-    foundation.setAttribute("x", -w / 2);
-    foundation.setAttribute("y", -h / 2);
+    foundation.setAttribute("x", -w/2);
+    foundation.setAttribute("y", -h/2);
     foundation.setAttribute("width", w);
     foundation.setAttribute("height", h);
     foundation.setAttribute("fill", config.baseColor);
@@ -2514,8 +2007,8 @@ export default class TerrainGenerator {
 
     // Cyan decorative trim
     const trim = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-    trim.setAttribute("x", -w / 2 + 10);
-    trim.setAttribute("y", -h / 2 + 10);
+    trim.setAttribute("x", -w/2 + 10);
+    trim.setAttribute("y", -h/2 + 10);
     trim.setAttribute("width", w - 20);
     trim.setAttribute("height", h - 20);
     trim.setAttribute("fill", "none");
@@ -2526,17 +2019,17 @@ export default class TerrainGenerator {
 
     // Deck
     const deck = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-    deck.setAttribute("x", -w / 2 + 40);
-    deck.setAttribute("y", -h / 2);
+    deck.setAttribute("x", -w/2 + 40);
+    deck.setAttribute("y", -h/2);
     deck.setAttribute("width", w - 80);
     deck.setAttribute("height", h);
     deck.setAttribute("fill", config.deckColor);
     g.appendChild(deck);
 
     // Small side parapets
-    [-roadWidth / 2 - 10, roadWidth / 2].forEach(yPos => {
+    [-roadWidth/2 - 10, roadWidth/2].forEach(yPos => {
       const parapet = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-      parapet.setAttribute("x", -w / 2);
+      parapet.setAttribute("x", -w/2);
       parapet.setAttribute("y", yPos);
       parapet.setAttribute("width", w);
       parapet.setAttribute("height", 10);
@@ -2560,25 +2053,25 @@ export default class TerrainGenerator {
 
     // Thick steel deck
     const deck = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-    deck.setAttribute("x", -w / 2);
-    deck.setAttribute("y", -h / 2);
+    deck.setAttribute("x", -w/2);
+    deck.setAttribute("y", -h/2);
     deck.setAttribute("width", w);
     deck.setAttribute("height", h);
     deck.setAttribute("fill", config.baseColor);
     g.appendChild(deck);
 
     // Industrial orange accents and rails
-    [-roadWidth / 2 - 30, roadWidth / 2 + 10].forEach(yPos => {
+    [-roadWidth/2 - 30, roadWidth/2 + 10].forEach(yPos => {
       const rail = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-      rail.setAttribute("x", -w / 2);
+      rail.setAttribute("x", -w/2);
       rail.setAttribute("y", yPos);
       rail.setAttribute("width", w);
       rail.setAttribute("height", 20);
       rail.setAttribute("fill", "#ff9800"); // orange accent
       g.appendChild(rail);
-
+      
       // Rivets on the rail
-      for (let i = -w / 2 + 20; i < w / 2; i += 40) {
+      for (let i = -w/2 + 20; i < w/2; i += 40) {
         const rivet = document.createElementNS("http://www.w3.org/2000/svg", "circle");
         rivet.setAttribute("cx", i);
         rivet.setAttribute("cy", yPos + 10);
@@ -2589,35 +2082,35 @@ export default class TerrainGenerator {
     });
 
     // Mechanical support beams crossing the road
-    for (let i = -w / 2 + 40; i < w / 2; i += 80) {
+    for (let i = -w/2 + 40; i < w/2; i += 80) {
       const beam = document.createElementNS("http://www.w3.org/2000/svg", "rect");
       beam.setAttribute("x", i);
-      beam.setAttribute("y", -h / 2);
+      beam.setAttribute("y", -h/2);
       beam.setAttribute("width", 20);
       beam.setAttribute("height", h);
       beam.setAttribute("fill", config.deckColor);
       g.appendChild(beam);
-
+      
       // X bracing
       const brace1 = document.createElementNS("http://www.w3.org/2000/svg", "line");
       brace1.setAttribute("x1", i);
-      brace1.setAttribute("y1", -h / 2);
+      brace1.setAttribute("y1", -h/2);
       brace1.setAttribute("x2", i + 20);
-      brace1.setAttribute("y2", h / 2);
+      brace1.setAttribute("y2", h/2);
       brace1.setAttribute("stroke", "#ff9800");
       brace1.setAttribute("stroke-width", "4");
       g.appendChild(brace1);
 
       const brace2 = document.createElementNS("http://www.w3.org/2000/svg", "line");
       brace2.setAttribute("x1", i + 20);
-      brace2.setAttribute("y1", -h / 2);
+      brace2.setAttribute("y1", -h/2);
       brace2.setAttribute("x2", i);
-      brace2.setAttribute("y2", h / 2);
+      brace2.setAttribute("y2", h/2);
       brace2.setAttribute("stroke", "#ff9800");
       brace2.setAttribute("stroke-width", "4");
       g.appendChild(brace2);
     }
-
+    
     return g;
   }
 
@@ -2633,15 +2126,15 @@ export default class TerrainGenerator {
 
     // Foundation
     const foundation = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-    foundation.setAttribute("x", -w / 2);
-    foundation.setAttribute("y", -h / 2);
+    foundation.setAttribute("x", -w/2);
+    foundation.setAttribute("y", -h/2);
     foundation.setAttribute("width", w);
     foundation.setAttribute("height", h);
     foundation.setAttribute("fill", config.baseColor);
     g.appendChild(foundation);
 
     // Layered timber planks
-    for (let i = -w / 2 + 5; i < w / 2; i += 15) {
+    for (let i = -w/2 + 5; i < w/2; i += 15) {
       const plankLength = h - (window.rng.next() * 20); // slight organic variation
       const plankY = -plankLength / 2;
       const plank = document.createElementNS("http://www.w3.org/2000/svg", "rect");
@@ -2655,9 +2148,9 @@ export default class TerrainGenerator {
     }
 
     // Rope railings
-    [-roadWidth / 2 - 20, roadWidth / 2 + 10].forEach(yPos => {
+    [-roadWidth/2 - 20, roadWidth/2 + 10].forEach(yPos => {
       // Posts
-      for (let i = -w / 2 + 20; i < w / 2; i += 60) {
+      for (let i = -w/2 + 20; i < w/2; i += 60) {
         const post = document.createElementNS("http://www.w3.org/2000/svg", "circle");
         post.setAttribute("cx", i);
         post.setAttribute("cy", yPos + 5);
@@ -2665,11 +2158,11 @@ export default class TerrainGenerator {
         post.setAttribute("fill", "#3e2723");
         g.appendChild(post);
       }
-
+      
       // The rope (a wavy line)
-      let d = `M ${-w / 2 + 20} ${yPos + 5}`;
-      for (let i = -w / 2 + 20 + 60; i < w / 2; i += 60) {
-        d += ` Q ${i - 30} ${yPos + 20} ${i} ${yPos + 5}`;
+      let d = `M ${-w/2 + 20} ${yPos + 5}`;
+      for (let i = -w/2 + 20 + 60; i < w/2; i += 60) {
+         d += ` Q ${i - 30} ${yPos + 20} ${i} ${yPos + 5}`;
       }
       const rope = document.createElementNS("http://www.w3.org/2000/svg", "path");
       rope.setAttribute("d", d);
@@ -2694,16 +2187,16 @@ export default class TerrainGenerator {
 
     // Broken stone deck (uneven silhouette)
     const deck = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    let d = `M ${-w / 2},${-h / 2} `;
+    let d = `M ${-w/2},${-h/2} `;
     // Top edge uneven
-    for (let i = -w / 2; i <= w / 2; i += 40) {
-      d += `L ${i},${-h / 2 + window.rng.next() * 20 - 10} `;
+    for (let i = -w/2; i <= w/2; i += 40) {
+      d += `L ${i},${-h/2 + window.rng.next() * 20 - 10} `;
     }
     // Right edge
-    d += `L ${w / 2},${h / 2} `;
+    d += `L ${w/2},${h/2} `;
     // Bottom edge uneven
-    for (let i = w / 2; i >= -w / 2; i -= 40) {
-      d += `L ${i},${h / 2 + window.rng.next() * 20 - 10} `;
+    for (let i = w/2; i >= -w/2; i -= 40) {
+      d += `L ${i},${h/2 + window.rng.next() * 20 - 10} `;
     }
     d += `Z`;
     deck.setAttribute("d", d);
@@ -2715,7 +2208,7 @@ export default class TerrainGenerator {
       const crack = document.createElementNS("http://www.w3.org/2000/svg", "path");
       const startX = (window.rng.next() - 0.5) * w;
       const startY = (window.rng.next() - 0.5) * h;
-      crack.setAttribute("d", `M ${startX},${startY} L ${startX + window.rng.next() * 40 - 20},${startY + window.rng.next() * 40 - 20} L ${startX + window.rng.next() * 40 - 20},${startY + window.rng.next() * 40 - 20}`);
+      crack.setAttribute("d", `M ${startX},${startY} L ${startX + window.rng.next()*40 - 20},${startY + window.rng.next()*40 - 20} L ${startX + window.rng.next()*40 - 20},${startY + window.rng.next()*40 - 20}`);
       crack.setAttribute("fill", "none");
       crack.setAttribute("stroke", config.deckColor);
       crack.setAttribute("stroke-width", "3");
@@ -2727,18 +2220,18 @@ export default class TerrainGenerator {
       const crystal = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
       const cx = (window.rng.next() - 0.5) * w;
       // Clustered near the edges
-      const cy = (window.rng.next() > 0.5 ? 1 : -1) * (roadWidth / 2 - window.rng.next() * 30);
-
+      const cy = (window.rng.next() > 0.5 ? 1 : -1) * (roadWidth/2 - window.rng.next() * 30);
+      
       const sizeX = 15 + window.rng.next() * 20;
       const sizeY = 25 + window.rng.next() * 30;
-
-      crystal.setAttribute("points", `${cx},${cy} ${cx + sizeX / 2},${cy - sizeY} ${cx + sizeX},${cy}`);
+      
+      crystal.setAttribute("points", `${cx},${cy} ${cx+sizeX/2},${cy-sizeY} ${cx+sizeX},${cy}`);
       crystal.setAttribute("fill", config.accentColor);
       g.appendChild(crystal);
-
+      
       // Crystal core
       const core = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-      core.setAttribute("points", `${cx + sizeX / 4},${cy} ${cx + sizeX / 2},${cy - sizeY * 0.8} ${cx + sizeX * 0.75},${cy}`);
+      core.setAttribute("points", `${cx+sizeX/4},${cy} ${cx+sizeX/2},${cy-sizeY*0.8} ${cx+sizeX*0.75},${cy}`);
       core.setAttribute("fill", "#e1bee7"); // light purple core
       g.appendChild(core);
     }
@@ -2752,7 +2245,7 @@ export default class TerrainGenerator {
     // Prim's Algorithm for Minimum Spanning Tree (MST)
     const unvisited = [...this.regionsConfig];
     const visited = [unvisited.shift()];
-
+    
     while (unvisited.length > 0) {
       let minDist = Infinity;
       let closestVisited = null;
@@ -2762,7 +2255,7 @@ export default class TerrainGenerator {
         for (let j = 0; j < unvisited.length; j++) {
           const dx = visited[i].x - unvisited[j].x;
           const dy = visited[i].y - unvisited[j].y;
-          const dist = dx * dx + dy * dy;
+          const dist = dx*dx + dy*dy;
           if (dist < minDist) {
             minDist = dist;
             closestVisited = visited[i];
@@ -2772,10 +2265,10 @@ export default class TerrainGenerator {
       }
 
       const closestUnvisited = unvisited.splice(closestUnvisitedIdx, 1)[0];
-
+      
       // Calculate angle between the two regions to find edge coordinates
       const angle = Math.atan2(closestUnvisited.y - closestVisited.y, closestUnvisited.x - closestVisited.x);
-
+      
       // Assume a territory radius of about width/2.2 (matches hitbox from RegionManager)
       const r1 = Math.max(closestVisited.width, closestVisited.height) / 2.2;
       const r2 = Math.max(closestUnvisited.width, closestUnvisited.height) / 2.2;
@@ -2783,7 +2276,7 @@ export default class TerrainGenerator {
       // Start at the edge of the visited region
       const startX = closestVisited.x + Math.cos(angle) * r1;
       const startY = closestVisited.y + Math.sin(angle) * r1;
-
+      
       // End at the edge of the unvisited region
       const endX = closestUnvisited.x - Math.cos(angle) * r2;
       const endY = closestUnvisited.y - Math.sin(angle) * r2;
@@ -2791,7 +2284,7 @@ export default class TerrainGenerator {
       // Draw road
       const cx = (startX + endX) / 2 + (window.rng.next() * 300 - 150);
       const cy = (startY + endY) / 2 + (window.rng.next() * 300 - 150);
-
+      
       const d = `M ${startX},${startY} Q ${cx},${cy} ${endX},${endY}`;
       const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
       path.setAttribute("d", d);
@@ -2801,7 +2294,7 @@ export default class TerrainGenerator {
       path.setAttribute("stroke-dasharray", "20 15");
       path.setAttribute("stroke-linecap", "round");
       path.setAttribute("filter", "url(#drop-shadow)");
-
+      
       this.renderer.getLayer('roads').appendChild(path);
       visited.push(closestUnvisited);
     }
@@ -2814,7 +2307,7 @@ export default class TerrainGenerator {
       const dist = Math.sqrt(dx * dx + dy * dy);
       // Adjusted safe zone (Phase 1B.2 Fix): large enough for landmarks, but reduced from 220 to 150
       // so the map has rich clearings without mathematically starving the generator.
-      const safeZone = Math.max(r.width, r.height) / 2.2 + 150;
+      const safeZone = Math.max(r.width, r.height) / 2.2 + 150; 
       if (dist < safeZone + radius) return true;
     }
     return false;
@@ -2836,7 +2329,7 @@ export default class TerrainGenerator {
         // Normalized distance to check if we are on the elliptical island grass
         const dx = jitterX - this.centerX;
         const dy = jitterY - this.centerY;
-        const normalizedDist = (dx * dx) / (islandRx * islandRx) + (dy * dy) / (islandRy * islandRy);
+        const normalizedDist = (dx*dx)/(islandRx*islandRx) + (dy*dy)/(islandRy*islandRy);
         if (normalizedDist > 0.8) continue; // Keep away from the beach edge
 
         if (!this.isCollision(jitterX, jitterY, 150)) {
@@ -2846,7 +2339,7 @@ export default class TerrainGenerator {
           for (let r of this.regionsConfig) {
             const rdx = r.x - jitterX;
             const rdy = r.y - jitterY;
-            const dist = Math.sqrt(rdx * rdx + rdy * rdy);
+            const dist = Math.sqrt(rdx*rdx + rdy*rdy);
             if (dist < minDist) {
               minDist = dist;
               nearestRegion = r;
@@ -2854,8 +2347,8 @@ export default class TerrainGenerator {
           }
 
           // If within regional influence, inherit biome
-          const theme = nearestRegion && minDist < (Math.max(nearestRegion.width, nearestRegion.height) * 2)
-            ? nearestRegion.theme : 'plains';
+          const theme = nearestRegion && minDist < (Math.max(nearestRegion.width, nearestRegion.height) * 2) 
+                        ? nearestRegion.theme : 'plains';
 
           /* 
           // Disabled as per user request to remove small scatter props
@@ -2877,7 +2370,7 @@ export default class TerrainGenerator {
 
   generateEcology(islandRx, islandRy) {
     // Phase 4E Recovery: Computed ecosystem zones with robust fallback
-
+    
     // 1. Natural Mountain Ridges
     this.generateMountainRidges(islandRx, islandRy);
 
@@ -2891,7 +2384,7 @@ export default class TerrainGenerator {
     const zoneReport = [];
     let validZones = 0;
     let skippedZones = 0;
-    const angles = [0, Math.PI / 4, Math.PI / 2, 3 * Math.PI / 4, Math.PI, 5 * Math.PI / 4, 3 * Math.PI / 2, 7 * Math.PI / 4];
+    const angles = [0, Math.PI/4, Math.PI/2, 3*Math.PI/4, Math.PI, 5*Math.PI/4, 3*Math.PI/2, 7*Math.PI/4];
 
     this.ecosystemZoneTemplates.forEach(template => {
       if (template.theme === 'logic' || template.theme === 'python') return; // Handled by Vertical Slices
@@ -2979,7 +2472,7 @@ export default class TerrainGenerator {
         const cy = report.cy;
         const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
         g.style.pointerEvents = "none";
-
+        
         let color = "white";
         if (template.theme === 'logic') color = "cyan";
         else if (template.theme === 'debug') color = "magenta"; // standard purple is hard to see, use magenta
@@ -2996,7 +2489,7 @@ export default class TerrainGenerator {
         circle.setAttribute("stroke", report.rendered ? color : "red");
         circle.setAttribute("stroke-width", "3");
         if (!report.rendered) {
-          circle.setAttribute("stroke-dasharray", "10,10");
+           circle.setAttribute("stroke-dasharray", "10,10");
         }
         g.appendChild(circle);
 
@@ -3024,11 +2517,11 @@ export default class TerrainGenerator {
         text.setAttribute("font-weight", "bold");
         text.setAttribute("fill", report.rendered ? "white" : "red");
         text.style.textShadow = "2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000";
-
+        
         const statusStr = report.rendered ? "✓ VALID" : "✗ INVALID";
         const extraInfo = report.rendered ? `[Props: ${report.propCount}]` : `[Reason: ${report.reason}]`;
         text.textContent = `${template.id} (${template.theme}) | ${statusStr} ${extraInfo}`;
-
+        
         g.appendChild(text);
 
         // Add the group to the very front so it's not hidden by mountains
@@ -3105,21 +2598,21 @@ export default class TerrainGenerator {
       console.log(`===============================`);
     }
   }
-
+  
   generateMountainRidges(islandRx, islandRy) {
     const ridges = [
       // Central mountain ridges removed as requested
     ];
-
+    
     ridges.forEach(ridge => {
-      for (let i = 0; i < ridge.count; i++) {
+      for(let i=0; i<ridge.count; i++) {
         const t = i / (ridge.count - 1);
         const curveY = Math.sin(t * Math.PI) * 150; // Curve the ridge naturally
         let x = ridge.startX + (ridge.endX - ridge.startX) * t + (window.rng.next() * 60 - 30);
         let y = ridge.startY + (ridge.endY - ridge.startY) * t + curveY + (window.rng.next() * 60 - 30);
-
+        
         if (!this.isCollision(x, y, 100)) {
-          this.drawMountain(x, y, ridge.theme);
+           this.drawMountain(x, y, ridge.theme);
         }
       }
     });
@@ -3169,7 +2662,7 @@ export default class TerrainGenerator {
     } else if (sceneType === 'forestEdge') {
       trySpawn(this.drawTreeGroup, [theme], 0, 0); setAnchor('TreeGroup', 6.0); // base scale inside function
     }
-
+    
     // DEBUG SCENES
     else if (sceneType === 'crystalField') {
       // Intentionally left blank as per user request to remove scatter props
@@ -3210,7 +2703,7 @@ export default class TerrainGenerator {
 
   drawOrganicPatch(cx, cy, radius, theme) {
     const g = document.createElementNS("http://www.w3.org/2000/svg", "path");
-
+    
     // Generate organic blob shape
     let d = "";
     const points = 10;
@@ -3223,13 +2716,13 @@ export default class TerrainGenerator {
       else d += `L ${x},${y} `;
     }
     g.setAttribute("d", d + "Z");
-
+    
     // SVG-safe hex fills with opacity attribute
     if (theme === 'logic') { g.setAttribute("fill", "#00bfa5"); g.setAttribute("opacity", "0.15"); }
     else if (theme === 'debug') { g.setAttribute("fill", "#6a1b9a"); g.setAttribute("opacity", "0.15"); }
     else if (theme === 'systems') { g.setAttribute("fill", "#4e342e"); g.setAttribute("opacity", "0.2"); }
     else if (theme === 'python') { g.setAttribute("fill", "#1b5e20"); g.setAttribute("opacity", "0.2"); }
-
+    
     g.style.pointerEvents = "none";
     // Draw far beneath props, but above base terrain
     this.renderQueue.push({ y: cy - radius, element: g });
@@ -3243,13 +2736,13 @@ export default class TerrainGenerator {
     g.style.pointerEvents = "none"; // Safety rule 11
 
     const base = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-    base.setAttribute("points", `0,-${size} -${size * 0.3},0 0,${size * 0.2} ${size * 0.3},0`);
+    base.setAttribute("points", `0,-${size} -${size*0.3},0 0,${size*0.2} ${size*0.3},0`);
     base.setAttribute("fill", "#7b1fa2");
 
     const core = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-    core.setAttribute("points", `0,-${size * 0.9} -${size * 0.15},0 0,${size * 0.1} ${size * 0.15},0`);
+    core.setAttribute("points", `0,-${size*0.9} -${size*0.15},0 0,${size*0.1} ${size*0.15},0`);
     core.setAttribute("fill", "#e040fb");
-
+    
     // Glowing animation
     const glow = document.createElementNS("http://www.w3.org/2000/svg", "animate");
     glow.setAttribute("attributeName", "opacity");
@@ -3260,171 +2753,6 @@ export default class TerrainGenerator {
 
     g.appendChild(base);
     g.appendChild(core);
-    this.renderQueue.push({ y: y, element: g });
-  }
-
-  drawDebugGroundPatch(x, y, scale, rotation, type) {
-    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale}) rotate(${rotation})`);
-    g.style.pointerEvents = "none";
-
-    const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    if (type === 0) {
-      // Deep burnt black/gray soil
-      p.setAttribute("d", "M -20,-10 C -10,-25 15,-15 25,-5 C 35,10 20,25 0,15 C -20,10 -35,5 -20,-10 Z");
-      p.setAttribute("fill", "rgba(20, 22, 25, 0.45)");
-    } else if (type === 1) {
-      // Purple corruption stain
-      p.setAttribute("d", "M -15,-5 C -5,-20 20,-10 25,5 C 30,15 10,30 -10,15 C -25,5 -25,-5 -15,-5 Z");
-      p.setAttribute("fill", "rgba(150, 0, 255, 0.2)");
-    } else {
-      // Ash fields
-      p.setAttribute("d", "M -30,0 C -20,-15 10,-25 25,0 C 40,25 0,35 -20,20 C -35,10 -40,15 -30,0 Z");
-      p.setAttribute("fill", "rgba(50, 50, 55, 0.3)");
-    }
-    p.setAttribute("filter", "blur(12px)");
-    g.appendChild(p);
-
-    // Z-sort at y - 2000 so ground patches physically lay under all other 3D geometry
-    this.renderQueue.push({ y: y - 2000, element: g });
-  }
-
-  drawDebugDeadTree(x, y, scale, rotation) {
-    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale}) rotate(${rotation})`);
-    g.style.pointerEvents = "none";
-
-    const shadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
-    shadow.setAttribute("cx", 0); shadow.setAttribute("cy", 2);
-    shadow.setAttribute("rx", 10); shadow.setAttribute("ry", 5);
-    shadow.setAttribute("fill", "rgba(0,0,0,0.4)");
-    shadow.setAttribute("filter", "blur(2px)");
-    g.appendChild(shadow);
-
-    // Twisted dead trunk
-    g.appendChild(this.createPoly("-3,0 3,0 1,-35 -2,-35", "#181a1c"));
-
-    // Jagged dead branches
-    g.appendChild(this.createPoly("0,-15 12,-22 14,-19 1,-12", "#222529"));
-    g.appendChild(this.createPoly("0,-25 -10,-33 -8,-35 2,-25", "#181a1c"));
-    g.appendChild(this.createPoly("8,-20 12,-30 14,-28 10,-19", "#222529"));
-
-    this.renderQueue.push({ y: y, element: g });
-  }
-
-  drawDebugGroundCrack(x, y, scale, rotation) {
-    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale}) rotate(${rotation})`);
-    g.style.pointerEvents = "none";
-
-    const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    p.setAttribute("d", "M 0,0 L 5,-10 L 2,-15 L 10,-25 M 5,-10 L 15,-5");
-    p.setAttribute("stroke", "#1e1e1e");
-    p.setAttribute("stroke-width", "2");
-    p.setAttribute("stroke-linecap", "round");
-    p.setAttribute("stroke-linejoin", "round");
-    p.setAttribute("fill", "none");
-    p.setAttribute("opacity", "0.8");
-    g.appendChild(p);
-
-    this.renderQueue.push({ y: y - 1000, element: g });
-  }
-
-  drawDebugScatter(x, y, type) {
-    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    g.setAttribute("transform", `translate(${x}, ${y})`);
-    g.style.pointerEvents = "none";
-
-    if (type === 1) {
-      g.appendChild(this.createPoly("-4,-2 4,2 6,0 -2,-4", "#1e1e1e"));
-    } else if (type === 2) {
-      g.appendChild(this.createPoly("-2,-1 2,1 3,0 -1,-2", "#7f8c8d"));
-    } else {
-      g.appendChild(this.createPoly("-1,-1 1,1 2,-1 0,-3", "#d35400"));
-    }
-
-    this.renderQueue.push({ y: y, element: g });
-  }
-
-  drawDebugRuinsExtended(x, y, scale, rotation, type) {
-    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale}) rotate(${rotation})`);
-    g.style.pointerEvents = "none";
-
-    const shadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
-    shadow.setAttribute("cx", 0); shadow.setAttribute("cy", 5);
-    shadow.setAttribute("rx", 25); shadow.setAttribute("ry", 12);
-    shadow.setAttribute("fill", "rgba(10, 12, 15, 0.7)");
-    shadow.setAttribute("filter", "blur(4px)");
-    g.appendChild(shadow);
-
-    // Subtle purple corruption glow bleeding from the ruins
-    const glow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
-    glow.setAttribute("cx", 0); glow.setAttribute("cy", 0);
-    glow.setAttribute("rx", 20); glow.setAttribute("ry", 15);
-    glow.setAttribute("fill", "rgba(150, 0, 255, 0.15)");
-    glow.setAttribute("filter", "blur(8px)");
-    g.appendChild(glow);
-
-    // Colors blended to match the corrupted wasteland (dark purplish-grey)
-    const c1 = "#2a2833";
-    const c2 = "#353140";
-    const c3 = "#1a1820";
-
-    if (type === 0) { // Broken stone wall
-      g.appendChild(this.createPoly("-15,5 -5,10 -5,-15 -15,-25", c2));
-      g.appendChild(this.createPoly("-5,10 15,0 15,-10 -5,-15", c1));
-      // Jagged top
-      g.appendChild(this.createPoly("-5,-15 -10,-20 0,-18 5,-12", c3));
-    } else if (type === 1) { // Fallen pillar
-      g.appendChild(this.createPoly("-20,5 -15,10 20,-5 15,-10", c1));
-      g.appendChild(this.createPoly("-20,5 -25,0 -20,-5 -15,0", c2));
-    } else if (type === 2) { // Rubble pile / barricade
-      g.appendChild(this.createPoly("-10,5 0,10 12,2 0,-5", "#3a3f44"));
-      g.appendChild(this.createPoly("0,10 15,5 10,-8 2,-2", c1));
-      g.appendChild(this.createPoly("-5,0 5,2 3,-10 -8,-5", c3));
-    } else if (type === 3) { // Cracked stone slab / Half buried foundation
-      g.appendChild(this.createPoly("-18,0 0,12 25,-2 5,-15", c1));
-      g.appendChild(this.createPoly("-18,-2 0,10 25,-4 5,-17", c2));
-      // Crack overlay
-      const crack = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      crack.setAttribute("d", "M -10,-5 L 0,0 L 5,-8 L 15,-2");
-      crack.setAttribute("stroke", c3);
-      crack.setAttribute("stroke-width", "1.5");
-      crack.setAttribute("fill", "none");
-      g.appendChild(crack);
-    } else if (type === 4) { // Collapsed Gateway (Exclusive to Site 1)
-      g.appendChild(this.createPoly("-25,10 -15,15 -15,-25 -25,-35", c2)); // Left standing pillar
-      g.appendChild(this.createPoly("15,15 25,10 25,-10 15,-5", c2)); // Right broken pillar
-      g.appendChild(this.createPoly("-25,-30 10,-5 0,5 -35,-20", c1)); // Fallen massive archway piece
-      g.appendChild(this.createPoly("-5,-5 20,5 25,-10 -5,-15", c3)); // Rubble underneath arch
-    }
-
-    this.renderQueue.push({ y: y, element: g });
-  }
-
-  drawDebugCrystalCluster(x, y, scale) {
-    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
-    g.style.pointerEvents = "none";
-
-    // Ground glow
-    const glow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
-    glow.setAttribute("cx", 0); glow.setAttribute("cy", 5);
-    glow.setAttribute("rx", 15); glow.setAttribute("ry", 8);
-    glow.setAttribute("fill", "rgba(170, 0, 255, 0.3)");
-    glow.setAttribute("filter", "blur(4px)");
-    g.appendChild(glow);
-
-    // Main crystal
-    g.appendChild(this.createPoly("-5,5 0,-15 5,5 0,10", "#d500f9"));
-    g.appendChild(this.createPoly("0,-15 5,5 0,10 -1,-5", "#aa00ff")); // Darker side
-
-    // Broken peripheral shards
-    g.appendChild(this.createPoly("-10,8 -15,0 -12,-5 -8,-2", "#e040fb"));
-    g.appendChild(this.createPoly("10,12 8,5 12,2 15,8", "#d500f9"));
-    g.appendChild(this.createPoly("-2,15 2,12 5,18 0,20", "#aa00ff"));
-
     this.renderQueue.push({ y: y, element: g });
   }
 
@@ -3465,18 +2793,18 @@ export default class TerrainGenerator {
 
     // Base mountain shape
     const base = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    base.setAttribute("d", `M 0,-${size} L -${size * 0.4},-${size * 0.3} L -${size * 0.6},0 L -${size * 0.3},${size * 0.2} L 0,${size * 0.3} L ${size * 0.3},${size * 0.2} L ${size * 0.6},0 L ${size * 0.4},-${size * 0.3} Z`);
+    base.setAttribute("d", `M 0,-${size} L -${size*0.4},-${size*0.3} L -${size*0.6},0 L -${size*0.3},${size*0.2} L 0,${size*0.3} L ${size*0.3},${size*0.2} L ${size*0.6},0 L ${size*0.4},-${size*0.3} Z`);
     base.setAttribute("fill", baseColor);
 
     // Lit side
     const litSide = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    litSide.setAttribute("d", `M 0,-${size} L -${size * 0.4},-${size * 0.3} L -${size * 0.6},0 L -${size * 0.3},${size * 0.2} L 0,${size * 0.3} L -${size * 0.1},-${size * 0.1} L 0,-${size * 0.4} Z`);
+    litSide.setAttribute("d", `M 0,-${size} L -${size*0.4},-${size*0.3} L -${size*0.6},0 L -${size*0.3},${size*0.2} L 0,${size*0.3} L -${size*0.1},-${size*0.1} L 0,-${size*0.4} Z`);
     litSide.setAttribute("fill", "url(#mountain-grad)");
 
     // Snow cap
     const snowColor = theme === 'debug' ? '#b0bec5' : '#ffffff';
     const snow = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    snow.setAttribute("d", `M 0,-${size} L -${size * 0.2},-${size * 0.5} L -${size * 0.1},-${size * 0.4} L 0,-${size * 0.45} L ${size * 0.1},-${size * 0.35} L ${size * 0.2},-${size * 0.5} Z`);
+    snow.setAttribute("d", `M 0,-${size} L -${size*0.2},-${size*0.5} L -${size*0.1},-${size*0.4} L 0,-${size*0.45} L ${size*0.1},-${size*0.35} L ${size*0.2},-${size*0.5} Z`);
     snow.setAttribute("fill", snowColor);
 
     g.appendChild(base);
@@ -3511,7 +2839,7 @@ export default class TerrainGenerator {
       trunk.setAttribute("width", "8");
       trunk.setAttribute("height", "15");
       trunk.setAttribute("fill", "#5d4037");
-
+      
       const leavesLeft = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
       leavesLeft.setAttribute("points", "0,-40 -20,5 0,5");
       leavesLeft.setAttribute("fill", leafLeftColor);
@@ -3669,85 +2997,23 @@ export default class TerrainGenerator {
     this.renderQueue.push({ y: y, element: g });
   }
 
-  drawCampusDistricts(layout) {
-    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-
-    // Isometric helpers
-    const drawEllipse = (x, y, rx, ry, fill, opacity = 1.0) => {
-      const el = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
-      el.setAttribute("cx", x); el.setAttribute("cy", y);
-      el.setAttribute("rx", rx); el.setAttribute("ry", ry);
-      el.setAttribute("fill", fill);
-      if (opacity < 1.0) el.setAttribute("opacity", opacity);
-      g.appendChild(el);
-    };
-
-    const drawIsoRect = (cx, cy, w, h, fill) => {
-      const hw = w / 2;
-      const hh = h / 2;
-      const p1 = `${cx},${cy - hh}`;
-      const p2 = `${cx + hw},${cy}`;
-      const p3 = `${cx},${cy + hh}`;
-      const p4 = `${cx - hw},${cy}`;
-      g.appendChild(this.createPoly(`${p1} ${p2} ${p3} ${p4}`, fill));
-    };
-
-    // 1. Academy District
-    const ax = layout.academy.x;
-    const ay = layout.academy.y;
-    drawEllipse(ax, ay, 900, 450, "#e0f2f1", 0.6); // Wide pedestrian circulation space
-    drawIsoRect(ax, ay + 100, 700, 400, "#ffffff"); // Large marble civic plaza
-    drawIsoRect(ax, ay + 100, 660, 360, "#f5f5f5"); // Inner paving
-    drawIsoRect(ax - 500, ay - 150, 250, 150, "#eeeeee"); // Secondary courtyard left
-    drawIsoRect(ax + 500, ay - 150, 250, 150, "#eeeeee"); // Secondary courtyard right
-    drawEllipse(ax - 650, ay + 100, 200, 100, "#a5d6a7", 0.7); // Garden zone left
-    drawEllipse(ax + 650, ay + 100, 200, 100, "#a5d6a7", 0.7); // Garden zone right
-
-    // 2. Library District
-    const lx = layout.grandLibrary.x;
-    const ly = layout.grandLibrary.y;
-    drawIsoRect(lx, ly, 500, 300, "#cfd8dc"); // Stone paving
-    drawIsoRect(lx, ly + 80, 380, 220, "#eceff1"); // Reading courtyard
-    drawEllipse(lx - 280, ly - 50, 160, 80, "#81c784", 0.6); // Small open garden
-    drawIsoRect(lx + 220, ly + 120, 120, 70, "#b0bec5"); // Reserved bench areas
-
-    // 3. Monument District
-    const mx = layout.monumentPlaza.x;
-    const my = layout.monumentPlaza.y;
-    drawEllipse(mx, my, 400, 200, "#e0e0e0"); // Open gathering area
-    drawEllipse(mx, my, 280, 140, "#eeeeee"); // Circular ceremonial plaza
-    drawEllipse(mx, my, 180, 90, "#ffffff"); // Marble platform
-    drawIsoRect(mx - 180, my + 120, 100, 60, "#cfd8dc"); // Flag court reservation
-
-    // 4. Fountain District
-    const fx = layout.fountainPlaza.x;
-    const fy = layout.fountainPlaza.y;
-    drawEllipse(fx, fy, 320, 160, "#e1f5fe", 0.8); // Decorative paving outer
-    drawEllipse(fx, fy, 220, 110, "#b3e5fc", 0.6); // Circular fountain court
-    drawEllipse(fx + 180, fy - 80, 140, 70, "#c8e6c9", 0.8); // Garden reservation
-    drawIsoRect(fx - 140, fy + 140, 120, 70, "#d7ccc8"); // Seating reservation
-
-    // Push layer below structures but above base layer
-    this.renderQueue.push({ y: ay - 1350, element: g });
-  }
-
   drawAcademyLibrary(layoutData) {
     const { x, y, scaleX, scaleY, rotation } = layoutData;
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-
+    
     // Controlled landmark-scale transform perfectly synchronized with Layout Engine
     g.setAttribute("transform", `translate(${x}, ${y}) rotate(${rotation}) scale(${scaleX}, ${scaleY})`);
     g.style.pointerEvents = "none";
-
+    
     // 1. Base Clearance Pad (No dark shadow, clean separation)
-    g.appendChild(this.createPoly("-85,27.5 0,-15 85,27.5 0,70", "#f5f5f5"));
-    g.appendChild(this.createPoly("-85,27.5 0,70 0,73 -85,30.5", "#00bcd4"));
-    g.appendChild(this.createPoly("85,27.5 0,70 0,73 85,30.5", "#0097a7"));
+    g.appendChild(this.createPoly("-85,27.5 0,-15 85,27.5 0,70", "#f5f5f5")); 
+    g.appendChild(this.createPoly("-85,27.5 0,70 0,73 -85,30.5", "#00bcd4")); 
+    g.appendChild(this.createPoly("85,27.5 0,70 0,73 85,30.5", "#0097a7")); 
 
     // 2. Wide Rectangular Base (White Marble)
     g.appendChild(this.createPoly("-70,20 0,0 70,20 0,40", "#ffffff"));
-    g.appendChild(this.createPoly("-70,20 0,40 0,48 -70,28", "#cfd8dc"));
-    g.appendChild(this.createPoly("70,20 0,40 0,48 70,28", "#b0bec5"));
+    g.appendChild(this.createPoly("-70,20 0,40 0,48 -70,28", "#cfd8dc")); 
+    g.appendChild(this.createPoly("70,20 0,40 0,48 70,28", "#b0bec5"));  
 
     // 3. Clear Front Entrance with Marble Staircase
     g.appendChild(this.createPoly("-18,41 0,35 18,41 0,47", "#f5f5f5"));
@@ -3763,14 +3029,14 @@ export default class TerrainGenerator {
     g.appendChild(this.createPoly("10,37 0,43 0,47 10,41", "#b0bec5"));
 
     // 4. Rectangular Reading Hall (Stronger Silhouette)
-    g.appendChild(this.createPoly("-60,14 0,-4 60,14 0,32", "#fafafa"));
-    g.appendChild(this.createPoly("-60,14 0,32 0,-15 -60,-33", "#b0bec5"));
-    g.appendChild(this.createPoly("0,32 60,14 60,-33 0,-15", "#eceff1"));
+    g.appendChild(this.createPoly("-60,14 0,-4 60,14 0,32", "#fafafa")); 
+    g.appendChild(this.createPoly("-60,14 0,32 0,-15 -60,-33", "#b0bec5")); 
+    g.appendChild(this.createPoly("0,32 60,14 60,-33 0,-15", "#eceff1")); 
 
     // 5. Archive Symbol (Glowing Pedestal)
-    g.appendChild(this.createPoly("-6,28 0,26 6,28 0,30", "#455a64"));
-    g.appendChild(this.createPoly("-6,28 0,30 0,36 -6,34", "#263238"));
-    g.appendChild(this.createPoly("6,28 0,30 0,36 6,34", "#37474f"));
+    g.appendChild(this.createPoly("-6,28 0,26 6,28 0,30", "#455a64")); 
+    g.appendChild(this.createPoly("-6,28 0,30 0,36 -6,34", "#263238")); 
+    g.appendChild(this.createPoly("6,28 0,30 0,36 6,34", "#37474f")); 
 
     g.appendChild(this.createPoly("-4,25 0,23 4,25 0,27", "#e0f7fa"));
     const glow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
@@ -3782,25 +3048,25 @@ export default class TerrainGenerator {
     g.appendChild(glow);
 
     // 6. Visible Columns
-    for (let px = -54; px <= -18; px += 12) {
-      let py = 32 + px * 0.3;
-      let topY = -15 + Math.abs(px) * 0.3;
-      g.appendChild(this.createPoly(`${px},${py} ${px + 3},${py - 1} ${px + 3},${topY - 1} ${px},${topY}`, "#ffffff"));
-      g.appendChild(this.createPoly(`${px + 3},${py - 1} ${px + 6},${py} ${px + 6},${topY} ${px + 3},${topY - 1}`, "#cfd8dc"));
-      g.appendChild(this.createPoly(`${px},${topY + 2} ${px + 3},${topY + 1} ${px + 6},${topY + 2} ${px + 3},${topY + 3}`, "#00bcd4"));
+    for(let px = -54; px <= -18; px += 12) {
+        let py = 32 + px * 0.3; 
+        let topY = -15 + Math.abs(px) * 0.3; 
+        g.appendChild(this.createPoly(`${px},${py} ${px+3},${py-1} ${px+3},${topY-1} ${px},${topY}`, "#ffffff"));
+        g.appendChild(this.createPoly(`${px+3},${py-1} ${px+6},${py} ${px+6},${topY} ${px+3},${topY-1}`, "#cfd8dc"));
+        g.appendChild(this.createPoly(`${px},${topY+2} ${px+3},${topY+1} ${px+6},${topY+2} ${px+3},${topY+3}`, "#00bcd4")); 
     }
-    for (let px = 18; px <= 54; px += 12) {
-      let py = 32 - px * 0.3;
-      let topY = -15 + Math.abs(px) * 0.3;
-      g.appendChild(this.createPoly(`${px},${py} ${px - 3},${py - 1} ${px - 3},${topY - 1} ${px},${topY}`, "#ffffff"));
-      g.appendChild(this.createPoly(`${px - 3},${py - 1} ${px - 6},${py} ${px - 6},${topY} ${px - 3},${topY - 1}`, "#cfd8dc"));
-      g.appendChild(this.createPoly(`${px},${topY + 2} ${px - 3},${topY + 1} ${px - 6},${topY + 2} ${px - 3},${topY + 3}`, "#00bcd4"));
+    for(let px = 18; px <= 54; px += 12) {
+        let py = 32 - px * 0.3; 
+        let topY = -15 + Math.abs(px) * 0.3; 
+        g.appendChild(this.createPoly(`${px},${py} ${px-3},${py-1} ${px-3},${topY-1} ${px},${topY}`, "#ffffff"));
+        g.appendChild(this.createPoly(`${px-3},${py-1} ${px-6},${py} ${px-6},${topY} ${px-3},${topY-1}`, "#cfd8dc"));
+        g.appendChild(this.createPoly(`${px},${topY+2} ${px-3},${topY+1} ${px-6},${topY+2} ${px-3},${topY+3}`, "#00bcd4")); 
     }
 
     // 7. Gently sloped cyan roof
     g.appendChild(this.createPoly("-65,-18 0,-33 0,-40 -65,-25", "#00bcd4")); // Left Roof
     g.appendChild(this.createPoly("-65,-18 0,-33 0,-30 -65,-15", "#00838f")); // Left Edge
-
+    
     g.appendChild(this.createPoly("0,-33 65,-18 65,-25 0,-40", "#4dd0e1"));  // Right Roof
     g.appendChild(this.createPoly("0,-33 65,-18 65,-15 0,-30", "#0097a7"));  // Right Edge
 
@@ -3813,36 +3079,36 @@ export default class TerrainGenerator {
   drawAcademyTemple(layoutData) {
     const { x, y, scaleX, scaleY, rotation } = layoutData;
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-
+    
     // Controlled landmark-scale transform perfectly synchronized with Layout Engine
-    g.setAttribute("transform", `translate(${x}, ${y}) rotate(${rotation}) scale(${scaleX}, ${scaleY})`);
+    g.setAttribute("transform", `translate(${x}, ${y}) rotate(${rotation}) scale(${scaleX}, ${scaleY})`); 
     g.style.pointerEvents = "none";
-
+    
     // 1. Light marble clearance pad
-    g.appendChild(this.createPoly("-55,17.5 0,-10 55,17.5 0,45", "#f5f5f5"));
-    g.appendChild(this.createPoly("-55,17.5 0,45 0,48 -55,20.5", "#00bcd4"));
-    g.appendChild(this.createPoly("55,17.5 0,45 0,48 55,20.5", "#0097a7"));
+    g.appendChild(this.createPoly("-55,17.5 0,-10 55,17.5 0,45", "#f5f5f5")); 
+    g.appendChild(this.createPoly("-55,17.5 0,45 0,48 -55,20.5", "#00bcd4")); 
+    g.appendChild(this.createPoly("55,17.5 0,45 0,48 55,20.5", "#0097a7")); 
 
     // 2. Hexagonal Base
-    g.appendChild(this.createPoly("-30,10 0,-5 30,10 30,25 0,40 -30,25", "#ffffff"));
+    g.appendChild(this.createPoly("-30,10 0,-5 30,10 30,25 0,40 -30,25", "#ffffff")); 
     g.appendChild(this.createPoly("-30,25 0,40 0,44 -30,29", "#cfd8dc"));
     g.appendChild(this.createPoly("30,25 0,40 0,44 30,29", "#b0bec5"));
 
     // 3. Rotunda Curved Walls (Pale cyan to distinguish from Academy's white)
     g.appendChild(this.createPoly("-25,12 0,-0.5 25,12 25,17 0,29.5 -25,17", "#e0f7fa")); // Inner floor
-
+    
     // Left Arc Wall
     g.appendChild(this.createPoly("-25,17 0,29.5 0,-10 -25,-22.5", "#80deea")); // Left Wall 
     g.appendChild(this.createPoly("0,29.5 25,17 25,-22.5 0,-10", "#b2ebf2")); // Right Wall
 
     // 4. Perimeter Columns
     const rotCols = [
-      { x: -25, y: 17 }, { x: -12.5, y: 23.25 }, { x: 0, y: 29.5 },
-      { x: 12.5, y: 23.25 }, { x: 25, y: 17 }
+        {x: -25, y: 17}, {x: -12.5, y: 23.25}, {x: 0, y: 29.5},
+        {x: 12.5, y: 23.25}, {x: 25, y: 17}
     ];
     rotCols.forEach(c => {
-      g.appendChild(this.createPoly(`${c.x - 2},${c.y} ${c.x + 2},${c.y - 2} ${c.x + 2},${c.y - 29} ${c.x - 2},${c.y - 27}`, "#ffffff"));
-      g.appendChild(this.createPoly(`${c.x + 2},${c.y - 2} ${c.x + 4},${c.y} ${c.x + 4},${c.y - 27} ${c.x + 2},${c.y - 29}`, "#cfd8dc"));
+        g.appendChild(this.createPoly(`${c.x-2},${c.y} ${c.x+2},${c.y-2} ${c.x+2},${c.y-29} ${c.x-2},${c.y-27}`, "#ffffff"));
+        g.appendChild(this.createPoly(`${c.x+2},${c.y-2} ${c.x+4},${c.y} ${c.x+4},${c.y-27} ${c.x+2},${c.y-29}`, "#cfd8dc"));
     });
 
     // 5. Distinct Cyan Dome (Rounder, smaller than Academy)
@@ -3865,25 +3131,25 @@ export default class TerrainGenerator {
   drawAcademyDorm(layoutData) {
     const { x, y, scaleX, scaleY, rotation } = layoutData;
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-
+    
     // Controlled landmark-scale transform perfectly synchronized with Layout Engine
-    g.setAttribute("transform", `translate(${x}, ${y}) rotate(${rotation}) scale(${scaleX}, ${scaleY})`);
+    g.setAttribute("transform", `translate(${x}, ${y}) rotate(${rotation}) scale(${scaleX}, ${scaleY})`); 
     g.style.pointerEvents = "none";
 
     // 1. Base Clearance Pad (No dark shadow)
-    g.appendChild(this.createPoly("-45,17.5 0,-5 45,17.5 0,40", "#f5f5f5"));
-    g.appendChild(this.createPoly("-45,17.5 0,40 0,43 -45,20.5", "#00bcd4"));
-    g.appendChild(this.createPoly("45,17.5 0,40 0,43 45,20.5", "#0097a7"));
+    g.appendChild(this.createPoly("-45,17.5 0,-5 45,17.5 0,40", "#f5f5f5")); 
+    g.appendChild(this.createPoly("-45,17.5 0,40 0,43 -45,20.5", "#00bcd4")); 
+    g.appendChild(this.createPoly("45,17.5 0,40 0,43 45,20.5", "#0097a7")); 
 
     // --- BLOCK 2 (Rear Long Block, drawn first for Z-sorting) ---
     g.appendChild(this.createPoly("-10,5 30,-15 40,-10 0,10", "#eceff1")); // Floor
     g.appendChild(this.createPoly("-10,5 0,10 0,-20 -10,-25", "#b0bec5")); // Left Wall
     g.appendChild(this.createPoly("0,10 40,-10 40,-35 0,-15", "#cfd8dc")); // Right Wall
-
+    
     // Windows Block 2
     g.appendChild(this.createPoly("10,-5 15,-7.5 15,-15 10,-12.5", "#00bcd4"));
     g.appendChild(this.createPoly("25,-12.5 30,-15 30,-22.5 25,-20", "#00bcd4"));
-
+    
     // Cyan Roof Block 2
     g.appendChild(this.createPoly("-12,-26 28,-46 42,-39 -2,-19", "#00acc1")); // Roof Top
     g.appendChild(this.createPoly("-12,-26 -2,-19 -2,-15 -12,-22", "#00838f")); // Edge L
@@ -3893,16 +3159,16 @@ export default class TerrainGenerator {
     g.appendChild(this.createPoly("-30,15 0,0 10,5 -20,20", "#ffffff")); // Floor
     g.appendChild(this.createPoly("-30,15 -20,20 -20,-10 -30,-15", "#90a4ae")); // Left Wall
     g.appendChild(this.createPoly("-20,20 10,5 10,-20 -20,-5", "#eceff1")); // Right Wall
-
+    
     // Windows Block 1
     g.appendChild(this.createPoly("-26,5 -22,7 -22,-3 -26,-5", "#00acc1"));
     g.appendChild(this.createPoly("-14,11 -10,13 -10,3 -14,1", "#00acc1"));
     g.appendChild(this.createPoly("-8,14 -4,16 -4,6 -8,4", "#00acc1"));
 
     // Cyan Roof Block 1
-    g.appendChild(this.createPoly("-32,-16 -2,-31 12,-24 -18,-9", "#4dd0e1"));
-    g.appendChild(this.createPoly("-32,-16 -18,-9 -18,-5 -32,-12", "#00838f"));
-    g.appendChild(this.createPoly("12,-24 -18,-9 -18,-5 12,-20", "#0097a7"));
+    g.appendChild(this.createPoly("-32,-16 -2,-31 12,-24 -18,-9", "#4dd0e1")); 
+    g.appendChild(this.createPoly("-32,-16 -18,-9 -18,-5 -32,-12", "#00838f")); 
+    g.appendChild(this.createPoly("12,-24 -18,-9 -18,-5 12,-20", "#0097a7")); 
 
     this.renderQueue.push({ y: y, element: g });
   }
@@ -3911,7 +3177,7 @@ export default class TerrainGenerator {
     return document.createElementNS("http://www.w3.org/2000/svg", "g");
     const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
     group.style.pointerEvents = "none";
-
+    
     const shadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
     shadow.setAttribute("cx", cx); shadow.setAttribute("cy", cy);
     shadow.setAttribute("rx", rx * 1.1); shadow.setAttribute("ry", ry * 1.1);
@@ -3922,23 +3188,23 @@ export default class TerrainGenerator {
     const base = document.createElementNS("http://www.w3.org/2000/svg", "path");
     const d = `
       M ${cx - rx}, ${cy}
-      Q ${cx - rx / 2}, ${cy - ry * 1.2} ${cx}, ${cy - ry}
-      Q ${cx + rx / 2}, ${cy - ry * 1.1} ${cx + rx}, ${cy}
-      Q ${cx + rx / 2}, ${cy + ry * 0.8} ${cx}, ${cy + ry}
-      Q ${cx - rx / 2}, ${cy + ry * 1.1} ${cx - rx}, ${cy}
+      Q ${cx - rx/2}, ${cy - ry*1.2} ${cx}, ${cy - ry}
+      Q ${cx + rx/2}, ${cy - ry*1.1} ${cx + rx}, ${cy}
+      Q ${cx + rx/2}, ${cy + ry*0.8} ${cx}, ${cy + ry}
+      Q ${cx - rx/2}, ${cy + ry*1.1} ${cx - rx}, ${cy}
       Z
     `;
     base.setAttribute("d", d);
     base.setAttribute("fill", "#3e2723"); // Dark dead brown
     group.appendChild(base);
-
+    
     // Sharp thorny highlights
     const highlight = document.createElementNS("http://www.w3.org/2000/svg", "path");
     const dh = `
-      M ${cx - rx * 0.8}, ${cy - 20}
-      L ${cx - rx * 0.5}, ${cy - ry * 0.8} L ${cx - rx * 0.3}, ${cy - 10}
-      L ${cx}, ${cy - ry * 0.9} L ${cx + rx * 0.4}, ${cy - 30}
-      L ${cx + rx * 0.7}, ${cy - ry * 0.6}
+      M ${cx - rx*0.8}, ${cy - 20}
+      L ${cx - rx*0.5}, ${cy - ry*0.8} L ${cx - rx*0.3}, ${cy - 10}
+      L ${cx}, ${cy - ry*0.9} L ${cx + rx*0.4}, ${cy - 30}
+      L ${cx + rx*0.7}, ${cy - ry*0.6}
     `;
     highlight.setAttribute("d", dh);
     highlight.setAttribute("stroke", "#4e342e");
@@ -3946,7 +3212,7 @@ export default class TerrainGenerator {
     highlight.setAttribute("fill", "none");
     highlight.setAttribute("stroke-linejoin", "miter");
     group.appendChild(highlight);
-
+    
     return group;
   }
 
@@ -3954,7 +3220,7 @@ export default class TerrainGenerator {
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
     g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
     g.style.pointerEvents = "none";
-
+    
     const shadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
     shadow.setAttribute("cx", 0); shadow.setAttribute("cy", 5);
     shadow.setAttribute("rx", 30); shadow.setAttribute("ry", 15);
@@ -3983,7 +3249,7 @@ export default class TerrainGenerator {
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
     g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
     g.style.pointerEvents = "none";
-
+    
     // Shadow
     const shadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
     shadow.setAttribute("cx", 0); shadow.setAttribute("cy", 5);
@@ -3996,7 +3262,7 @@ export default class TerrainGenerator {
     g.appendChild(this.createPoly("0,0 -20,-10 -20,-30 0,-20", "#546e7a"));
     g.appendChild(this.createPoly("0,0 20,-10 20,-30 0,-20", "#78909c"));
     g.appendChild(this.createPoly("-20,-30 0,-40 20,-30 0,-20", "#37474f")); // Inner dark rim
-
+    
     // Smoke Puff
     const smoke = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     smoke.setAttribute("cx", "0"); smoke.setAttribute("cy", "-45");
@@ -4013,7 +3279,7 @@ export default class TerrainGenerator {
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
     g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
     g.style.pointerEvents = "none";
-
+    
     const shadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
     shadow.setAttribute("cx", 0); shadow.setAttribute("cy", 5);
     shadow.setAttribute("rx", 20); shadow.setAttribute("ry", 10);
@@ -4024,11 +3290,11 @@ export default class TerrainGenerator {
     // Base cylinder (hexagonal)
     g.appendChild(this.createPoly("0,0 -15,-8 -15,-35 0,-27", "#455a64"));
     g.appendChild(this.createPoly("0,0 15,-8 15,-35 0,-27", "#607d8b"));
-
+    
     // Glowing fluid band
     g.appendChild(this.createPoly("0,-15 -15,-23 -15,-28 0,-20", "#f57c00"));
     g.appendChild(this.createPoly("0,-15 15,-23 15,-28 0,-20", "#ff9800"));
-
+    
     // Dome top
     g.appendChild(this.createPoly("-15,-35 0,-43 15,-35 0,-27", "#b0bec5"));
 
@@ -4039,7 +3305,7 @@ export default class TerrainGenerator {
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
     g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
     g.style.pointerEvents = "none";
-
+    
     const shadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
     shadow.setAttribute("cx", 0); shadow.setAttribute("cy", 5);
     shadow.setAttribute("rx", 35); shadow.setAttribute("ry", 15);
@@ -4069,7 +3335,7 @@ export default class TerrainGenerator {
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
     g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
     g.style.pointerEvents = "none";
-
+    
     const shadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
     shadow.setAttribute("cx", 0); shadow.setAttribute("cy", 5);
     shadow.setAttribute("rx", 30); shadow.setAttribute("ry", 15);
@@ -4094,157 +3360,11 @@ export default class TerrainGenerator {
     this.renderQueue.push({ y: y, element: g });
   }
 
-  drawDebugWatchTower(x, y, scale = 1.0, rotation = 0) {
-    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale}) rotate(${rotation})`);
-    g.style.pointerEvents = "none";
-
-    const shadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
-    shadow.setAttribute("cx", 0); shadow.setAttribute("cy", 20);
-    shadow.setAttribute("rx", 60); shadow.setAttribute("ry", 30);
-    shadow.setAttribute("fill", "rgba(0,0,0,0.6)");
-    shadow.setAttribute("filter", "blur(8px)");
-    g.appendChild(shadow);
-
-    // Scattered foundation debris
-    g.appendChild(this.createPoly("0,25 -35,10 -25,-5 10,-10", "#1e272e"));
-    g.appendChild(this.createPoly("0,25 40,5 25,-10 10,-10", "#2d3436"));
-    g.appendChild(this.createPoly("-20,15 -45,0 -30,-15 -10,-5", "#111417"));
-
-    // Base Tier (Intact)
-    g.appendChild(this.createPoly("0,20 -30,5 -30,-40 0,-60", "#181d22"));
-    g.appendChild(this.createPoly("0,20 30,5 30,-50 0,-60", "#2a3236"));
-
-    // Mid Tier (Fractured and leaning)
-    // Left side mostly intact
-    g.appendChild(this.createPoly("0,-60 -25,-45 -25,-100 -5,-120 0,-90", "#181d22"));
-    // Right side completely sheared off/broken
-    g.appendChild(this.createPoly("0,-60 25,-45 20,-80 5,-100 0,-90", "#2a3236"));
-
-    // High jagged shards protruding from the broken side
-    g.appendChild(this.createPoly("-5,-120 -15,-105 -20,-140 -10,-150", "#14171a"));
-    g.appendChild(this.createPoly("5,-100 15,-85 10,-115 0,-120", "#1c2124"));
-
-    // Exposed glowing corruption core bursting from the fracture
-    const core = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-    core.setAttribute("points", "0,-85 -10,-100 -5,-115 5,-105");
-    core.setAttribute("fill", "#d500f9");
-    core.setAttribute("filter", "blur(3px)");
-    g.appendChild(core);
-    g.appendChild(this.createPoly("0,-85 -10,-100 -5,-115 5,-105", "#e040fb")); // sharp inner core
-
-    // Glowing corrupted veins creeping down the base
-    const vein1 = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
-    vein1.setAttribute("points", "-10,-95 -15,-65 -5,-35 -10,-10");
-    vein1.setAttribute("fill", "none");
-    vein1.setAttribute("stroke", "#aa00ff");
-    vein1.setAttribute("stroke-width", "2");
-    g.appendChild(vein1);
-
-    const vein2 = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
-    vein2.setAttribute("points", "5,-95 10,-60 20,-40 15,-15");
-    vein2.setAttribute("fill", "none");
-    vein2.setAttribute("stroke", "#d500f9");
-    vein2.setAttribute("stroke-width", "1.5");
-    g.appendChild(vein2);
-
-    // Floating fractured chunks (anti-gravity wasteland feel)
-    g.appendChild(this.createPoly("-25,-125 -35,-120 -30,-140 -20,-135", "#181d22"));
-    g.appendChild(this.createPoly("15,-130 25,-120 20,-145 10,-140", "#2a3236"));
-
-    this.renderQueue.push({ y: y, element: g });
-  }
-
-  drawDebugObelisk(x, y, scale = 1.0, rotation = 0) {
-    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale}) rotate(${rotation})`);
-    g.style.pointerEvents = "none";
-
-    const shadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
-    shadow.setAttribute("cx", 0); shadow.setAttribute("cy", 15);
-    shadow.setAttribute("rx", 40); shadow.setAttribute("ry", 20);
-    shadow.setAttribute("fill", "rgba(0,0,0,0.6)");
-    shadow.setAttribute("filter", "blur(8px)");
-    g.appendChild(shadow);
-
-    g.appendChild(this.createPoly("0,10 -20,0 -10,-120 0,-140", "#0a0a0a"));
-    g.appendChild(this.createPoly("0,10 20,0 10,-120 0,-140", "#141414"));
-
-    const crack1 = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
-    crack1.setAttribute("points", "-10,0 -5,-30 -12,-60 -2,-90");
-    crack1.setAttribute("fill", "none");
-    crack1.setAttribute("stroke", "#aa00ff");
-    crack1.setAttribute("stroke-width", "2");
-    crack1.setAttribute("filter", "blur(1px)");
-    g.appendChild(crack1);
-
-    const crack2 = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
-    crack2.setAttribute("points", "10,-10 2,-40 8,-70 0,-100");
-    crack2.setAttribute("fill", "none");
-    crack2.setAttribute("stroke", "#e91e63");
-    crack2.setAttribute("stroke-width", "1.5");
-    crack2.setAttribute("filter", "blur(1px)");
-    g.appendChild(crack2);
-
-    this.renderQueue.push({ y: y, element: g });
-  }
-
-  drawDebugGiantCrystal(x, y, scale = 1.0, rotation = 0, type = 1) {
-    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale}) rotate(${rotation})`);
-    g.style.pointerEvents = "none";
-
-    // Reduced glow (20% less intense shadow blur/opacity)
-    const shadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
-    shadow.setAttribute("cx", 0); shadow.setAttribute("cy", 15);
-    shadow.setAttribute("rx", 35); shadow.setAttribute("ry", 15);
-    shadow.setAttribute("fill", "rgba(170,0,255,0.2)");
-    shadow.setAttribute("filter", "blur(6px)");
-    g.appendChild(shadow);
-
-    if (type === 1) {
-      // Tall Spear Crystal (80% Purple, 20% Magenta)
-      g.appendChild(this.createPoly("0,15 -20,0 0,-200 20,0", "#d500f9"));
-      g.appendChild(this.createPoly("0,15 -20,0 0,-200", "#aa00ff"));
-
-      // Magenta base highlights
-      g.appendChild(this.createPoly("-10,5 -20,0 -15,-40", "#e91e63"));
-      g.appendChild(this.createPoly("10,5 20,0 15,-30", "#e91e63"));
-
-      // Side shards
-      g.appendChild(this.createPoly("15,10 30,0 20,-50", "#aa00ff"));
-      g.appendChild(this.createPoly("15,10 30,0 25,-10", "#311b92"));
-    } else if (type === 2) {
-      // Medium Crystal Cluster
-      g.appendChild(this.createPoly("0,10 -25,-5 0,-120 25,-5", "#d500f9"));
-      g.appendChild(this.createPoly("0,10 -25,-5 0,-120", "#aa00ff"));
-
-      g.appendChild(this.createPoly("-15,15 -35,5 -20,-80", "#aa00ff"));
-      g.appendChild(this.createPoly("-15,15 -35,5 -25,-10", "#7c4dff"));
-
-      g.appendChild(this.createPoly("15,12 35,2 25,-90", "#b388ff"));
-
-      // Magenta base highlight
-      g.appendChild(this.createPoly("0,10 -15,-5 -5,-30", "#e91e63"));
-    } else {
-      // Broken Shard / Tilted
-      g.appendChild(this.createPoly("0,15 -30,0 20,-90 30,0", "#aa00ff"));
-      g.appendChild(this.createPoly("0,15 -30,0 20,-90", "#7c4dff"));
-      g.appendChild(this.createPoly("-15,5 -40,-10 -20,-50", "#d500f9"));
-      g.appendChild(this.createPoly("-15,5 -20,-50 -10,-10", "#311b92"));
-
-      // Magenta base highlight
-      g.appendChild(this.createPoly("20,5 30,0 25,-20", "#e91e63"));
-    }
-
-    this.renderQueue.push({ y: y, element: g });
-  }
-
   drawRuinedBuilding(x, y, scale = 1.0) {
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
     g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
     g.style.pointerEvents = "none";
-
+    
     const shadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
     shadow.setAttribute("cx", 0); shadow.setAttribute("cy", 5);
     shadow.setAttribute("rx", 20); shadow.setAttribute("ry", 10);
@@ -4312,7 +3432,7 @@ export default class TerrainGenerator {
     pipe.setAttribute("stroke", "#78909c");
     pipe.setAttribute("stroke-width", "28"); // Very thick for readability
     g.appendChild(pipe);
-
+    
     const joint = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     joint.setAttribute("cx", x2); joint.setAttribute("cy", y2);
     joint.setAttribute("r", "20"); // Thicker joint
@@ -4399,7 +3519,7 @@ export default class TerrainGenerator {
     for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
       const xi = polygon[i][0], yi = polygon[i][1];
       const xj = polygon[j][0], yj = polygon[j][1];
-
+      
       const intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
       if (intersect) isInside = !isInside;
     }
@@ -4437,21 +3557,21 @@ export default class TerrainGenerator {
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
     g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
     g.style.pointerEvents = "none";
-
+    
     // Mossy stone base
     g.appendChild(this.createPoly("-1.5,0 1.5,0 1.5,1 -1.5,1", "#455a64"));
     g.appendChild(this.createPoly("-1.2,1 1.2,1 1.2,2 -1.2,2", "#37474f"));
-
+    
     // Shrine body
     g.appendChild(this.createPoly("-1,-3 1,-3 1,0 -1,0", "#546e7a"));
-
+    
     // Ancient glowing core
     const core = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     core.setAttribute("cx", "0"); core.setAttribute("cy", "-1.5");
     core.setAttribute("r", "0.4");
     core.setAttribute("fill", "#64ffda"); // Cyan/Teal glow
     g.appendChild(core);
-
+    
     // Moss overlay
     g.appendChild(this.createPoly("-1,-3 -0.5,-3 -0.8,-1", "#1b5e20"));
     g.appendChild(this.createPoly("0.5,0 1,0 1,-1", "#2e7d32"));
@@ -4466,17 +3586,17 @@ export default class TerrainGenerator {
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
     g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
     g.style.pointerEvents = "none";
-
+    
     // Broken pillar base
     g.appendChild(this.createPoly("-1,0 1,0 1,1 -1,1", "#37474f"));
-
+    
     // Pillar shaft
     g.appendChild(this.createPoly("-0.8,-4 0.8,-3 0.8,0 -0.8,0", "#546e7a"));
-
+    
     // Moss and cracks
     g.appendChild(this.createPoly("-0.8,-4 0,-3.5 -0.5,-1", "#2e7d32"));
     g.appendChild(this.createPoly("-0.5,-2 0.5,-1.5 0.2,0", "#1b5e20"));
-
+    
     this.renderQueue.push({ y: y, element: g });
   }
 
@@ -4484,13 +3604,13 @@ export default class TerrainGenerator {
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
     g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
     g.style.pointerEvents = "none";
-
+    
     // Giant stylized fern/glowing plant
     g.appendChild(this.createPoly("0,0 -2,-3 -0.5,-1.5", "#00c853"));
     g.appendChild(this.createPoly("0,0 -1,-4 -0.2,-2", "#64dd17"));
     g.appendChild(this.createPoly("0,0 1,-4 0.2,-2", "#00e676"));
     g.appendChild(this.createPoly("0,0 2,-3 0.5,-1.5", "#1de9b6"));
-
+    
     this.renderQueue.push({ y: y, element: g });
   }
 
@@ -4499,12 +3619,12 @@ export default class TerrainGenerator {
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
     g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
     g.style.pointerEvents = "none";
-
+    
     // Flowers
     g.appendChild(this.createPoly("-0.5,0 -1,-0.5 -0.5,-1 0,-0.5", "#f48fb1"));
     g.appendChild(this.createPoly("0.5,0.2 0,-0.3 0.5,-0.8 1,-0.3", "#ce93d8"));
     g.appendChild(this.createPoly("-0.2,-0.8 -0.7,-1.3 -0.2,-1.8 0.3,-1.3", "#ffcc80"));
-
+    
     this.renderQueue.push({ y: y, element: g });
   }
 
@@ -4513,11 +3633,11 @@ export default class TerrainGenerator {
     g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
     g.style.pointerEvents = "none";
     g.setAttribute("filter", "url(#drop-shadow)");
-
+    
     // Burned jagged rock
     g.appendChild(this.createPoly("-1,0.5 -2,-0.5 -1,-2 0,-1.5", "#212121"));
     g.appendChild(this.createPoly("0,-1.5 1,-2.5 1.5,-1 0.5,0", "#424242"));
-
+    
     this.renderQueue.push({ y: y, element: g });
   }
 
@@ -4526,13 +3646,13 @@ export default class TerrainGenerator {
     g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
     g.style.pointerEvents = "none";
     g.setAttribute("filter", "url(#drop-shadow)");
-
+    
     // Twisted scrap plates
     g.appendChild(this.createPoly("-1,0.5 -2,-1 0,-1.5 1,-0.5", "#546e7a"));
     g.appendChild(this.createPoly("-0.5,-1 0.5,-2.5 2,-1.5 1,0", "#78909c"));
     // Rust accent
     g.appendChild(this.createPoly("0,-1 1,-2 1.5,-1.2 0.5,-0.2", "#d84315"));
-
+    
     this.renderQueue.push({ y: y, element: g });
   }
 
@@ -4541,12 +3661,12 @@ export default class TerrainGenerator {
     g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
     g.style.pointerEvents = "none";
     g.setAttribute("filter", "url(#drop-shadow)");
-
+    
     // Small industrial crate (isometric cube)
     g.appendChild(this.createPoly("0,0 -1,-0.5 0,-1 1,-0.5", "#ffb300")); // Top
     g.appendChild(this.createPoly("-1,-0.5 -1,0.5 0,1 0,0", "#ff8f00")); // Left
     g.appendChild(this.createPoly("1,-0.5 1,0.5 0,1 0,0", "#ff6f00")); // Right
-
+    
     this.renderQueue.push({ y: y, element: g });
   }
 
@@ -4555,12 +3675,22 @@ export default class TerrainGenerator {
     g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
     g.style.pointerEvents = "none";
     g.setAttribute("filter", "url(#drop-shadow)");
-
+    
     g.appendChild(this.createPoly("-1.5,0.5 -2.5,-0.5 -1,-1.5 -0.5,0", "#795548"));
     g.appendChild(this.createPoly("-0.5,0 -1,-1.5 0.5,-2 1,-0.5", "#8d6e63"));
     g.appendChild(this.createPoly("0.5,0.5 1,-0.5 2,0 1.5,1.5", "#5d4037"));
-
+    
     this.renderQueue.push({ y: y, element: g });
   }
 }
 
+
+  
+  const tg = new TerrainGenerator({ getLayer: () => ({ appendChild: () => {} }) }, { minX: 0, maxX: 100, minY: 0, maxY: 100 }, 0, 0);
+  tg.renderQueue = [];
+  try {
+    tg.renderLogicDominionVerticalSlice({ minX: 0, maxX: 100, minY: 0, maxY: 100 });
+    console.log('SUCCESS. renderQueue size:', tg.renderQueue.length);
+  } catch (e) {
+    console.log('CRASH:', e.stack);
+  }

@@ -48,7 +48,7 @@ export default class WorldEngine {
     this.renderer = new SVGRenderer(this.container, this.width, this.height);
     this.camera = new CameraController(this.renderer.svg, this.renderer.worldGroup, this.container);
     this.terrain = new TerrainGenerator(this.renderer, this.bounds, this.centerX, this.centerY);
-    this.landmarks = new LandmarkManager(this.renderer);
+    this.landmarks = new LandmarkManager(this.renderer, this.terrain);
     this.fog = new FogManager(this.renderer);
     this.ui = {
       tooltip: { 
