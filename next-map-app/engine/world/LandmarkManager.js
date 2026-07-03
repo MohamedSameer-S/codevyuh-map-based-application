@@ -1,6 +1,7 @@
 export default class LandmarkManager {
-  constructor(renderer) {
+  constructor(renderer, terrain) {
     this.renderer = renderer;
+    this.terrain = terrain;
   }
 
   generateLandmark(region, renderQueue) {
@@ -9,10 +10,10 @@ export default class LandmarkManager {
     g.setAttribute("id", `landmark-${region.id}`);
     g.style.pointerEvents = "none"; // Safety rule 8: Never block pan/zoom/click
     
-    // Position landmark perfectly centered
-    const x = region.x;
-    const y = region.y;
-    g.setAttribute("transform", `translate(${x}, ${y})`);
+    // SPRINT 3C.5 - HERO RENDERER SYNCHRONIZATION
+    // Centralize region coordinates. Layout engine will optionally override these.
+    let x = region.x;
+    let y = region.y;
 
     // Draw dirt path below the landmark
     const dirt = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
@@ -28,24 +29,41 @@ export default class LandmarkManager {
 
     // Create a dedicated group for isometric shapes
     const buildingGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    buildingGroup.setAttribute("transform", `scale(15.5, 43)`); // Tall imposing ratio matching the reference
-    g.appendChild(buildingGroup);
+    
+    // Default transform for generic regions
+    buildingGroup.setAttribute("transform", `scale(15.5, 43)`); 
+    g.appendChild(buildingGroup); 
 
     // Let's create SVG shapes for the specific landmarks based on type
     switch (region.landmarkType) {
       case 'academy':
+        // SYNCHRONIZATION: Fetch directly from single source of truth
+        if (region.id === 'logic') {
+            const layout = this.terrain.generateLogicDominionCampus(x, y);
+            const data = layout.academy;
+            g.setAttribute("transform", `translate(${data.x}, ${data.y})`);
+            buildingGroup.setAttribute("transform", `translate(0, 0) rotate(${data.rotation}) scale(${data.scaleX}, ${data.scaleY})`);
+        } else {
+            g.setAttribute("transform", `translate(${x}, ${y})`);
+        }
+        
+        // SPRINT 3B - Validation OVERRIDE REMOVED. SVGs are now actively syncing.
         this.buildAcademy(buildingGroup);
         break;
       case 'fortress':
+        g.setAttribute("transform", `translate(${x}, ${y})`);
         this.buildFortress(buildingGroup);
         break;
       case 'industrial':
+        g.setAttribute("transform", `translate(${x}, ${y})`);
         this.buildIndustrialCity(buildingGroup);
         break;
       case 'temple':
+        g.setAttribute("transform", `translate(${x}, ${y})`);
         this.buildJungleTemple(buildingGroup);
         break;
       default:
+        g.setAttribute("transform", `translate(${x}, ${y})`);
         this.buildGenericCastle(buildingGroup);
     }
 
