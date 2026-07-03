@@ -765,14 +765,12 @@ export default class TerrainGenerator {
     // 4. Logic Dominion Fixed Campus Zone Anchors (Checkpoint 4E.4 Final Spacing)
     const logicCampusAnchors = {
       academy: { x: plazaX, y: plazaY },
-      // Library Zone: Moved to the old Logic Dominion label area (lower-right foreground)
-      library: { x: plazaX + 230, y: plazaY + 2300 },
-      // Temple Zone: far lower-right / south-east (Massively pushed out)
-      temple: { x: plazaX + 1800, y: plazaY + 1300 },
-      // Dorm Zone A: far lower-left / south-west (Massively pushed out)
-      dormA: { x: plazaX - 1500, y: plazaY + 1950 },
-      // Dorm Zone B: far right / east side (Massively pushed out)
-      dormB: { x: plazaX + 2200, y: plazaY + 700 }
+      // Library Zone: Pushed further down and slightly right
+      library: { x: plazaX + 230, y: plazaY + 2100 },
+      // Temple Zone: Moved down slightly again along strict 0.5 isometric pathway
+      temple: { x: plazaX + 1900, y: plazaY + 1350 },
+      // Dorm Zone A: Pushed slightly further down and to the left to create a gap with the Library
+      dormA: { x: plazaX - 1300, y: plazaY + 1750 }
     };
     this.logicCampusAnchors = logicCampusAnchors;
 
@@ -950,7 +948,7 @@ export default class TerrainGenerator {
     // Draw connecting marble walkways (Increased widths for visible campus connections)
     // 2-segment pathway from Academy front/right base to Library front/left base
     const libPathStart = { x: logicCampusAnchors.academy.x + 220, y: logicCampusAnchors.academy.y + 520 };
-    const libPathJunction = { x: logicCampusAnchors.academy.x + 200, y: logicCampusAnchors.academy.y + 1400 };
+    const libPathJunction = { x: logicCampusAnchors.academy.x + 200, y: logicCampusAnchors.academy.y + 900 };
     const libPathEnd = { x: logicCampusAnchors.library.x + 20, y: logicCampusAnchors.library.y - 220 };
 
     drawHighContrastWalkway(libPathStart, libPathJunction, 300);
@@ -1127,9 +1125,27 @@ export default class TerrainGenerator {
     drawMediumCrystalLamp(logicCampusAnchors.academy.x + 600, logicCampusAnchors.academy.y + 150);
 
     // 5. Final Draw Calls (Strictly from District Anchors)
-    this.drawAcademyLibrary(logicCampusAnchors.library.x, logicCampusAnchors.library.y, 16.0);
-    this.drawAcademyTemple(logicCampusAnchors.temple.x, logicCampusAnchors.temple.y, 14.0);
-    this.drawAcademyDorm(logicCampusAnchors.dormA.x, logicCampusAnchors.dormA.y, 12.0);
+    this.drawAcademyLibrary({
+      x: logicCampusAnchors.library.x,
+      y: logicCampusAnchors.library.y,
+      scaleX: 11.2,
+      scaleY: 17.6,
+      rotation: 0
+    });
+    this.drawAcademyTemple({
+      x: logicCampusAnchors.temple.x,
+      y: logicCampusAnchors.temple.y,
+      scaleX: 14.0,
+      scaleY: 14.0,
+      rotation: 0
+    });
+    this.drawAcademyDorm({
+      x: logicCampusAnchors.dormA.x,
+      y: logicCampusAnchors.dormA.y,
+      scaleX: 12.0,
+      scaleY: 12.0,
+      rotation: 0
+    });
 
 
 

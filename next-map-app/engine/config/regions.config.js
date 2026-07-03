@@ -10,7 +10,7 @@ const CodeVyuhRegions = [
     height: 600,
     landmarkType: "academy",
     labelOffsetX: 0,
-    labelOffsetY: 520,
+    labelOffsetY: 645,
     progress: 45,
     locked: false,
     neighbors: ["debug"],
