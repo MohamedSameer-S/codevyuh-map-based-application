@@ -169,6 +169,23 @@ export default class TerrainGenerator {
       if (distToSegment(pt, lca.academy, lca.temple) < 250) return false;
     }
 
+    // Check specific custom ruin clear zones (Python Wildlands ruins)
+    const rootX = 6076;
+    const rootY = 5342;
+    const ruins = [
+      { x: rootX - 1100, y: rootY - 200, scale: 5.5 }, // Far Left
+      { x: rootX - 2000, y: rootY + 1100, scale: 6.0 }, // Bottom Left
+      { x: rootX - 800, y: rootY - 600, scale: 3.0 }, // Top Left
+      { x: rootX + 1300, y: rootY - 50, scale: 5.0 },  // Top Right
+      { x: rootX - 430, y: rootY - 3000, scale: 7.5 },
+      { x: rootX - 2500, y: rootY - 2700, scale: 4.5 }
+    ];
+    for (const r of ruins) {
+      // Base scale was multiplied by 28.0 in placement, so visual scale is huge.
+      // E.g., scale 6.0 * 28.0 = 168.0. A radius of ~120 * ruin.scale ensures a massive clear area.
+      if (Math.sqrt((r.x - x) ** 2 + (r.y - y) ** 2) < (140 * r.scale) + radius) return false;
+    }
+
     // Check roads and rivers (infrastructure)
     if (this.infrastructurePoints) {
       for (let i = 0; i < this.infrastructurePoints.length; i++) {
@@ -243,6 +260,11 @@ export default class TerrainGenerator {
           else if (r < 0.8) this.drawSmallGear(jitterX, jitterY, 4.5);
           else this.drawPipe(jitterX - 30, jitterY - 30, jitterX + 30, jitterY + 30);
         } else if (biome === 'python') {
+          // EXCLUSION ZONE: Prevent random props from hiding the Python Wildlands label and temple area
+          const dxP = Math.abs(jitterX - 6076);
+          const dyP = Math.abs(jitterY - 5342);
+          if (dxP < 1600 && dyP < 800) continue;
+
           if (r < 0.25) this.drawJungleBush(jitterX, jitterY, 5.5);
           else if (r < 0.5) this.drawPalmTree(jitterX, jitterY);
           else if (r < 0.7) this.drawVine(jitterX, jitterY, 4.5);
@@ -561,11 +583,11 @@ export default class TerrainGenerator {
       const uniqueId = 'river-clip-' + Math.floor(Math.random() * 1000000);
       const clipPathDef = document.createElementNS("http://www.w3.org/2000/svg", "clipPath");
       clipPathDef.setAttribute("id", uniqueId);
-      
+
       const clipShape = document.createElementNS("http://www.w3.org/2000/svg", "path");
       clipShape.setAttribute("d", riverCore.getAttribute("d"));
       clipPathDef.appendChild(clipShape);
-      
+
       const flowGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
       flowGroup.setAttribute("clip-path", `url(#${uniqueId})`);
       flowGroup.style.pointerEvents = "none"; // Ensure flow overlay doesn't block interaction
@@ -578,7 +600,7 @@ export default class TerrainGenerator {
         line.setAttribute("stroke-width", width);
         line.setAttribute("opacity", opacity);
         line.setAttribute("stroke-dasharray", dashArray);
-        
+
         // Ensure dash offset animation flows downstream (from DashLength down to 0)
         let dashLen = parseInt(dashArray.split(',')[0]) + parseInt(dashArray.split(',')[1]);
         const anim = document.createElementNS("http://www.w3.org/2000/svg", "animate");
@@ -586,7 +608,7 @@ export default class TerrainGenerator {
         anim.setAttribute("values", `${dashLen};0`);
         anim.setAttribute("dur", `${duration}s`);
         anim.setAttribute("repeatCount", "indefinite");
-        
+
         line.appendChild(anim);
         return line;
       };
@@ -2581,12 +2603,12 @@ export default class TerrainGenerator {
     // Placed at perimeters so the center is 100% visible
     // const canopy1 = this.createVerticalSliceCanopy(rootX - 800, rootY - 100, 600, 400); // West massive
     // const canopy2 = this.createVerticalSliceCanopy(rootX + 850, rootY - 50, 550, 350);  // East massive
-    const canopy3 = this.createVerticalSliceCanopy(rootX - 500, rootY - 500, 450, 250); // NW fill
+    // const canopy3 = this.createVerticalSliceCanopy(rootX - 500, rootY - 500, 450, 250); // NW fill
     // const canopy4 = this.createVerticalSliceCanopy(rootX + 500, rootY + 600, 400, 250); // SE corner near water
 
     // this.renderQueue.push({ y: rootY - 100, element: canopy1 });
     // this.renderQueue.push({ y: rootY - 50, element: canopy2 });
-    this.renderQueue.push({ y: rootY - 500, element: canopy3 });
+    // this.renderQueue.push({ y: rootY - 500, element: canopy3 });
     // this.renderQueue.push({ y: rootY + 600, element: canopy4 });
 
     // 5. Perimeter Shrines, Pillars, and Flora (Scale 16-24)
@@ -2599,6 +2621,98 @@ export default class TerrainGenerator {
     this.drawPythonHeroFlora(rootX - 600, rootY + 500, 20.0);
     this.drawPythonHeroFlora(rootX + 500, rootY + 700, 24.0);
     this.drawPythonHeroFlora(rootX + 900, rootY + 100, 20.0);
+
+    // 6. Ancient Jungle Ruins / Mossy Rune Stones
+    const ruinPlacements = [
+      { x: rootX - 1100, y: rootY - 200, scale: 5.5, variant: 0 }, // Far Left
+      { x: rootX - 2000, y: rootY + 1100, scale: 6.0, variant: 2 }, // Bottom Left (above stream)
+      { x: rootX - 800, y: rootY - 600, scale: 3.0, variant: 1 }, // Top Left
+      { x: rootX + 1300, y: rootY - 50, scale: 5.0, variant: 2 },  // Top Right
+      { x: rootX - 430, y: rootY - 3000, scale: 7.5, variant: 2 },
+      { x: rootX - 2500, y: rootY - 2700, scale: 4.5, variant: 2 }, // Bottom Left (above stream)
+    ];
+
+    ruinPlacements.forEach(ruin => {
+      // PER USER REQUEST: Place EXACTLY at specified positions only.
+      // No fallback shifts, no overlap safety rules.
+      const px = ruin.x;
+      const py = ruin.y;
+
+      // Ensure ruins placed 'behind' the temple's Y origin still render on top of its sprawling base
+      const zSort = py < rootY ? rootY + 1 : py;
+      // Doubled the scale multiplier from 14.0 to 28.0 to make them much more visible
+      this.drawPythonJungleRuin(px, py, ruin.scale * 28.0, ruin.variant, zSort);
+    });
+
+    // 7. Dense Jungle Clusters + Hanging Vines (Step 2)
+    const pythonAnchor = { x: rootX, y: rootY }; 
+    const plannedClusters = [
+      { x: pythonAnchor.x - 720, y: pythonAnchor.y - 420, scale: 1.7, variant: 0 },
+      { x: pythonAnchor.x - 420, y: pythonAnchor.y - 620, scale: 1.6, variant: 1 },
+      { x: pythonAnchor.x + 520, y: pythonAnchor.y - 360, scale: 1.55, variant: 0 },
+      { x: pythonAnchor.x + 720, y: pythonAnchor.y + 120, scale: 1.45, variant: 1 },
+      { x: pythonAnchor.x - 780, y: pythonAnchor.y + 260, scale: 1.5, variant: 2 },
+      { x: pythonAnchor.x - 300, y: pythonAnchor.y + 520, scale: 1.4, variant: 0 },
+      { x: pythonAnchor.x + 220, y: pythonAnchor.y + 470, scale: 1.35, variant: 2 },
+      { x: pythonAnchor.x + 180, y: pythonAnchor.y - 760, scale: 1.45, variant: 1 }
+    ];
+
+    const placedClusters = [];
+    const minDists = { temple: 400, infra: 180, label: 170, ruin: 130, cluster: 160 };
+    // Approx label position based on typical placement
+    const labelPos = { x: pythonAnchor.x, y: pythonAnchor.y + 250 }; 
+
+    for (const cluster of plannedClusters) {
+      const tryPlace = (testX, testY) => {
+        // Distance to temple
+        if (Math.sqrt((testX - pythonAnchor.x)**2 + (testY - pythonAnchor.y)**2) < minDists.temple) return false;
+        // Distance to label
+        if (Math.sqrt((testX - labelPos.x)**2 + (testY - labelPos.y)**2) < minDists.label) return false;
+
+        // Distance to roads/rivers (infra)
+        if (this.infrastructurePoints) {
+           for (const pt of this.infrastructurePoints) {
+             if (Math.sqrt((pt.x - testX)**2 + (pt.y - testY)**2) < minDists.infra) return false;
+           }
+        }
+
+        // Distance to ruins
+        for (const r of ruinPlacements) {
+           if (Math.sqrt((r.x - testX)**2 + (r.y - testY)**2) < minDists.ruin) return false;
+        }
+
+        // Distance to other clusters
+        for (const c of placedClusters) {
+           if (Math.sqrt((c.x - testX)**2 + (c.y - testY)**2) < minDists.cluster) return false;
+        }
+
+        return true;
+      };
+
+      let validPos = null;
+      const fallbacks = [
+        { dx: 0, dy: 0 },
+        { dx: 150, dy: 0 },
+        { dx: -150, dy: 0 },
+        { dx: 0, dy: 150 },
+        { dx: 0, dy: -150 },
+        { dx: 180, dy: 100 },
+        { dx: -180, dy: 100 }
+      ];
+
+      for (const offset of fallbacks) {
+        if (tryPlace(cluster.x + offset.dx, cluster.y + offset.dy)) {
+          validPos = { x: cluster.x + offset.dx, y: cluster.y + offset.dy };
+          break;
+        }
+      }
+
+      if (validPos) {
+        placedClusters.push(validPos);
+        const zSort = validPos.y < rootY ? rootY + 1 : validPos.y;
+        this.drawPythonJungleCluster(validPos.x, validPos.y, cluster.scale * 15.0, cluster.variant, zSort); 
+      }
+    }
   }
 
   // --- VERTICAL SLICE HELPERS ---
@@ -4127,12 +4241,12 @@ export default class TerrainGenerator {
     glow.setAttribute("rx", 15); glow.setAttribute("ry", 8);
     glow.setAttribute("fill", "rgba(170, 0, 255, 0.6)"); // Increased base opacity to 0.6 for stronger glow
     glow.setAttribute("filter", "blur(4px)");
-    
+
     // Pulsing animation for the glow when the application opens
     const glowAnim = document.createElementNS("http://www.w3.org/2000/svg", "animate");
     glowAnim.setAttribute("attributeName", "opacity");
     glowAnim.setAttribute("values", "0.2;1.0;0.2");
-    
+
     // Add a random delay so they don't all pulse at the exact same time
     const animDelay = (Math.random() * 2).toFixed(1);
     glowAnim.setAttribute("begin", `${animDelay}s`);
@@ -4880,8 +4994,8 @@ export default class TerrainGenerator {
 
     // Custom small floating crystals around the tower
     const addSmallCrystal = (cx, cy, s) => {
-      g.appendChild(this.createPoly(`${cx},${cy+15*s} ${cx-10*s},${cy} ${cx},${cy-35*s}`, "#d500f9"));
-      g.appendChild(this.createPoly(`${cx},${cy+15*s} ${cx+10*s},${cy} ${cx},${cy-35*s}`, "#aa00ff"));
+      g.appendChild(this.createPoly(`${cx},${cy + 15 * s} ${cx - 10 * s},${cy} ${cx},${cy - 35 * s}`, "#d500f9"));
+      g.appendChild(this.createPoly(`${cx},${cy + 15 * s} ${cx + 10 * s},${cy} ${cx},${cy - 35 * s}`, "#aa00ff"));
     };
 
     if (variant === 0) {
@@ -5080,7 +5194,7 @@ export default class TerrainGenerator {
     g.appendChild(highlight);
 
     g.appendChild(this.createPoly("0,0 -12,-20 -5,-35", "#6a1b9a"));
-    
+
     this.renderQueue.push({ y: y, element: g });
   }
 
@@ -5275,6 +5389,250 @@ export default class TerrainGenerator {
     this.renderQueue.push({ y: y, element: g });
   }
 
+  drawPythonJungleRuin(x, y, scale = 1.0, variant = 0, zSort = null) {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
+    g.style.pointerEvents = "none";
+
+    // Subtle ground shadow (darker and slightly larger to feel grounded)
+    const shadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+    shadow.setAttribute("cx", "0"); shadow.setAttribute("cy", "0");
+    shadow.setAttribute("rx", variant === 2 ? "2.5" : "3.0");
+    shadow.setAttribute("ry", variant === 2 ? "1.2" : "1.5");
+    shadow.setAttribute("fill", "rgba(0,0,0,0.5)"); // Stronger shadow
+    shadow.setAttribute("filter", "blur(2px)");
+    g.appendChild(shadow);
+
+    if (variant === 0) {
+      // VARIANT 0: ORGANIC BROKEN PILLAR RUINS (2-4 uneven broken pillars)
+      
+      const addRoundedPoly = (pts, fill) => {
+        const p = this.createPoly(pts, fill);
+        p.setAttribute("stroke", fill);
+        p.setAttribute("stroke-width", "0.2");
+        p.setAttribute("stroke-linejoin", "round");
+        g.appendChild(p);
+      };
+
+      const addLeaf = (cx, cy, rx, ry, r, fill) => {
+        const leaf = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+        leaf.setAttribute("cx", cx); leaf.setAttribute("cy", cy);
+        leaf.setAttribute("rx", rx); leaf.setAttribute("ry", ry);
+        leaf.setAttribute("fill", fill);
+        leaf.setAttribute("transform", `rotate(${r} ${cx} ${cy})`);
+        g.appendChild(leaf);
+      };
+
+      // Pillar 1 (Tall, center left)
+      addRoundedPoly("-1.5,0 -0.5,0.5 -0.5,-2.5 -1.5,-3.0", "#607d8b"); // left face
+      addRoundedPoly("-0.5,0.5 0.5,0 0.5,-2.8 -0.5,-2.5", "#546e7a"); // right face
+      addRoundedPoly("-1.5,-3.0 -0.5,-2.5 0.2,-2.2 -0.8,-2.7", "#78909c"); // cracked top
+
+      // Pillar 2 (Short, front right)
+      addRoundedPoly("0.5,0.8 1.5,0.2 1.5,-1.2 0.5,-0.6", "#607d8b"); // left face
+      addRoundedPoly("1.5,0.2 2.2,-0.2 2.2,-1.4 1.5,-1.2", "#455a64"); // right face
+      addRoundedPoly("0.5,-0.6 1.5,-1.2 2.0,-1.5 1.0,-0.9", "#78909c"); // cracked top
+
+      // Pillar 3 (Medium, back right)
+      addRoundedPoly("1.0,-0.5 1.8,-1.0 1.8,-2.5 1.0,-2.0", "#546e7a"); // left face
+      addRoundedPoly("1.8,-1.0 2.4,-1.4 2.4,-2.8 1.8,-2.5", "#37474f"); // right face
+      addRoundedPoly("1.0,-2.0 1.8,-2.5 2.2,-2.9 1.4,-2.4", "#607d8b"); // cracked top
+
+      // Broken base stones
+      addRoundedPoly("-2.5,0 -1.5,0.5 -1.0,-0.2 -2.0,-0.5", "#455a64");
+      addRoundedPoly("2.0,0.5 3.0,0 2.5,-0.5 1.5,0", "#546e7a");
+
+      // Glowing Magical Rune on Pillar 1
+      const p1Cutout = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      p1Cutout.setAttribute("d", "M -1.0,-1.0 L -1.0,-1.8 C -0.8,-2.0 -0.2,-2.0 0.0,-1.8 L 0.0,-1.0 C -0.2,-0.8 -0.8,-0.8 -1.0,-1.0 Z");
+      p1Cutout.setAttribute("fill", "#1b5e20");
+      p1Cutout.setAttribute("stroke", "#37474f");
+      p1Cutout.setAttribute("stroke-width", "0.1");
+      g.appendChild(p1Cutout);
+
+      const rune = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      rune.setAttribute("d", "M -0.5,-1.6 L -0.3,-1.4 M -0.7,-1.4 L -0.5,-1.6 M -0.5,-1.4 L -0.5,-1.1");
+      rune.setAttribute("stroke", "#00e676");
+      rune.setAttribute("stroke-width", "0.1");
+      rune.setAttribute("stroke-linecap", "round");
+      rune.setAttribute("fill", "none");
+      g.appendChild(rune);
+
+      const glow = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      glow.setAttribute("cx", "-0.5"); glow.setAttribute("cy", "-1.4");
+      glow.setAttribute("r", "0.4");
+      glow.setAttribute("fill", "rgba(100,221,23,0.3)");
+      glow.setAttribute("filter", "blur(1px)");
+      g.appendChild(glow);
+
+      // Thick organic vines
+      const vine = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      vine.setAttribute("d", "M -1.5,-1.0 Q -0.5,-0.5 0.5,-1.5 T 2.0,-1.0");
+      vine.setAttribute("stroke", "#1b5e20");
+      vine.setAttribute("stroke-width", "0.25");
+      vine.setAttribute("fill", "none");
+      vine.setAttribute("stroke-linecap", "round");
+      g.appendChild(vine);
+
+      // Organic moss caps & base bushes
+      addLeaf("-1.0", "-2.9", "0.6", "0.3", -15, "#33691e"); // P1 top
+      addLeaf("-0.5", "-3.1", "0.5", "0.25", 10, "#558b2f"); 
+      addLeaf("1.2", "-1.0", "0.5", "0.25", -20, "#2e7d32"); // P2 top
+      addLeaf("1.6", "-2.3", "0.5", "0.25", 15, "#1b5e20"); // P3 top
+      addLeaf("-1.5", "0.8", "0.8", "0.4", 0, "#1b5e20");    // Base left
+      addLeaf("0.0", "1.1", "0.9", "0.45", -10, "#2e7d32");  // Base mid
+      addLeaf("1.5", "1.0", "0.7", "0.35", 15, "#33691e");   // Base right
+
+    } else if (variant === 1) {
+      // VARIANT 1: ORGANIC COLLAPSED STONE BLOCK RUIN
+      
+      const addRoundedPoly = (pts, fill) => {
+        const p = this.createPoly(pts, fill);
+        p.setAttribute("stroke", fill);
+        p.setAttribute("stroke-width", "0.25");
+        p.setAttribute("stroke-linejoin", "round");
+        g.appendChild(p);
+      };
+
+      const addLeaf = (cx, cy, rx, ry, r, fill) => {
+        const leaf = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+        leaf.setAttribute("cx", cx); leaf.setAttribute("cy", cy);
+        leaf.setAttribute("rx", rx); leaf.setAttribute("ry", ry);
+        leaf.setAttribute("fill", fill);
+        leaf.setAttribute("transform", `rotate(${r} ${cx} ${cy})`);
+        g.appendChild(leaf);
+      };
+
+      // Base wide block
+      addRoundedPoly("-2.0,0.5 0.0,1.5 1.5,0.5 -0.5,-0.5", "#546e7a"); // top
+      addRoundedPoly("-2.0,0.5 0.0,1.5 0.0,2.0 -2.0,1.0", "#455a64"); // left side
+      addRoundedPoly("0.0,1.5 1.5,0.5 1.5,0.0 0.0,1.0", "#37474f"); // right side
+
+      // Stacked block
+      addRoundedPoly("-1.0,-0.5 0.5,0.5 1.5,-0.5 0.0,-1.5", "#607d8b"); // top
+      addRoundedPoly("-1.0,-0.5 0.5,0.5 0.5,1.2 -1.0,0.2", "#546e7a"); // left side
+      addRoundedPoly("0.5,0.5 1.5,-0.5 1.5,0.2 0.5,1.2", "#455a64"); // right side
+
+      // Side chunk
+      addRoundedPoly("-2.5,0.0 -1.0,0.5 -1.5,-0.5 -2.8,-0.8", "#37474f"); 
+
+      // Small debris front
+      addRoundedPoly("-0.5,1.8 0.5,2.2 1.0,1.6 0.0,1.2", "#607d8b");
+      addRoundedPoly("-0.5,1.8 0.5,2.2 0.5,2.5 -0.5,2.1", "#546e7a");
+
+      // Deep cracks (Organic path)
+      const crack = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      crack.setAttribute("d", "M -1.0,-0.5 Q -0.5,0.0 0.5,-0.2 M -2.0,0.5 Q -1.5,0.8 -1.0,1.0 M 1.5,0.0 Q 2.0,0.5 2.5,0.0");
+      crack.setAttribute("stroke", "#263238");
+      crack.setAttribute("stroke-width", "0.15");
+      crack.setAttribute("fill", "none");
+      g.appendChild(crack);
+
+      // Organic thick vines
+      const vine = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      vine.setAttribute("d", "M -2.5,-0.5 Q -1.0,1.5 0.5,-0.5 T 2.5,-0.5");
+      vine.setAttribute("stroke", "#1b5e20");
+      vine.setAttribute("stroke-width", "0.25");
+      vine.setAttribute("fill", "none");
+      vine.setAttribute("stroke-linecap", "round");
+      g.appendChild(vine);
+
+      // Organic moss caps & base bushes
+      addLeaf("-1.0", "-1.0", "0.6", "0.3", -15, "#2e7d32"); // Top moss
+      addLeaf("-0.2", "-1.2", "0.5", "0.25", 25, "#558b2f"); 
+      addLeaf("1.2", "-0.8", "0.5", "0.3", -30, "#33691e");  // Right block moss
+      addLeaf("-2.2", "0.2", "0.6", "0.3", 10, "#1b5e20");   // Left block moss
+      addLeaf("-1.5", "1.5", "0.9", "0.45", -5, "#1b5e20");  // Base bushes
+      addLeaf("0.0", "1.9", "1.0", "0.5", 15, "#2e7d32");
+      addLeaf("1.5", "1.3", "0.8", "0.4", -10, "#1b5e20");
+      addLeaf("2.5", "0.5", "0.6", "0.3", 20, "#33691e");
+
+    } else {
+      // VARIANT 2: BEAUTIFUL ROUNDED MOSSY RUNE STONE
+
+      // Base back shape (darker shadow/side)
+      g.appendChild(this.createPoly("-1.5,0.5 -1.0,-4.5 0.5,-5.0 1.8,-4.0 1.8,0.2", "#78909c"));
+
+      // Main curved face (lighter stone gray)
+      const stoneFace = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      stoneFace.setAttribute("d", "M -1.2,0.5 C -1.0,-2.0 -0.8,-4.0 -0.5,-4.5 C 0.0,-5.0 0.8,-4.8 1.2,-4.2 C 1.5,-3.5 1.5,-1.5 1.2,0.5 Z");
+      stoneFace.setAttribute("fill", "#b0bec5");
+      g.appendChild(stoneFace);
+
+      // Inner hollow cutout (dark recess)
+      const cutout = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      cutout.setAttribute("d", "M -0.5,-1.5 L -0.5,-2.8 C -0.2,-3.2 0.4,-3.2 0.6,-2.8 L 0.6,-1.5 C 0.4,-1.0 -0.2,-1.0 -0.5,-1.5 Z");
+      cutout.setAttribute("fill", "#1b5e20"); // Deep dark green/black
+      cutout.setAttribute("stroke", "#37474f");
+      cutout.setAttribute("stroke-width", "0.1");
+      g.appendChild(cutout);
+
+      // Glowing magical core
+      const coreGlow = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      coreGlow.setAttribute("cx", "0.05"); coreGlow.setAttribute("cy", "-2.15");
+      coreGlow.setAttribute("r", "0.6");
+      coreGlow.setAttribute("fill", "rgba(100, 221, 23, 0.4)");
+      coreGlow.setAttribute("filter", "blur(1px)");
+      g.appendChild(coreGlow);
+
+      const core = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      core.setAttribute("d", "M 0,-2.4 Q 0.3,-2.4 0.3,-2.1 Q 0.3,-1.9 0.0,-1.8 Q -0.3,-1.9 -0.3,-2.1 Q -0.3,-2.4 0,-2.4 Z M -0.1,-1.7 L -0.2,-1.4 M 0.2,-1.7 L 0.3,-1.4");
+      core.setAttribute("fill", "#00e676");
+      core.setAttribute("stroke", "#b2ff59");
+      core.setAttribute("stroke-width", "0.05");
+      g.appendChild(core);
+
+      // Thick organic vines (left side)
+      const leftVine = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      leftVine.setAttribute("d", "M -1.5,0.5 Q -1.0,-1.0 -1.2,-2.5 T -0.5,-4.0");
+      leftVine.setAttribute("stroke", "#2e7d32");
+      leftVine.setAttribute("stroke-width", "0.2");
+      leftVine.setAttribute("fill", "none");
+      leftVine.setAttribute("stroke-linecap", "round");
+      g.appendChild(leftVine);
+
+      // Thick organic vines (right side)
+      const rightVine = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      rightVine.setAttribute("d", "M 1.5,0.0 Q 0.8,-1.5 1.0,-3.0 T 0.5,-4.2");
+      rightVine.setAttribute("stroke", "#33691e");
+      rightVine.setAttribute("stroke-width", "0.18");
+      rightVine.setAttribute("fill", "none");
+      rightVine.setAttribute("stroke-linecap", "round");
+      g.appendChild(rightVine);
+
+      // Leaf clusters (overlapping green ellipses/polygons to match the reference)
+      const addLeaf = (cx, cy, rx, ry, r, fill) => {
+        const leaf = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+        leaf.setAttribute("cx", cx); leaf.setAttribute("cy", cy);
+        leaf.setAttribute("rx", rx); leaf.setAttribute("ry", ry);
+        leaf.setAttribute("fill", fill);
+        leaf.setAttribute("transform", `rotate(${r} ${cx} ${cy})`);
+        g.appendChild(leaf);
+      };
+
+      // Top moss/leaves
+      addLeaf("-0.5", "-4.5", "0.6", "0.3", -20, "#558b2f");
+      addLeaf("0.2", "-4.7", "0.5", "0.25", 15, "#33691e");
+
+      // Left vine leaves
+      addLeaf("-1.2", "-2.8", "0.3", "0.15", 45, "#7cb342");
+      addLeaf("-0.9", "-2.4", "0.35", "0.15", 20, "#558b2f");
+      addLeaf("-1.0", "-1.5", "0.4", "0.2", 60, "#33691e");
+
+      // Right vine leaves
+      addLeaf("1.2", "-3.5", "0.3", "0.15", -45, "#558b2f");
+      addLeaf("1.0", "-2.5", "0.3", "0.15", -20, "#7cb342");
+      addLeaf("1.1", "-1.2", "0.4", "0.2", -70, "#33691e");
+
+      // Base bushes
+      addLeaf("-1.0", "0.5", "0.8", "0.4", 0, "#1b5e20");
+      addLeaf("0.0", "0.8", "0.9", "0.45", -5, "#2e7d32");
+      addLeaf("1.2", "0.4", "0.7", "0.35", 10, "#1b5e20");
+    }
+
+    this.renderQueue.push({ y: zSort !== null ? zSort : y, element: g });
+  }
+
   // Phase 5A: Environment Details Specific Props
   drawFlowerPatch(x, y, scale = 4.0) {
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
@@ -5343,5 +5701,88 @@ export default class TerrainGenerator {
 
     this.renderQueue.push({ y: y, element: g });
   }
-}
 
+  drawPythonJungleCluster(x, y, scale = 1.0, variant = 0, zSort = null) {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
+    g.style.pointerEvents = "none";
+
+    const shadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+    shadow.setAttribute("cx", "0"); shadow.setAttribute("cy", "0");
+    shadow.setAttribute("rx", "3.0"); shadow.setAttribute("ry", "1.2");
+    shadow.setAttribute("fill", "rgba(0,0,0,0.4)");
+    g.appendChild(shadow);
+
+    const addLeaf = (cx, cy, rx, ry, r, fill) => {
+      const leaf = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+      leaf.setAttribute("cx", cx); leaf.setAttribute("cy", cy);
+      leaf.setAttribute("rx", rx); leaf.setAttribute("ry", ry);
+      leaf.setAttribute("fill", fill);
+      leaf.setAttribute("transform", `rotate(${r} ${cx} ${cy})`);
+      g.appendChild(leaf);
+    };
+
+    const addVineStroke = (d) => {
+      const vine = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      vine.setAttribute("d", d);
+      vine.setAttribute("stroke", "#004d40");
+      vine.setAttribute("stroke-width", "0.15");
+      vine.setAttribute("fill", "none");
+      vine.setAttribute("stroke-linecap", "round");
+      g.appendChild(vine);
+    };
+
+    if (variant === 0) {
+      addLeaf("0", "-1.5", "1.8", "1.2", 0, "#1b5e20");
+      addLeaf("-1.0", "-1.2", "1.5", "1.0", -15, "#2e7d32");
+      addLeaf("1.2", "-0.8", "1.2", "0.8", 20, "#33691e");
+      addLeaf("-0.2", "-2.2", "1.4", "0.9", 5, "#2e7d32");
+      addLeaf("-0.5", "-2.5", "0.8", "0.4", 10, "#558b2f"); 
+      addLeaf("-1.2", "-1.6", "0.7", "0.3", -10, "#558b2f");
+      addLeaf("0.8", "-1.2", "0.6", "0.3", 15, "#558b2f");
+      addVineStroke("M -0.5,-1.5 Q -0.8,-0.5 -1.5,0.0");
+      addVineStroke("M 0.5,-2.0 Q 1.0,-1.0 1.2,0.5");
+      addLeaf("-1.5", "0.2", "0.8", "0.4", -10, "#1b5e20");
+      addLeaf("1.5", "0.5", "0.7", "0.3", 15, "#1b5e20");
+      addLeaf("0.0", "0.5", "1.0", "0.4", 0, "#2e7d32");
+    } else if (variant === 1) {
+      const trunk1 = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      trunk1.setAttribute("d", "M -0.5,0.5 C -0.2,-1.0 -0.8,-3.0 -0.5,-4.0 C -0.3,-4.0 -0.1,-3.0 -0.2,0.5 Z");
+      trunk1.setAttribute("fill", "#4e342e");
+      g.appendChild(trunk1);
+      
+      const trunk2 = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      trunk2.setAttribute("d", "M 0.8,0.2 C 0.5,-1.0 1.0,-2.5 0.8,-3.2 C 1.0,-3.2 1.2,-2.5 1.1,0.2 Z");
+      trunk2.setAttribute("fill", "#3e2723");
+      g.appendChild(trunk2);
+
+      addLeaf("-0.5", "-4.5", "1.8", "1.2", -10, "#1b5e20");
+      addLeaf("0.8", "-3.5", "1.5", "1.0", 15, "#1b5e20");
+      addLeaf("-1.2", "-4.0", "1.5", "0.9", -25, "#2e7d32");
+      addLeaf("0.0", "-5.0", "1.4", "0.8", 5, "#33691e");
+      addLeaf("1.4", "-3.2", "1.2", "0.7", 30, "#2e7d32");
+      addLeaf("-0.5", "-5.2", "0.8", "0.4", 0, "#558b2f");
+      addLeaf("-1.5", "-4.2", "0.6", "0.3", -15, "#558b2f");
+      addLeaf("1.5", "-3.5", "0.7", "0.3", 25, "#558b2f");
+      addVineStroke("M -1.0,-4.0 Q -1.2,-2.0 -0.8,-0.5");
+      addVineStroke("M 0.2,-4.5 Q 0.5,-2.5 0.0,-1.0");
+      addLeaf("-1.0", "0.2", "0.9", "0.4", -5, "#1b5e20");
+      addLeaf("0.5", "0.4", "1.1", "0.5", 10, "#2e7d32");
+    } else {
+      addLeaf("0", "-0.5", "2.5", "1.0", 0, "#1b5e20");
+      addLeaf("-1.5", "-1.0", "1.5", "0.8", -20, "#2e7d32");
+      addLeaf("1.5", "0.0", "1.8", "0.9", 15, "#33691e");
+      addLeaf("-0.5", "-1.5", "1.6", "0.9", -5, "#2e7d32");
+      addLeaf("-1.8", "-1.2", "0.7", "0.3", -15, "#558b2f");
+      addLeaf("-0.8", "-1.8", "0.8", "0.4", -5, "#558b2f");
+      addLeaf("0.5", "-1.0", "0.6", "0.3", 10, "#558b2f");
+      addVineStroke("M -2.0,-0.5 Q -1.0,-1.5 0.5,-1.0 T 2.0,0.5");
+      addVineStroke("M -1.0,0.0 Q 0.0,-0.5 1.0,0.5");
+      addLeaf("-2.0", "0.5", "1.0", "0.4", -10, "#1b5e20");
+      addLeaf("0.0", "0.8", "1.2", "0.5", 0, "#2e7d32");
+      addLeaf("2.0", "0.8", "0.9", "0.4", 10, "#1b5e20");
+    }
+
+    this.renderQueue.push({ y: zSort !== null ? zSort : y, element: g });
+  }
+}

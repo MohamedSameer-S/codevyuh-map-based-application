@@ -188,12 +188,13 @@ export default class LandmarkManager {
     // Push into the Global Z-Sorting RenderQueue
     if (renderQueue) {
       renderQueue.push({ y: y, element: g });
-      // UI labels must ALWAYS float above all isometric terrain elements
-      renderQueue.push({ y: 9999999, element: labelWrapper });
     } else {
       this.renderer.getLayer('landmarks').appendChild(g);
-      this.renderer.getLayer('landmarks').appendChild(labelWrapper);
     }
+
+    // UI labels must ALWAYS float above all isometric terrain elements and dynamic scatter.
+    // Appending to 'interaction' layer guarantees it sits on top of everything.
+    this.renderer.getLayer('interaction').appendChild(labelWrapper);
   }
 
   buildAcademy(g) {
