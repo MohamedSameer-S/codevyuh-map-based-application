@@ -150,8 +150,23 @@ export default class TerrainGenerator {
       const lca = this.logicCampusAnchors;
       const checkDist = (pt, r) => pt && Math.sqrt((pt.x - x) ** 2 + (pt.y - y) ** 2) < r + radius;
       if (checkDist(lca.library, 400)) return false;
-      if (checkDist(lca.temple, 350)) return false;
+      if (checkDist(lca.temple, 600)) return false; // Increased to clear large pad completely
       if (checkDist(lca.dormA, 250)) return false;
+
+      // Exclude the thick pathway connecting the Academy (central junction) and Temple
+      const sqr = (val) => val * val;
+      const dist2 = (v, w) => sqr(v.x - w.x) + sqr(v.y - w.y);
+      const distToSegment = (p, v, w) => {
+        const l2 = dist2(v, w);
+        if (l2 === 0) return Math.sqrt(dist2(p, v));
+        let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+        t = Math.max(0, Math.min(1, t));
+        return Math.sqrt(dist2(p, { x: v.x + t * (w.x - v.x), y: v.y + t * (w.y - v.y) }));
+      };
+
+      const pt = { x, y };
+      // Pathway is width 400, so we need at least 250 clearance from center line
+      if (distToSegment(pt, lca.academy, lca.temple) < 250) return false;
     }
 
     // Check roads and rivers (infrastructure)
@@ -200,6 +215,12 @@ export default class TerrainGenerator {
 
         const r = window.rng.next();
         if (biome === 'logic') {
+          // EXCLUSION ZONE: Prevent random props from hiding the Logic Dominion label
+          if (this.logicCampusAnchors && this.logicCampusAnchors.academy) {
+            const dxL = Math.abs(jitterX - this.logicCampusAnchors.academy.x);
+            const dyL = Math.abs(jitterY - (this.logicCampusAnchors.academy.y + 900));
+            if (dxL < 1600 && dyL < 400) continue;
+          }
           if (r < 0.25) this.drawTreeGroup(jitterX, jitterY, 'logic');
           else if (r < 0.45) this.drawAcademyTree(jitterX, jitterY, 4.0);
           else if (r < 0.65) this.drawBush(jitterX, jitterY, 'logic');
@@ -528,6 +549,58 @@ export default class TerrainGenerator {
 
       this.renderer.getLayer('rivers').appendChild(riverBase);
       this.renderer.getLayer('rivers').appendChild(riverCore);
+
+      // --- Animated Flow Lines overlay ---
+      // Generate the exact centerline SVG path
+      let centerlineD = "";
+      combinedPoints.forEach((pt, i) => {
+        centerlineD += (i === 0 ? `M ${pt.x},${pt.y}` : ` L ${pt.x},${pt.y}`);
+      });
+
+      // Create a unique clipPath using the riverCore polygon to strictly contain flow lines
+      const uniqueId = 'river-clip-' + Math.floor(Math.random() * 1000000);
+      const clipPathDef = document.createElementNS("http://www.w3.org/2000/svg", "clipPath");
+      clipPathDef.setAttribute("id", uniqueId);
+      
+      const clipShape = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      clipShape.setAttribute("d", riverCore.getAttribute("d"));
+      clipPathDef.appendChild(clipShape);
+      
+      const flowGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      flowGroup.setAttribute("clip-path", `url(#${uniqueId})`);
+      flowGroup.style.pointerEvents = "none"; // Ensure flow overlay doesn't block interaction
+
+      const createFlowLine = (width, opacity, color, dashArray, duration) => {
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        line.setAttribute("d", centerlineD);
+        line.setAttribute("fill", "none");
+        line.setAttribute("stroke", color);
+        line.setAttribute("stroke-width", width);
+        line.setAttribute("opacity", opacity);
+        line.setAttribute("stroke-dasharray", dashArray);
+        
+        // Ensure dash offset animation flows downstream (from DashLength down to 0)
+        let dashLen = parseInt(dashArray.split(',')[0]) + parseInt(dashArray.split(',')[1]);
+        const anim = document.createElementNS("http://www.w3.org/2000/svg", "animate");
+        anim.setAttribute("attributeName", "stroke-dashoffset");
+        anim.setAttribute("values", `${dashLen};0`);
+        anim.setAttribute("dur", `${duration}s`);
+        anim.setAttribute("repeatCount", "indefinite");
+        
+        line.appendChild(anim);
+        return line;
+      };
+
+      // 1. Broad slow shimmer (subtle but visible)
+      flowGroup.appendChild(createFlowLine(Math.max(4, taperConfigCore.startWidth * 0.7), 0.25, "#ffffff", "200, 500", 10));
+      // 2. Medium highlight current
+      flowGroup.appendChild(createFlowLine(Math.max(2, taperConfigCore.startWidth * 0.35), 0.35, "#a5f3fc", "80, 250", 6));
+      // 3. Thin fast surface streak
+      flowGroup.appendChild(createFlowLine(Math.max(1, taperConfigCore.startWidth * 0.15), 0.45, "#ffffff", "20, 100", 3.5));
+
+      // Append to the DOM
+      this.renderer.getLayer('rivers').appendChild(clipPathDef);
+      this.renderer.getLayer('rivers').appendChild(flowGroup);
     };
 
     const drawLake = (cx, cy, rx, ry, baseColor, coreColor) => {
@@ -1012,18 +1085,701 @@ export default class TerrainGenerator {
     drawGardenPatch(logicCampusAnchors.academy.x - 350, logicCampusAnchors.academy.y + 300, 120, 60);
     drawGardenPatch(logicCampusAnchors.academy.x + 350, logicCampusAnchors.academy.y + 300, 120, 60);
 
+    // [NEW] Decorative Water Fountains
+    const drawVisibleLogicFountain = (baseCx, baseCy, scale = 1.0) => {
+      const fountainGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      // Apply the scale and position via SVG transform!
+      fountainGroup.setAttribute("transform", `translate(${baseCx}, ${baseCy}) scale(${scale})`);
+
+      // Draw relative to 0,0 so the transform handles everything
+      const cx = 0;
+      const cy = 0;
+
+      const addPoly = (d, fill, stroke, sw, opacity, animateFlow = false, dur = 1, dashSize = 40) => {
+        const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        p.setAttribute("d", d);
+        if (fill) p.setAttribute("fill", fill);
+        if (stroke) p.setAttribute("stroke", stroke);
+        if (sw) p.setAttribute("stroke-width", sw);
+        if (opacity) p.setAttribute("opacity", opacity);
+        p.setAttribute("stroke-linecap", "round");
+
+        if (animateFlow) {
+          p.setAttribute("stroke-dasharray", `${dashSize} ${dashSize * 0.8}`);
+          const anim = document.createElementNS("http://www.w3.org/2000/svg", "animate");
+          anim.setAttribute("attributeName", "stroke-dashoffset");
+          anim.setAttribute("values", `${dashSize * 1.8};0`);
+          anim.setAttribute("dur", `${dur}s`);
+          anim.setAttribute("repeatCount", "indefinite");
+          p.appendChild(anim);
+        }
+
+        fountainGroup.appendChild(p);
+      };
+
+      const addEllipse = (ex, ey, rx, ry, fill, stroke, sw, opacity) => {
+        const e = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+        e.setAttribute("cx", ex); e.setAttribute("cy", ey);
+        e.setAttribute("rx", rx); e.setAttribute("ry", ry);
+        if (fill) e.setAttribute("fill", fill);
+        if (stroke) e.setAttribute("stroke", stroke);
+        if (sw) e.setAttribute("stroke-width", sw);
+        if (opacity) e.setAttribute("opacity", opacity);
+        fountainGroup.appendChild(e);
+      };
+
+      const drawCylinder = (bx, by, brx, bry, h, sideCol, topCol) => {
+        addEllipse(bx, by, brx, bry, sideCol);
+        const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        rect.setAttribute("x", bx - brx); rect.setAttribute("y", by - h);
+        rect.setAttribute("width", brx * 2); rect.setAttribute("height", h);
+        rect.setAttribute("fill", sideCol);
+        fountainGroup.appendChild(rect);
+        addEllipse(bx, by - h, brx, bry, topCol);
+      };
+
+      // 1. Ground Shadow
+      addEllipse(cx, cy + 10, 360, 170, "rgba(0,0,0,0.22)");
+
+      // 2. Main Basin (Tier 1)
+      drawCylinder(cx, cy, 340, 160, 48, "#b0bec5", "#ffffff");
+      addEllipse(cx, cy - 48, 312, 144, "#cfd8dc");
+      addEllipse(cx, cy - 28, 308, 142, "#26c6da"); // Water surface
+
+      // 3. Central Pedestal
+      drawCylinder(cx, cy - 28, 80, 40, 60, "#90a4ae", "#ffffff");
+
+      // 4. Middle Basin (Tier 2)
+      drawCylinder(cx, cy - 88, 170, 80, 32, "#b0bec5", "#ffffff");
+      addEllipse(cx, cy - 120, 150, 68, "#cfd8dc");
+      addEllipse(cx, cy - 108, 146, 66, "#26c6da"); // Tier 2 water surface
+
+      // 5. Top Spout Pedestal
+      drawCylinder(cx, cy - 108, 36, 16, 44, "#90a4ae", "#ffffff");
+      addEllipse(cx, cy - 152, 44, 22, "#ffffff");
+
+      // 6. Animated Water Ripples
+      const addRipple = (ex, ey, maxRx, maxRy, dur, delay) => {
+        const e = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+        e.setAttribute("cx", ex); e.setAttribute("cy", ey);
+        e.setAttribute("fill", "none");
+        e.setAttribute("stroke", "#ffffff");
+        e.setAttribute("stroke-width", "4");
+        e.setAttribute("opacity", "0");
+
+        const animRx = document.createElementNS("http://www.w3.org/2000/svg", "animate");
+        animRx.setAttribute("attributeName", "rx");
+        animRx.setAttribute("values", `${maxRx * 0.4};${maxRx}`);
+        animRx.setAttribute("dur", `${dur}s`);
+        animRx.setAttribute("begin", `${delay}s`);
+        animRx.setAttribute("repeatCount", "indefinite");
+        e.appendChild(animRx);
+
+        const animRy = document.createElementNS("http://www.w3.org/2000/svg", "animate");
+        animRy.setAttribute("attributeName", "ry");
+        animRy.setAttribute("values", `${maxRy * 0.4};${maxRy}`);
+        animRy.setAttribute("dur", `${dur}s`);
+        animRy.setAttribute("begin", `${delay}s`);
+        animRy.setAttribute("repeatCount", "indefinite");
+        e.appendChild(animRy);
+
+        const animOp = document.createElementNS("http://www.w3.org/2000/svg", "animate");
+        animOp.setAttribute("attributeName", "opacity");
+        animOp.setAttribute("values", "0;0.5;0"); // Fade in and out
+        animOp.setAttribute("dur", `${dur}s`);
+        animOp.setAttribute("begin", `${delay}s`);
+        animOp.setAttribute("repeatCount", "indefinite");
+        e.appendChild(animOp);
+
+        fountainGroup.appendChild(e);
+      };
+
+      addRipple(cx, cy - 28, 260, 120, 3.0, 0);
+      addRipple(cx, cy - 28, 180, 80, 2.5, 1.2);
+      addRipple(cx, cy - 108, 110, 50, 2.0, 0.5);
+
+      // 7. Animated Cascading Waterfalls
+      const addWaterfall = (d, w) => {
+        addPoly(d, "none", "#80f7ff", w, "0.95"); // solid base flow
+        addPoly(d, "none", "#ffffff", (parseInt(w) / 2).toString(), "0.8", true, 0.6, 40); // animated splashes
+      };
+      addWaterfall(`M ${cx - 150} ${cy - 120} Q ${cx - 220} ${cy - 74} ${cx - 290} ${cy - 28}`, "20");
+      addWaterfall(`M ${cx + 150} ${cy - 120} Q ${cx + 220} ${cy - 74} ${cx + 290} ${cy - 28}`, "20");
+      addWaterfall(`M ${cx} ${cy - 40} Q ${cx} ${cy} ${cx} ${cy + 110}`, "24");
+      addWaterfall(`M ${cx - 120} ${cy - 65} Q ${cx - 160} ${cy - 20} ${cx - 210} ${cy + 70}`, "16");
+      addWaterfall(`M ${cx + 120} ${cy - 65} Q ${cx + 160} ${cy - 20} ${cx + 210} ${cy + 70}`, "16");
+
+      // 8. Animated Top Water Jets
+      const addJet = (d, w) => {
+        addPoly(d, "none", "#80f7ff", w, "1.0");
+        addPoly(d, "none", "#ffffff", (parseInt(w) / 2.5).toString(), "1.0", true, 0.5, 30);
+      };
+      addJet(`M ${cx} ${cy - 152} Q ${cx} ${cy - 280} ${cx} ${cy - 330}`, "24"); // Center
+      addJet(`M ${cx} ${cy - 152} Q ${cx - 90} ${cy - 260} ${cx - 130} ${cy - 190}`, "20"); // Left
+      addJet(`M ${cx} ${cy - 152} Q ${cx + 90} ${cy - 260} ${cx + 130} ${cy - 190}`, "20"); // Right
+      addJet(`M ${cx} ${cy - 152} Q ${cx - 40} ${cy - 220} ${cx - 70} ${cy - 140}`, "16"); // Front-Left
+      addJet(`M ${cx} ${cy - 152} Q ${cx + 40} ${cy - 220} ${cx + 70} ${cy - 140}`, "16"); // Front-Right
+
+      // 9. Animated Sparkle Drops (Splashing)
+      const addDrop = (dx, dy, r, delay, speed) => {
+        const d = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        d.setAttribute("cx", dx); d.setAttribute("cy", dy);
+        d.setAttribute("r", r); d.setAttribute("fill", "#ffffff");
+
+        const animCy = document.createElementNS("http://www.w3.org/2000/svg", "animate");
+        animCy.setAttribute("attributeName", "cy");
+        animCy.setAttribute("values", `${dy};${dy + 30}`); // Fall downwards
+        animCy.setAttribute("dur", `${speed}s`);
+        animCy.setAttribute("begin", `${delay}s`);
+        animCy.setAttribute("repeatCount", "indefinite");
+        d.appendChild(animCy);
+
+        const animOp = document.createElementNS("http://www.w3.org/2000/svg", "animate");
+        animOp.setAttribute("attributeName", "opacity");
+        animOp.setAttribute("values", "1;0"); // Fade out
+        animOp.setAttribute("dur", `${speed}s`);
+        animOp.setAttribute("begin", `${delay}s`);
+        animOp.setAttribute("repeatCount", "indefinite");
+        d.appendChild(animOp);
+
+        fountainGroup.appendChild(d);
+      };
+
+      addDrop(cx, cy - 350, 12, 0, 0.6);
+      addDrop(cx - 136, cy - 180, 10, 0.2, 0.5);
+      addDrop(cx + 136, cy - 180, 10, 0.1, 0.5);
+      addDrop(cx - 76, cy - 130, 8, 0.4, 0.4);
+      addDrop(cx + 76, cy - 130, 8, 0.3, 0.4);
+
+      // Splashes in main basin
+      addDrop(cx - 200, cy + 50, 8, 0.1, 0.7);
+      addDrop(cx + 200, cy + 50, 8, 0.5, 0.7);
+      addDrop(cx, cy + 120, 10, 0.2, 0.6);
+      addDrop(cx - 260, cy - 20, 8, 0.6, 0.8);
+      addDrop(cx + 260, cy - 20, 8, 0.3, 0.8);
+
+      // Render sort order perfectly matched to the visual bottom of the scaled cylinder
+      this.renderQueue.push({ y: baseCy + 160 * scale, element: fountainGroup });
+    };
+
+    // Make all fountains MUCH larger by passing a 1.6 scale factor
+    drawVisibleLogicFountain(plazaX - 1400, plazaY + 2950, 2.2);
+    drawVisibleLogicFountain(plazaX + 1880, plazaY + 350, 1.5);
+    drawVisibleLogicFountain(plazaX + 2000, plazaY + 2550, 1.4);
+    drawVisibleLogicFountain(plazaX + 900, plazaY - 1200, 1.6);
+
+    const drawSmallLogicLamp = (cx, cy) => {
+      const lampGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+
+      const shadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+      shadow.setAttribute("cx", cx);
+      shadow.setAttribute("cy", cy + 20);
+      shadow.setAttribute("rx", "35");
+      shadow.setAttribute("ry", "14");
+      shadow.setAttribute("fill", "rgba(0,0,0,0.18)");
+      lampGroup.appendChild(shadow);
+
+      const base = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+      base.setAttribute("points", `${cx},${cy + 20} ${cx + 32},${cy + 36} ${cx},${cy + 52} ${cx - 32},${cy + 36}`);
+      base.setAttribute("fill", "#f8ffff");
+      base.setAttribute("stroke", "#00cfe8");
+      base.setAttribute("stroke-width", "5");
+      lampGroup.appendChild(base);
+
+      const pole = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      pole.setAttribute("x1", cx);
+      pole.setAttribute("y1", cy + 30);
+      pole.setAttribute("x2", cx);
+      pole.setAttribute("y2", cy - 45);
+      pole.setAttribute("stroke", "#b7edf2");
+      pole.setAttribute("stroke-width", "10");
+      pole.setAttribute("stroke-linecap", "round");
+      lampGroup.appendChild(pole);
+
+      const glow = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      glow.setAttribute("cx", cx);
+      glow.setAttribute("cy", cy - 55);
+      glow.setAttribute("r", "28");
+      glow.setAttribute("fill", "#80f7ff");
+      glow.setAttribute("opacity", "0.35");
+      lampGroup.appendChild(glow);
+
+      const crystal = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+      crystal.setAttribute("points", `${cx},${cy - 90} ${cx + 22},${cy - 55} ${cx},${cy - 20} ${cx - 22},${cy - 55}`);
+      crystal.setAttribute("fill", "#00cfe8");
+      crystal.setAttribute("stroke", "#ffffff");
+      crystal.setAttribute("stroke-width", "5");
+      lampGroup.appendChild(crystal);
+
+      this.renderQueue.push({ y: cy + 60, element: lampGroup });
+    };
+
+    drawSmallLogicLamp(plazaX - 400, plazaY + 300);
+    drawSmallLogicLamp(plazaX + 400, plazaY + 300);
+    drawSmallLogicLamp(plazaX - 1100, plazaY + 1300);
+    drawSmallLogicLamp(plazaX + 1100, plazaY + 1200);
+
+    const drawVisibleKnowledgeProp = (cx, cy, type = "book") => {
+      const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+
+      const shadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+      shadow.setAttribute("cx", cx - 5);
+      shadow.setAttribute("cy", cy + 80);
+      shadow.setAttribute("rx", "110");
+      shadow.setAttribute("ry", "45");
+      shadow.setAttribute("fill", "rgba(0,0,0,0.25)");
+      group.appendChild(shadow);
+
+      if (type === "book") {
+        const drawBook = (ox, oy, color, pageColor) => {
+          // Top Cover
+          const top = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+          top.setAttribute("points", `${cx + ox},${cy + oy - 30} ${cx + ox + 105},${cy + oy + 22} ${cx + ox - 15},${cy + oy + 82} ${cx + ox - 120},${cy + oy + 30}`);
+          top.setAttribute("fill", color);
+          top.setAttribute("stroke", "#ffffff");
+          top.setAttribute("stroke-width", "4");
+          group.appendChild(top);
+
+          // Left Spine
+          const spine = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+          spine.setAttribute("points", `${cx + ox - 120},${cy + oy + 30} ${cx + ox - 15},${cy + oy + 82} ${cx + ox - 15},${cy + oy + 105} ${cx + ox - 120},${cy + oy + 52}`);
+          spine.setAttribute("fill", color);
+          spine.setAttribute("stroke", "#ffffff");
+          spine.setAttribute("stroke-width", "4");
+          group.appendChild(spine);
+
+          // Right Pages
+          const pages = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+          pages.setAttribute("points", `${cx + ox - 15},${cy + oy + 82} ${cx + ox + 105},${cy + oy + 22} ${cx + ox + 105},${cy + oy + 45} ${cx + ox - 15},${cy + oy + 105}`);
+          pages.setAttribute("fill", pageColor);
+          pages.setAttribute("stroke", "#00cfe8");
+          pages.setAttribute("stroke-width", "4");
+          group.appendChild(pages);
+
+          // Page Line
+          const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+          line.setAttribute("x1", cx + ox - 15);
+          line.setAttribute("y1", cy + oy + 93);
+          line.setAttribute("x2", cx + ox + 105);
+          line.setAttribute("y2", cy + oy + 33);
+          line.setAttribute("stroke", "#80f7ff");
+          line.setAttribute("stroke-width", "3");
+          group.appendChild(line);
+        };
+
+        // Stack 4 isometric books perfectly on top of each other
+        drawBook(0, 0, "#ffffff", "#dffcff");
+        drawBook(10, -25, "#00cfe8", "#ffffff");
+        drawBook(-5, -50, "#b7edf2", "#ffffff");
+        drawBook(5, -70, "#00cfe8", "#ffffff");
+
+      } else {
+        // Scroll Stand Base
+        const sbase = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+        sbase.setAttribute("cx", cx);
+        sbase.setAttribute("cy", cy + 60);
+        sbase.setAttribute("rx", "50");
+        sbase.setAttribute("ry", "25");
+        sbase.setAttribute("fill", "#b7edf2");
+        sbase.setAttribute("stroke", "#ffffff");
+        sbase.setAttribute("stroke-width", "5");
+        group.appendChild(sbase);
+
+        // Pole
+        const pole = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        pole.setAttribute("x1", cx);
+        pole.setAttribute("y1", cy + 60);
+        pole.setAttribute("x2", cx);
+        pole.setAttribute("y2", cy - 40);
+        pole.setAttribute("stroke", "#00cfe8");
+        pole.setAttribute("stroke-width", "16");
+        pole.setAttribute("stroke-linecap", "round");
+        group.appendChild(pole);
+
+        // Scroll Background (The paper)
+        const scroll = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+        scroll.setAttribute("points", `${cx},${cy - 80} ${cx + 90},${cy - 35} ${cx},${cy + 10} ${cx - 90},${cy - 35}`);
+        scroll.setAttribute("fill", "#ffffff");
+        scroll.setAttribute("stroke", "#00cfe8");
+        scroll.setAttribute("stroke-width", "6");
+        group.appendChild(scroll);
+
+        // Rolled ends
+        const rollL = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        rollL.setAttribute("x1", cx - 90);
+        rollL.setAttribute("y1", cy - 35);
+        rollL.setAttribute("x2", cx);
+        rollL.setAttribute("y2", cy - 80);
+        rollL.setAttribute("stroke", "#b7edf2");
+        rollL.setAttribute("stroke-width", "18");
+        rollL.setAttribute("stroke-linecap", "round");
+        group.appendChild(rollL);
+
+        const rollR = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        rollR.setAttribute("x1", cx);
+        rollR.setAttribute("y1", cy + 10);
+        rollR.setAttribute("x2", cx + 90);
+        rollR.setAttribute("y2", cy - 35);
+        rollR.setAttribute("stroke", "#b7edf2");
+        rollR.setAttribute("stroke-width", "18");
+        rollR.setAttribute("stroke-linecap", "round");
+        group.appendChild(rollR);
+
+        // Text lines on the scroll
+        const text1 = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        text1.setAttribute("x1", cx - 40);
+        text1.setAttribute("y1", cy - 30);
+        text1.setAttribute("x2", cx + 20);
+        text1.setAttribute("y2", cy);
+        text1.setAttribute("stroke", "#80f7ff");
+        text1.setAttribute("stroke-width", "5");
+        group.appendChild(text1);
+
+        const text2 = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        text2.setAttribute("x1", cx - 20);
+        text2.setAttribute("y1", cy - 40);
+        text2.setAttribute("x2", cx + 40);
+        text2.setAttribute("y2", cy - 10);
+        text2.setAttribute("stroke", "#80f7ff");
+        text2.setAttribute("stroke-width", "5");
+        group.appendChild(text2);
+      }
+
+      this.renderQueue.push({ y: cy + 90, element: group });
+    };
+
+    // Book Stack 1: Placed dead-center in front of the Library's bottom staircase
+    drawVisibleKnowledgeProp(logicCampusAnchors.library.x, logicCampusAnchors.library.y + 380, "book");
+    // Book Stack 2: Placed safely in the open grass to the left of the Library
+    drawVisibleKnowledgeProp(logicCampusAnchors.library.x - 600, logicCampusAnchors.library.y + 290, "book");
+    // Scroll Stand: Placed safely in the open grass to the right of the Library
+    drawVisibleKnowledgeProp(logicCampusAnchors.library.x + 40, logicCampusAnchors.library.y + 1000, "scroll");
+    // Book Stack 3: Placed near Dorm A on the right side
+    drawVisibleKnowledgeProp(logicCampusAnchors.dormA.x + 300, logicCampusAnchors.dormA.y + 200, "book");
+    drawVisibleKnowledgeProp(logicCampusAnchors.dormA.x + 15, logicCampusAnchors.dormA.y + 300, "scroll");
+
+    // NEW HELPER: Stone Knowledge Tablets (Ancient civilization monoliths)
+    const drawStoneKnowledgeTablet = (cx, cy, scale = 1.0, flip = false) => {
+      const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      const s = scale;
+
+      // Ground Shadow
+      const shadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+      shadow.setAttribute("cx", cx - 12 * s);
+      shadow.setAttribute("cy", cy + 5 * s);
+      shadow.setAttribute("rx", 35 * s);
+      shadow.setAttribute("ry", 15 * s);
+      shadow.setAttribute("fill", "rgba(0,0,0,0.3)");
+      group.appendChild(shadow);
+
+      // We use an explicit polygon array for the face so we can offset it for 3D walls
+      const f = [
+        [0, 0], [10, -30], [12, -65], [0, -90],
+        [-25, -95], [-40, -75], [-35, -35], [-25, -5]
+      ];
+
+      // Convert to absolute coords
+      const pts = f.map(p => ({ x: cx + p[0] * s, y: cy + p[1] * s }));
+
+      // Offset vector for isometric depth (thickness)
+      const dx = flip ? -12 * s : 15 * s;
+      const dy = -10 * s;
+      const bpts = pts.map(p => ({ x: p.x + dx, y: p.y + dy }));
+
+      // Draw Side Wall (Thickness)
+      const wall = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+      let wallPoints = "";
+      if (!flip) {
+        // Right side thickness
+        wallPoints = `${pts[0].x},${pts[0].y} ${pts[1].x},${pts[1].y} ${pts[2].x},${pts[2].y} ${pts[3].x},${pts[3].y} ` +
+          `${bpts[3].x},${bpts[3].y} ${bpts[2].x},${bpts[2].y} ${bpts[1].x},${bpts[1].y} ${bpts[0].x},${bpts[0].y}`;
+      } else {
+        // Left side thickness
+        wallPoints = `${pts[3].x},${pts[3].y} ${pts[4].x},${pts[4].y} ${pts[5].x},${pts[5].y} ${pts[6].x},${pts[6].y} ${pts[7].x},${pts[7].y} ` +
+          `${bpts[7].x},${bpts[7].y} ${bpts[6].x},${bpts[6].y} ${bpts[5].x},${bpts[5].y} ${bpts[4].x},${bpts[4].y} ${bpts[3].x},${bpts[3].y}`;
+      }
+      wall.setAttribute("points", wallPoints);
+      wall.setAttribute("fill", "#90a4ae"); // Dark grey stone
+      wall.setAttribute("stroke", "#546e7a");
+      wall.setAttribute("stroke-width", 3 * s);
+      group.appendChild(wall);
+
+      // Draw Top Wall
+      const topWall = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+      topWall.setAttribute("points", `${pts[3].x},${pts[3].y} ${pts[4].x},${pts[4].y} ${bpts[4].x},${bpts[4].y} ${bpts[3].x},${bpts[3].y}`);
+      topWall.setAttribute("fill", "#b0bec5"); // Medium grey stone
+      topWall.setAttribute("stroke", "#546e7a");
+      topWall.setAttribute("stroke-width", 3 * s);
+      group.appendChild(topWall);
+
+      // Draw Front Face
+      const face = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+      face.setAttribute("points", pts.map(p => `${p.x},${p.y}`).join(" "));
+      face.setAttribute("fill", "#cfd8dc"); // Light pale stone
+      face.setAttribute("stroke", "#78909c");
+      face.setAttribute("stroke-width", 3 * s);
+      group.appendChild(face);
+
+      // Glowing Runes / Engravings
+      const addRune = (rx, ry, color) => {
+        const rune = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        rune.setAttribute("d", `M ${rx} ${ry} L ${rx - 6 * s} ${ry - 5 * s} L ${rx + 4 * s} ${ry - 10 * s} L ${rx - 4 * s} ${ry - 15 * s}`);
+        rune.setAttribute("fill", "none");
+        rune.setAttribute("stroke", color);
+        rune.setAttribute("stroke-width", 2.5 * s);
+        rune.setAttribute("stroke-linecap", "round");
+        group.appendChild(rune);
+      };
+
+      const addLine = (lx, ly, w) => {
+        const ln = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        ln.setAttribute("x1", lx);
+        ln.setAttribute("y1", ly);
+        ln.setAttribute("x2", lx - w);
+        ln.setAttribute("y2", ly - w * 0.3); // Slight tilt to follow perspective
+        ln.setAttribute("stroke", "#00e5ff"); // Cyan text glow
+        ln.setAttribute("stroke-width", 2 * s);
+        ln.setAttribute("stroke-linecap", "round");
+        group.appendChild(ln);
+      };
+
+      // Add rune engravings on front face
+      addRune(cx - 10 * s, cy - 65 * s, "#00e5ff"); // Cyan rune
+      addRune(cx - 20 * s, cy - 45 * s, "#00e676"); // Emerald rune
+      addLine(cx - 8 * s, cy - 30 * s, 15 * s);
+      addLine(cx - 12 * s, cy - 20 * s, 12 * s);
+      addLine(cx - 15 * s, cy - 12 * s, 8 * s);
+
+      this.renderQueue.push({ y: cy + 15 * s, element: group });
+    };
+
+    // ----------------------------------------------------
+    // PLACEMENT: Stone Knowledge Tablets
+    // ----------------------------------------------------
+    // Tablet Cluster 1 (Academy Left - empty open space)
+    drawStoneKnowledgeTablet(logicCampusAnchors.academy.x - 850, logicCampusAnchors.academy.y - 560, 1.8, false);
+    drawStoneKnowledgeTablet(logicCampusAnchors.academy.x - 900, logicCampusAnchors.academy.y - 600, 2.0, false);
+    drawStoneKnowledgeTablet(logicCampusAnchors.academy.x - 1000, logicCampusAnchors.academy.y - 640, 1.6, true);
+    drawStoneKnowledgeTablet(logicCampusAnchors.academy.x - 850, logicCampusAnchors.academy.y - 670, 1.8, false);
+    drawStoneKnowledgeTablet(logicCampusAnchors.academy.x - 850, logicCampusAnchors.academy.y - 670, 1.8, false);
+
+    // Tablet Cluster 2 (Library Right - empty open space)
+    drawStoneKnowledgeTablet(plazaX - 2300, plazaY + 3550, 2.2, true);
+    drawStoneKnowledgeTablet(plazaX - 2200, plazaY + 3590, 1.7, false);
+    drawStoneKnowledgeTablet(plazaX - 2300, plazaY + 3650, 1.5, true);
+    drawStoneKnowledgeTablet(plazaX - 2200, plazaY + 3630, 1.5, true);
+
+    // ====================================================
+    // NEW HELPER: Mini Library Shelters / Scroll Kiosks
+    // ====================================================
+    const drawMiniLibraryShelter = (cx, cy, scale = 1.0, variant = 0) => {
+      const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      const s = scale;
+
+      // Ground shadow
+      const shadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+      shadow.setAttribute("cx", cx);
+      shadow.setAttribute("cy", cy + 15 * s);
+      shadow.setAttribute("rx", 50 * s);
+      shadow.setAttribute("ry", 25 * s);
+      shadow.setAttribute("fill", "rgba(0,0,0,0.2)");
+      group.appendChild(shadow);
+
+      // Base pad
+      const base = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+      base.setAttribute("points", `${cx},${cy + 10 * s} ${cx + 40 * s},${cy + 30 * s} ${cx},${cy + 50 * s} ${cx - 40 * s},${cy + 30 * s}`);
+      base.setAttribute("fill", "#f8ffff");
+      base.setAttribute("stroke", "#b7edf2");
+      base.setAttribute("stroke-width", 3 * s);
+      group.appendChild(base);
+
+      // Columns helper
+      const drawColumn = (px, py) => {
+        const col = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        col.setAttribute("x", px - 4 * s);
+        col.setAttribute("y", py - 40 * s);
+        col.setAttribute("width", 8 * s);
+        col.setAttribute("height", 40 * s);
+        col.setAttribute("fill", "#cfd8dc");
+        col.setAttribute("stroke", "#90a4ae");
+        col.setAttribute("stroke-width", 2 * s);
+        group.appendChild(col);
+      };
+
+      if (variant === 0) {
+        // Roofed scroll stand
+        drawColumn(cx - 20 * s, cy + 20 * s);
+        drawColumn(cx + 20 * s, cy + 20 * s);
+        drawColumn(cx - 20 * s, cy + 40 * s);
+        drawColumn(cx + 20 * s, cy + 40 * s);
+
+        const stand = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+        stand.setAttribute("points", `${cx},${cy + 5 * s} ${cx + 15 * s},${cy + 12 * s} ${cx},${cy + 20 * s} ${cx - 15 * s},${cy + 12 * s}`);
+        stand.setAttribute("fill", "#ffffff");
+        stand.setAttribute("stroke", "#00cfe8");
+        stand.setAttribute("stroke-width", 2 * s);
+        group.appendChild(stand);
+
+        const roof = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+        roof.setAttribute("points", `${cx},${cy - 30 * s} ${cx + 35 * s},${cy - 10 * s} ${cx},${cy + 10 * s} ${cx - 35 * s},${cy - 10 * s}`);
+        roof.setAttribute("fill", "#00cfe8");
+        roof.setAttribute("stroke", "#80f7ff");
+        roof.setAttribute("stroke-width", 3 * s);
+        group.appendChild(roof);
+      } else if (variant === 1) {
+        // Mini open pavilion with books
+        const arch = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        arch.setAttribute("d", `M ${cx - 25 * s},${cy + 20 * s} Q ${cx},${cy - 20 * s} ${cx + 25 * s},${cy + 20 * s}`);
+        arch.setAttribute("fill", "none");
+        arch.setAttribute("stroke", "#b7edf2");
+        arch.setAttribute("stroke-width", 8 * s);
+        group.appendChild(arch);
+
+        drawColumn(cx - 15 * s, cy + 35 * s);
+        drawColumn(cx + 15 * s, cy + 35 * s);
+
+        const book = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+        book.setAttribute("points", `${cx - 5 * s},${cy + 20 * s} ${cx + 10 * s},${cy + 25 * s} ${cx + 5 * s},${cy + 32 * s} ${cx - 10 * s},${cy + 27 * s}`);
+        book.setAttribute("fill", "#00cfe8");
+        book.setAttribute("stroke", "#ffffff");
+        book.setAttribute("stroke-width", 2 * s);
+        group.appendChild(book);
+      } else if (variant === 2) {
+        // Compact study shelter
+        const wall = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+        wall.setAttribute("points", `${cx - 20 * s},${cy - 20 * s} ${cx},${cy - 30 * s} ${cx + 20 * s},${cy - 20 * s} ${cx + 20 * s},${cy + 15 * s} ${cx},${cy + 25 * s} ${cx - 20 * s},${cy + 15 * s}`);
+        wall.setAttribute("fill", "#eceff1");
+        wall.setAttribute("stroke", "#90a4ae");
+        wall.setAttribute("stroke-width", 2 * s);
+        group.appendChild(wall);
+
+        const awning = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+        awning.setAttribute("points", `${cx - 25 * s},${cy - 10 * s} ${cx + 25 * s},${cy - 10 * s} ${cx},${cy + 5 * s}`);
+        awning.setAttribute("fill", "#00cfe8");
+        awning.setAttribute("stroke", "#ffffff");
+        awning.setAttribute("stroke-width", 2 * s);
+        group.appendChild(awning);
+
+        const slab = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+        slab.setAttribute("points", `${cx},${cy + 15 * s} ${cx + 12 * s},${cy + 20 * s} ${cx},${cy + 25 * s} ${cx - 12 * s},${cy + 20 * s}`);
+        slab.setAttribute("fill", "#ffffff");
+        slab.setAttribute("stroke", "#b7edf2");
+        slab.setAttribute("stroke-width", 2 * s);
+        group.appendChild(slab);
+      }
+
+      this.renderQueue.push({ y: cy + 30 * s, element: group });
+    };
+
+    const kioskPlacements = [];
+    if (this.logicCampusAnchors) {
+      kioskPlacements.push({ x: this.logicCampusAnchors.library.x + 1520, y: this.logicCampusAnchors.library.y - 2960, scale: 7.0, variant: 0 });
+      kioskPlacements.push({ x: this.logicCampusAnchors.library.x + 760, y: this.logicCampusAnchors.library.y + 1600, scale: 8.0, variant: 1 });
+      kioskPlacements.push({ x: this.logicCampusAnchors.academy.x - 480, y: this.logicCampusAnchors.academy.y - 1700, scale: 4.2, variant: 0 });
+      kioskPlacements.push({ x: this.logicCampusAnchors.dormA.x - 460, y: this.logicCampusAnchors.dormA.y + 2120, scale: 5.5, variant: 0 });
+      kioskPlacements.push({ x: this.logicCampusAnchors.temple.x + 720, y: this.logicCampusAnchors.temple.y + 600, scale: 6.5, variant: 1 });
+    }
+
+    const validKiosks = [];
+    const _sqr = (v) => v * v;
+    const calcDist = (x1, y1, x2, y2) => Math.sqrt(_sqr(x1 - x2) + _sqr(y1 - y2));
+
+    const isKioskPosValid = (kx, ky) => {
+      if (this.logicCampusAnchors) {
+        if (calcDist(kx, ky, this.logicCampusAnchors.academy.x, this.logicCampusAnchors.academy.y) < 220) return false;
+        if (calcDist(kx, ky, this.logicCampusAnchors.library.x, this.logicCampusAnchors.library.y) < 220) return false;
+        if (calcDist(kx, ky, this.logicCampusAnchors.dormA.x, this.logicCampusAnchors.dormA.y) < 220) return false;
+        if (calcDist(kx, ky, this.logicCampusAnchors.temple.x, this.logicCampusAnchors.temple.y) < 220) return false;
+      }
+
+      const fountains = [
+        { x: plazaX - 1400, y: plazaY + 2950 },
+        { x: plazaX + 1880, y: plazaY + 350 },
+        { x: plazaX + 2000, y: plazaY + 2550 },
+        { x: plazaX + 900, y: plazaY - 1200 }
+      ];
+      for (let f of fountains) if (calcDist(kx, ky, f.x, f.y) < 180) return false;
+
+      const tablets = [
+        { x: logicCampusAnchors.academy.x - 850, y: logicCampusAnchors.academy.y - 560 },
+        { x: logicCampusAnchors.academy.x - 900, y: logicCampusAnchors.academy.y - 600 },
+        { x: logicCampusAnchors.academy.x - 1000, y: logicCampusAnchors.academy.y - 640 },
+        { x: logicCampusAnchors.academy.x - 850, y: logicCampusAnchors.academy.y - 670 },
+        { x: plazaX - 2300, y: plazaY + 3550 },
+        { x: plazaX - 2200, y: plazaY + 3590 },
+        { x: plazaX - 2300, y: plazaY + 3650 },
+        { x: plazaX - 2200, y: plazaY + 3630 }
+      ];
+      for (let t of tablets) if (calcDist(kx, ky, t.x, t.y) < 160) return false;
+
+      const distToSeg = (p, v, w) => {
+        const l2 = _sqr(v.x - w.x) + _sqr(v.y - w.y);
+        if (l2 === 0) return Math.sqrt(_sqr(p.x - v.x) + _sqr(p.y - v.y));
+        let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+        t = Math.max(0, Math.min(1, t));
+        return Math.sqrt(_sqr(p.x - (v.x + t * (w.x - v.x))) + _sqr(p.y - (v.y + t * (w.y - v.y))));
+      };
+
+      if (this.logicCampusAnchors) {
+        const cJunction = { x: this.logicCampusAnchors.academy.x, y: this.logicCampusAnchors.academy.y + 400 };
+        const libPathStart = { x: this.logicCampusAnchors.academy.x + 220, y: this.logicCampusAnchors.academy.y + 520 };
+        const libPathJunction = { x: this.logicCampusAnchors.academy.x + 200, y: this.logicCampusAnchors.academy.y + 900 };
+        const libPathEnd = { x: this.logicCampusAnchors.library.x + 20, y: this.logicCampusAnchors.library.y - 220 };
+
+        const walkways = [
+          [libPathStart, libPathJunction],
+          [libPathJunction, libPathEnd],
+          [cJunction, this.logicCampusAnchors.temple],
+          [cJunction, this.logicCampusAnchors.dormA],
+          [cJunction, this.logicCampusAnchors.academy]
+        ];
+        for (let w of walkways) if (distToSeg({ x: kx, y: ky }, w[0], w[1]) < 160) return false;
+
+        const dxL = Math.abs(kx - this.logicCampusAnchors.academy.x);
+        const dyL = Math.abs(ky - (this.logicCampusAnchors.academy.y + 900));
+        if (dxL < 1600 + 120 && dyL < 400 + 120) return false;
+      }
+
+      if (!this.isValidEnvironmentPoint(kx, ky, 140)) return false;
+
+      for (let vk of validKiosks) if (calcDist(kx, ky, vk.x, vk.y) < 180) return false;
+
+      return true;
+    };
+
+    const fallbacks = [
+      { dx: 120, dy: 0 },
+      { dx: -120, dy: 0 },
+      { dx: 0, dy: 120 },
+      { dx: 0, dy: -120 },
+      { dx: 150, dy: 100 }
+    ];
+
+    kioskPlacements.forEach(k => {
+      if (isKioskPosValid(k.x, k.y)) {
+        validKiosks.push({ x: k.x, y: k.y });
+        drawMiniLibraryShelter(k.x, k.y, k.scale, k.variant);
+      } else {
+        for (let f of fallbacks) {
+          const nx = k.x + f.dx;
+          const ny = k.y + f.dy;
+          if (isKioskPosValid(nx, ny)) {
+            validKiosks.push({ x: nx, y: ny });
+            drawMiniLibraryShelter(nx, ny, k.scale, k.variant);
+            break;
+          }
+        }
+      }
+    });
+
     // 2. Small trimmed hedge clusters around the outer edges of the campus (10 clusters)
     // Left boundary hedges
-    drawHedge(centralJunction.x - 450, centralJunction.y, 55);
-    drawHedge(centralJunction.x - 530, centralJunction.y - 40, 45);
-    drawHedge(centralJunction.x - 600, centralJunction.y - 90, 35);
+    // (Removed centralJunction hedges to clear the region label area)
     drawHedge(logicCampusAnchors.library.x - 250, logicCampusAnchors.library.y + 150, 50);
     drawHedge(logicCampusAnchors.dormA.x - 200, logicCampusAnchors.dormA.y + 100, 45);
 
     // Right boundary hedges
-    drawHedge(centralJunction.x + 450, centralJunction.y, 55);
-    drawHedge(centralJunction.x + 530, centralJunction.y - 40, 45);
-    drawHedge(centralJunction.x + 600, centralJunction.y - 90, 35);
+    // (Removed centralJunction hedges to clear the region label area)
     drawHedge(logicCampusAnchors.temple.x + 200, logicCampusAnchors.temple.y + 120, 50);
 
     // 3. A few small academy trees near the campus boundary (5 trees, scaled up for visibility)
@@ -1188,8 +1944,8 @@ export default class TerrainGenerator {
       { x: plazaX - 1000, y: plazaY - 1400 }, { x: plazaX + 1500, y: plazaY - 1200 },
       { x: plazaX - 1800, y: plazaY + 800 }, { x: plazaX + 1000, y: plazaY + 1600 },
       { x: plazaX - 700, y: plazaY - 400 }, { x: plazaX - 1100, y: plazaY - 600 },
-      { x: plazaX + 800, y: plazaY + 500 }, { x: plazaX + 1200, y: plazaY + 800 },
-      { x: plazaX - 800, y: plazaY + 700 }, { x: plazaX - 1200, y: plazaY + 1000 },
+      // Removed clusters that were placed near the center intersecting the label
+      { x: plazaX - 1200, y: plazaY + 1000 },
       { x: plazaX + 1000, y: plazaY + 200 }, { x: plazaX + 1600, y: plazaY + 400 }
     ];
     smallTreeClusterLocs.forEach(loc => {
@@ -1409,95 +2165,72 @@ export default class TerrainGenerator {
     }
 
     // Sprint 2: Corrupted Architecture
-    // 1. Broken Watch Towers (2) - Hardcoded relative to fortress based on user explicit request
-    const towerConfigs = [
-      { angle: Math.PI * 1.15, radius: 2100, offsetY: 0, active: true }, // Top-Left (Pushed much further left and back to clear the region label)
-      { angle: Math.PI * 0.65, radius: 2100, offsetY: 120, active: true }, // Bottom-Left (Nudged 120px straight down to definitively clear the road)
-      { angle: 0, radius: 0, offsetY: 0, active: false },
-      { angle: 0, radius: 0, offsetY: 0, active: false }
+    // 1. Broken Watch Towers (2) - Placed using explicit X/Y coordinates relative to the root
+    const towerPlacements = [
+      { x: rootX - 1870, y: rootY - 475, scale: 9.0 }, // Top-Left Watch Tower
+      { x: rootX - 950, y: rootY + 1055, scale: 9.0 },
+      { x: rootX - 3500, y: rootY - 1075, scale: 6.0 },
+      { x: rootX + 2100, y: rootY + 3515, scale: 6.0 }, // Top-Left Watch Tower // Top-Left Watch Tower
     ];
 
-    for (let i = 0; i < 4; i++) {
-      // ALWAYS consume exactly 3 random numbers per iteration (12 total) to preserve Sprint 1 outer ring determinism!
-      const r1 = window.rng ? window.rng.next() : Math.random();
-      const r2 = window.rng ? window.rng.next() : Math.random();
-      const r3 = window.rng ? window.rng.next() : Math.random();
-
-      const config = towerConfigs[i];
-      if (!config.active) continue;
-
-      // Minimal jitter to ensure they hit the exact requested spots
-      const angle = config.angle + (r1 * 0.05);
-      const radius = config.radius + (r2 * 100);
-      const tx = rootX + Math.cos(angle) * radius;
-      const ty = rootY + Math.sin(angle) * radius * 0.5 + config.offsetY;
-      // Reduced base scale to 8.5 so they don't overpower the fortress or block UI
-      const scale = 8.5 + (r3 * 1.5);
-      const rotation = 0;
-
-      // Collision checks completely REMOVED for these two specific towers to GUARANTEE they spawn exactly where you requested.
-      this.drawDebugWatchTower(tx, ty, scale, rotation);
+    // ALWAYS consume exactly 12 random numbers here to preserve the seeded determinism 
+    // of the entire outer ring generation that happens afterwards!
+    for (let i = 0; i < 12; i++) {
+      if (window.rng) window.rng.next(); else Math.random();
     }
 
-    // 2. Corrupted Obelisks (2-4)
-    const numObelisks = 2 + Math.floor((window.rng ? window.rng.next() : Math.random()) * 3);
-    for (let i = 0; i < numObelisks; i++) {
-      const angle = (window.rng ? window.rng.next() : Math.random()) * Math.PI * 2;
-      const radius = 1450 + ((window.rng ? window.rng.next() : Math.random()) * 300);
-      const tx = rootX + Math.cos(angle) * radius;
-      const ty = rootY + Math.sin(angle) * radius * 0.5;
-      const scale = 4.0 + ((window.rng ? window.rng.next() : Math.random()) * 2.0);
-      const rotation = ((window.rng ? window.rng.next() : Math.random()) - 0.5) * 15;
-
-      if (this.territoryPolygons && this.territoryPolygons.debug && !this.isPointInPolygon(tx, ty, this.territoryPolygons.debug)) continue;
-      if (!this.isValidEnvironmentPoint(tx, ty, 100)) continue;
-
-      // Strict global island check to prevent clipping onto the beach/ocean
-      const dxIsland = tx - this.centerX;
-      const dyIsland = ty - this.centerY;
-      const globalRx = (this.bounds.maxX - this.bounds.minX) / 2 * 1.15 * 1.8;
-      const globalRy = (this.bounds.maxY - this.bounds.minY) / 2 * 1.15 * 1.8;
-      const normalizedDist = (dxIsland * dxIsland) / (globalRx * globalRx) + (dyIsland * dyIsland) / (globalRy * globalRy);
-      if (normalizedDist > 0.65) continue;
-
-      this.drawDebugObelisk(tx, ty, scale, rotation);
+    // Render the towers at their exact hardcoded positions
+    for (let i = 0; i < towerPlacements.length; i++) {
+      let tower = towerPlacements[i];
+      let variant = i % 2; // Alternates between the two crystal scattering patterns
+      // Collision checks completely REMOVED for these towers to GUARANTEE they spawn exactly where requested.
+      this.drawDebugWatchTower(tower.x, tower.y, tower.scale, 0, variant);
     }
 
-    // 3. Giant Crystal Pillars (5) - Evenly spaced with types
-    const numGiantCrystals = 5;
-    const crystalAngleOffset = (window.rng ? window.rng.next() : Math.random()) * Math.PI;
-    for (let i = 0; i < numGiantCrystals; i++) {
-      const angle = crystalAngleOffset + (i * (Math.PI * 2) / numGiantCrystals) + ((window.rng ? window.rng.next() : Math.random()) * 0.6 - 0.3);
-      const radius = 1450 + ((window.rng ? window.rng.next() : Math.random()) * 300);
-      const tx = rootX + Math.cos(angle) * radius;
-      const ty = rootY + Math.sin(angle) * radius * 0.5;
-      const scale = 5.0 + ((window.rng ? window.rng.next() : Math.random()) * 4.0);
-      const rotation = ((window.rng ? window.rng.next() : Math.random()) - 0.5) * 5;
-      const type = 1 + Math.floor((window.rng ? window.rng.next() : Math.random()) * 3);
+    // 2. Corrupted Obelisks - Placed using explicit X/Y coordinates relative to the root
+    const obeliskPlacements = [
+      { x: rootX - 2400, y: rootY + 1800, scale: 5.5, rotation: 5 },
+    ];
 
-      // Ensure Giant Crystals don't spawn on top of or too close to the Broken Towers
-      let normAngle = angle % (Math.PI * 2);
-      if (normAngle < 0) normAngle += Math.PI * 2;
+    // BURN RNGs to preserve seed determinism! The original code used a random number of loops,
+    // so we must calculate that same random loop count and consume exactly the right amount of RNGs.
+    const rngObelisksToBurn = 2 + Math.floor((window.rng ? window.rng.next() : Math.random()) * 3);
+    for (let i = 0; i < rngObelisksToBurn; i++) {
+      if (window.rng) {
+        window.rng.next(); // angle
+        window.rng.next(); // radius
+        window.rng.next(); // scale
+        window.rng.next(); // rotation
+      } else {
+        Math.random(); Math.random(); Math.random(); Math.random();
+      }
+    }
 
-      const distToTower1 = Math.min(Math.abs(normAngle - Math.PI * 1.15), Math.PI * 2 - Math.abs(normAngle - Math.PI * 1.15));
-      const distToTower2 = Math.min(Math.abs(normAngle - Math.PI * 0.65), Math.PI * 2 - Math.abs(normAngle - Math.PI * 0.65));
+    // Render the obelisks at their exact hardcoded positions
+    for (let obelisk of obeliskPlacements) {
+      this.drawDebugObelisk(obelisk.x, obelisk.y, obelisk.scale, obelisk.rotation);
+    }
 
-      // If angle is within 0.25 radians of either tower, abort spawning this crystal
-      if (distToTower1 < 0.25 || distToTower2 < 0.25) continue;
+    // 3. Giant Crystal Pillars (5) - Placed using explicit X/Y coordinates relative to the root
+    const crystalPlacements = [
+      { x: rootX + 950, y: rootY + 300, scale: 5.0, rotation: 2, type: 1 },
+      { x: rootX + 460, y: rootY + 710, scale: 5.5, rotation: -1, type: 2 },
+      { x: rootX - 1210, y: rootY + 440, scale: 7.0, rotation: 3, type: 3 },
+      { x: rootX - 1010, y: rootY - 40, scale: 6.5, rotation: -2, type: 1 },
+      { x: rootX - 1260, y: rootY + 2200, scale: 9.0, rotation: 0, type: 2 },
+    ];
 
-      if (this.territoryPolygons && this.territoryPolygons.debug && !this.isPointInPolygon(tx, ty, this.territoryPolygons.debug)) continue;
-      if (!this.isValidEnvironmentPoint(tx, ty, 100)) continue;
+    // ALWAYS consume exactly 26 random numbers here to preserve the seeded determinism 
+    // of the entire outer ring generation that happens afterwards!
+    for (let i = 0; i < 26; i++) {
+      if (window.rng) window.rng.next(); else Math.random();
+    }
 
-      // Strict global island check to prevent clipping onto the beach/ocean
-      const dxIsland = tx - this.centerX;
-      const dyIsland = ty - this.centerY;
-      const globalRx = (this.bounds.maxX - this.bounds.minX) / 2 * 1.15 * 1.8;
-      const globalRy = (this.bounds.maxY - this.bounds.minY) / 2 * 1.15 * 1.8;
-      const normalizedDist = (dxIsland * dxIsland) / (globalRx * globalRx) + (dyIsland * dyIsland) / (globalRy * globalRy);
-      if (normalizedDist > 0.65) continue;
+    // Render the giant crystals at their exact hardcoded positions
+    for (let crystal of crystalPlacements) {
+      // Collision checks completely REMOVED for these crystals to GUARANTEE they spawn exactly where requested.
+      this.drawDebugGiantCrystal(crystal.x, crystal.y, crystal.scale, crystal.rotation, crystal.type);
 
-      const scaleMultiplier = (ty > rootY) ? 0.6 : 1.0;
-      this.drawDebugGiantCrystal(tx, ty, scale * scaleMultiplier, rotation, type);
     }
 
     // Sprint 3A: Debug Wasteland Ground Ecology
@@ -1780,45 +2513,9 @@ export default class TerrainGenerator {
     const zRoads = rootY - 1300;
     const zFoundation = rootY - 100;
 
-    // 1. Ancient Mossy Stone Foundation
-    const foundationGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-
-    // Isometric Stone Base (1000px radius to perfectly frame the temple)
-    const rL = 1000; // long radius
-    const rS = 500;  // short radius
-    const rhL = 500; // long height
-    const rhS = 250; // short height
-    const thick = 80;
-
-    // Base Face (Mossy grey-green)
-    const baseOct = `
-      ${rootX - rS},${rootY - rhL} 
-      ${rootX + rS},${rootY - rhL}
-      ${rootX + rL},${rootY - rhS}
-      ${rootX + rL},${rootY + rhS}
-      ${rootX + rS},${rootY + rhL}
-      ${rootX - rS},${rootY + rhL}
-      ${rootX - rL},${rootY + rhS}
-      ${rootX - rL},${rootY - rhS}
-    `;
-    foundationGroup.appendChild(this.createPoly(baseOct, "#607d8b"));
-
-    // Drop Edges (Darker mossy stone thickness)
-    const edge1 = `${rootX + rL},${rootY + rhS} ${rootX + rS},${rootY + rhL} ${rootX + rS},${rootY + rhL + thick} ${rootX + rL},${rootY + rhS + thick}`;
-    const edge2 = `${rootX + rS},${rootY + rhL} ${rootX - rS},${rootY + rhL} ${rootX - rS},${rootY + rhL + thick} ${rootX + rS},${rootY + rhL + thick}`;
-    const edge3 = `${rootX - rS},${rootY + rhL} ${rootX - rL},${rootY + rhS} ${rootX - rL},${rootY + rhS + thick} ${rootX - rS},${rootY + rhL + thick}`;
-
-    foundationGroup.appendChild(this.createPoly(edge1, "#37474f"));
-    foundationGroup.appendChild(this.createPoly(edge2, "#263238"));
-    foundationGroup.appendChild(this.createPoly(edge3, "#1c313a"));
-
-    // Cracked Paving & Moss Overlays
-    const paving1 = `${rootX - 400},${rootY + 100} ${rootX + 300},${rootY - 250} ${rootX + 350},${rootY - 200} ${rootX - 350},${rootY + 150}`;
-    const paving2 = `${rootX + 400},${rootY + 100} ${rootX - 300},${rootY - 250} ${rootX - 250},${rootY - 200} ${rootX + 450},${rootY + 150}`;
-    foundationGroup.appendChild(this.createPoly(paving1, "#455a64"));
-    foundationGroup.appendChild(this.createPoly(paving2, "#2e7d32")); // Deep moss stripe
-
-    this.renderQueue.push({ y: zFoundation, element: foundationGroup });
+    // 1. Ancient Mossy Stone Foundation (REMOVED per user request)
+    // const foundationGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    // this.renderQueue.push({ y: zFoundation, element: foundationGroup });
 
     // 2. Organic Jungle Stream (crossing the southern edge)
     const streamGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
@@ -1882,15 +2579,15 @@ export default class TerrainGenerator {
 
     // 4. Massive Dense Jungle Canopy Masses (Framing the temple)
     // Placed at perimeters so the center is 100% visible
-    const canopy1 = this.createVerticalSliceCanopy(rootX - 800, rootY - 100, 600, 400); // West massive
-    const canopy2 = this.createVerticalSliceCanopy(rootX + 850, rootY - 50, 550, 350);  // East massive
+    // const canopy1 = this.createVerticalSliceCanopy(rootX - 800, rootY - 100, 600, 400); // West massive
+    // const canopy2 = this.createVerticalSliceCanopy(rootX + 850, rootY - 50, 550, 350);  // East massive
     const canopy3 = this.createVerticalSliceCanopy(rootX - 500, rootY - 500, 450, 250); // NW fill
-    const canopy4 = this.createVerticalSliceCanopy(rootX + 500, rootY + 600, 400, 250); // SE corner near water
+    // const canopy4 = this.createVerticalSliceCanopy(rootX + 500, rootY + 600, 400, 250); // SE corner near water
 
-    this.renderQueue.push({ y: rootY - 100, element: canopy1 });
-    this.renderQueue.push({ y: rootY - 50, element: canopy2 });
+    // this.renderQueue.push({ y: rootY - 100, element: canopy1 });
+    // this.renderQueue.push({ y: rootY - 50, element: canopy2 });
     this.renderQueue.push({ y: rootY - 500, element: canopy3 });
-    this.renderQueue.push({ y: rootY + 600, element: canopy4 });
+    // this.renderQueue.push({ y: rootY + 600, element: canopy4 });
 
     // 5. Perimeter Shrines, Pillars, and Flora (Scale 16-24)
     this.drawPythonShrine(rootX - 900, rootY + 300, 20.0);
@@ -2370,8 +3067,8 @@ export default class TerrainGenerator {
         coreWidth: 140,
         segments: [
           { path: 'M 5500,0 C 6500,1000 7000,1500 7500,2500' },
-          { path: 'M 7500,2500 C 8000,3500 7500,4500 6500,5000' },
-          { path: 'M 6500,5000 C 6000,5200 5800,5300 5500,5500' }
+          { path: 'M 7500,2500 C 8000,3500 7500,4500 6500,5000' }
+          // { path: 'M 6500,5000 C 6000,5200 5800,5300 5500,5500' }
         ]
       }
     ];
@@ -2411,15 +3108,15 @@ export default class TerrainGenerator {
           { path: 'M 5400,6300 C 5200,6600 5500,6800 5300,7000' }
         ]
       },
-      {
-        id: 'python-village-trail',
-        type: 'internal-road',
-        baseColor: '#4A2F1B', coreColor: '#E8D2A8', baseOpacity: 0.75, coreOpacity: 1.0,
-        baseWidth: 120, coreWidth: 60,
-        segments: [
-          { path: 'M 5500,5500 C 5800,5300 6000,5600 6200,5500' }
-        ]
-      },
+      // {
+      //   id: 'python-village-trail',
+      //   type: 'internal-road',
+      //   baseColor: '#4A2F1B', coreColor: '#E8D2A8', baseOpacity: 0.75, coreOpacity: 1.0,
+      //   baseWidth: 120, coreWidth: 60,
+      //   segments: [
+      //     { path: 'M 5500,5500 C 5800,5300 6000,5600 6200,5500' }
+      //   ]
+      // },
 
       // Debug Wasteland (Fractured, irregular)
       {
@@ -3428,8 +4125,21 @@ export default class TerrainGenerator {
     const glow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
     glow.setAttribute("cx", 0); glow.setAttribute("cy", 5);
     glow.setAttribute("rx", 15); glow.setAttribute("ry", 8);
-    glow.setAttribute("fill", "rgba(170, 0, 255, 0.3)");
+    glow.setAttribute("fill", "rgba(170, 0, 255, 0.6)"); // Increased base opacity to 0.6 for stronger glow
     glow.setAttribute("filter", "blur(4px)");
+    
+    // Pulsing animation for the glow when the application opens
+    const glowAnim = document.createElementNS("http://www.w3.org/2000/svg", "animate");
+    glowAnim.setAttribute("attributeName", "opacity");
+    glowAnim.setAttribute("values", "0.2;1.0;0.2");
+    
+    // Add a random delay so they don't all pulse at the exact same time
+    const animDelay = (Math.random() * 2).toFixed(1);
+    glowAnim.setAttribute("begin", `${animDelay}s`);
+    glowAnim.setAttribute("dur", "3s");
+    glowAnim.setAttribute("repeatCount", "indefinite");
+    glow.appendChild(glowAnim);
+
     g.appendChild(glow);
 
     // Main crystal
@@ -4110,13 +4820,13 @@ export default class TerrainGenerator {
     this.renderQueue.push({ y: y, element: g });
   }
 
-  drawDebugWatchTower(x, y, scale = 1.0, rotation = 0) {
+  drawDebugWatchTower(x, y, scale = 1.0, rotation = 0, variant = 0) {
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
     g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale}) rotate(${rotation})`);
     g.style.pointerEvents = "none";
 
     const shadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
-    shadow.setAttribute("cx", 0); shadow.setAttribute("cy", 20);
+    shadow.setAttribute("cx", 0); shadow.setAttribute("cy", 0);
     shadow.setAttribute("rx", 60); shadow.setAttribute("ry", 30);
     shadow.setAttribute("fill", "rgba(0,0,0,0.6)");
     shadow.setAttribute("filter", "blur(8px)");
@@ -4168,6 +4878,23 @@ export default class TerrainGenerator {
     g.appendChild(this.createPoly("-25,-125 -35,-120 -30,-140 -20,-135", "#181d22"));
     g.appendChild(this.createPoly("15,-130 25,-120 20,-145 10,-140", "#2a3236"));
 
+    // Custom small floating crystals around the tower
+    const addSmallCrystal = (cx, cy, s) => {
+      g.appendChild(this.createPoly(`${cx},${cy+15*s} ${cx-10*s},${cy} ${cx},${cy-35*s}`, "#d500f9"));
+      g.appendChild(this.createPoly(`${cx},${cy+15*s} ${cx+10*s},${cy} ${cx},${cy-35*s}`, "#aa00ff"));
+    };
+
+    if (variant === 0) {
+      addSmallCrystal(-55, -80, 0.6); // High left
+      addSmallCrystal(-45, -20, 0.5); // Mid left
+      addSmallCrystal(60, -10, 0.7);  // Far right
+    } else {
+      addSmallCrystal(-45, -70, 0.5); // High left
+      addSmallCrystal(-35, 0, 0.6);   // Low left
+      addSmallCrystal(45, -10, 0.6);  // Mid right
+      addSmallCrystal(65, 30, 0.5);   // Low right
+    }
+
     this.renderQueue.push({ y: y, element: g });
   }
 
@@ -4177,7 +4904,7 @@ export default class TerrainGenerator {
     g.style.pointerEvents = "none";
 
     const shadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
-    shadow.setAttribute("cx", 0); shadow.setAttribute("cy", 15);
+    shadow.setAttribute("cx", 0); shadow.setAttribute("cy", 0);
     shadow.setAttribute("rx", 40); shadow.setAttribute("ry", 20);
     shadow.setAttribute("fill", "rgba(0,0,0,0.6)");
     shadow.setAttribute("filter", "blur(8px)");
@@ -4212,7 +4939,7 @@ export default class TerrainGenerator {
 
     // Reduced glow (20% less intense shadow blur/opacity)
     const shadow = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
-    shadow.setAttribute("cx", 0); shadow.setAttribute("cy", 15);
+    shadow.setAttribute("cx", 0); shadow.setAttribute("cy", 0);
     shadow.setAttribute("rx", 35); shadow.setAttribute("ry", 15);
     shadow.setAttribute("fill", "rgba(170,0,255,0.2)");
     shadow.setAttribute("filter", "blur(6px)");
@@ -4313,9 +5040,47 @@ export default class TerrainGenerator {
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
     g.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
     g.style.pointerEvents = "none";
-    g.appendChild(this.createPoly("0,0 -10,-30 0,-50 10,-25", "#aa00ff"));
-    g.appendChild(this.createPoly("0,0 10,-25 5,-40", "#ea80fc"));
+
+    const animDelay = (Math.random() * 2).toFixed(1);
+
+    // High-visibility pulsing ground halo WITH BLUR for soft light effect
+    const halo = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+    halo.setAttribute("cx", 0); halo.setAttribute("cy", 0);
+    halo.setAttribute("rx", 24); halo.setAttribute("ry", 12); // Reduced radius
+    halo.setAttribute("fill", "#ea80fc"); // Bright pink light
+    halo.setAttribute("filter", "blur(6px)"); // Soften into a glowing aura
+    halo.setAttribute("opacity", "0");
+    const haloAnim = document.createElementNS("http://www.w3.org/2000/svg", "animate");
+    haloAnim.setAttribute("attributeName", "opacity");
+    haloAnim.setAttribute("values", "0;0.8;0"); // Pulses to 80% opacity
+    haloAnim.setAttribute("dur", "2.5s");
+    haloAnim.setAttribute("begin", `${animDelay}s`);
+    haloAnim.setAttribute("repeatCount", "indefinite");
+    halo.appendChild(haloAnim);
+    g.appendChild(halo);
+
+    const mainBody = this.createPoly("0,0 -10,-30 0,-50 10,-25", "#aa00ff");
+    const mainAnim = document.createElementNS("http://www.w3.org/2000/svg", "animate");
+    mainAnim.setAttribute("attributeName", "fill");
+    mainAnim.setAttribute("values", "#aa00ff;#ff40ff;#aa00ff"); // Brighter magenta pulse
+    mainAnim.setAttribute("dur", "2.5s");
+    mainAnim.setAttribute("begin", `${animDelay}s`);
+    mainAnim.setAttribute("repeatCount", "indefinite");
+    mainBody.appendChild(mainAnim);
+    g.appendChild(mainBody);
+
+    const highlight = this.createPoly("0,0 10,-25 5,-40", "#ea80fc");
+    const highAnim = document.createElementNS("http://www.w3.org/2000/svg", "animate");
+    highAnim.setAttribute("attributeName", "fill");
+    highAnim.setAttribute("values", "#ea80fc;#ffffff;#ea80fc"); // Pulse to pure blinding white
+    highAnim.setAttribute("dur", "2.5s");
+    highAnim.setAttribute("begin", `${animDelay}s`);
+    highAnim.setAttribute("repeatCount", "indefinite");
+    highlight.appendChild(highAnim);
+    g.appendChild(highlight);
+
     g.appendChild(this.createPoly("0,0 -12,-20 -5,-35", "#6a1b9a"));
+    
     this.renderQueue.push({ y: y, element: g });
   }
 

@@ -180,13 +180,19 @@ export default class LandmarkManager {
       bannerPath.setAttribute("stroke", "#9e9e9e"); // Grey out the border
     }
 
-    g.appendChild(labelGroup);
+    // Separate the label from the main building group so it can be sorted independently
+    const labelWrapper = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    labelWrapper.setAttribute("transform", g.getAttribute("transform") || `translate(${x}, ${y})`);
+    labelWrapper.appendChild(labelGroup);
 
     // Push into the Global Z-Sorting RenderQueue
     if (renderQueue) {
       renderQueue.push({ y: y, element: g });
+      // UI labels must ALWAYS float above all isometric terrain elements
+      renderQueue.push({ y: 9999999, element: labelWrapper });
     } else {
       this.renderer.getLayer('landmarks').appendChild(g);
+      this.renderer.getLayer('landmarks').appendChild(labelWrapper);
     }
   }
 
